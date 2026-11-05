@@ -1,0 +1,185 @@
+<?php
+
+namespace App\Http\Controllers\Admin\Admission;
+
+use App\Actions\Admission\ResolveRuleset;
+use App\Actions\Admission\SaveRuleset;
+use App\Contracts\HasLabel;
+use App\Enums\Ability;
+use App\Enums\BillType;
+use App\Enums\Gender;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Admission\SaveRulesetRequest;
+use App\Models\Organization;
+use App\Models\Ruleset;
+use App\Models\RulesetBillItem;
+use App\Models\Wave;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class RulesetController extends Controller
+{
+    public function index(Request $request, ResolveRuleset $resolveRuleset): Response
+    {
+        Gate::authorize('viewAny', Ruleset::class);
+
+        $match = null;
+
+        if ($request->boolean('uji')) {
+            $match = $resolveRuleset->handle(
+                $request->integer('gelombang') ?: null,
+                $request->integer('lembaga') ?: null,
+                $request->enum('gender', Gender::class),
+            );
+        }
+
+        return Inertia::render('admin/rulesets/index', [
+            'rulesets' => Ruleset::query()
+                ->with(['wave', 'organization'])
+                ->byPriority()
+                ->get()
+                ->map(fn (Ruleset $ruleset): array => $this->summary($ruleset)),
+            'options' => $this->options(),
+            'test' => [
+                'ran' => $request->boolean('uji'),
+                'match' => $match === null ? null : ['id' => $match->id, 'name' => $match->name],
+                'filters' => [
+                    'gelombang' => $request->input('gelombang', ''),
+                    'lembaga' => $request->input('lembaga', ''),
+                    'gender' => $request->input('gender', ''),
+                ],
+            ],
+            'can' => ['manage' => $request->user()->can(Ability::RulesetManage->value)],
+        ]);
+    }
+
+    public function create(): Response
+    {
+        Gate::authorize('create', Ruleset::class);
+
+        return Inertia::render('admin/rulesets/form', [
+            'ruleset' => null,
+            'options' => $this->options(),
+        ]);
+    }
+
+    public function store(SaveRulesetRequest $request, SaveRuleset $saveRuleset): RedirectResponse
+    {
+        $ruleset = $this->save($request, $saveRuleset);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Aturan sudah dibuat. Sekarang isi tagihan, ujian, dan jadwalnya.']);
+
+        return to_route('admin.rulesets.show', $ruleset);
+    }
+
+    public function show(Request $request, Ruleset $ruleset): Response
+    {
+        Gate::authorize('view', $ruleset);
+
+        $ruleset->load(['wave', 'organization', 'bills.items', 'examAspects', 'examDays.sessions']);
+
+        return Inertia::render('admin/rulesets/show', [
+            'ruleset' => $this->summary($ruleset),
+            'bills' => collect(BillType::cases())->mapWithKeys(fn (BillType $type): array => [
+                $type->value => $ruleset->bills->firstWhere('type', $type)?->items->map(fn (RulesetBillItem $item): array => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'amount' => $item->amount,
+                ])->values() ?? [],
+            ]),
+            'aspects' => $ruleset->examAspects->map(fn ($aspect): array => [
+                'id' => $aspect->id,
+                'name' => $aspect->name,
+                'passing_score' => $aspect->passing_score,
+            ])->values(),
+            'days' => $ruleset->examDays->map(fn ($day): array => [
+                'id' => $day->id,
+                'date' => $day->date->toDateString(),
+                'sessions' => $day->sessions->map(fn ($session): array => [
+                    'id' => $session->id,
+                    'label' => $session->label,
+                    'start_time' => substr($session->start_time, 0, 5),
+                    'end_time' => substr($session->end_time, 0, 5),
+                    'quota' => $session->quota,
+                ])->values(),
+            ])->values(),
+            'can' => ['update' => $request->user()->can('update', $ruleset), 'delete' => $request->user()->can('delete', $ruleset)],
+        ]);
+    }
+
+    public function edit(Ruleset $ruleset): Response
+    {
+        Gate::authorize('update', $ruleset);
+
+        return Inertia::render('admin/rulesets/form', [
+            'ruleset' => $this->summary($ruleset),
+            'options' => $this->options(),
+        ]);
+    }
+
+    public function update(SaveRulesetRequest $request, Ruleset $ruleset, SaveRuleset $saveRuleset): RedirectResponse
+    {
+        $this->save($request, $saveRuleset, $ruleset);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Aturan sudah diperbarui.']);
+
+        return to_route('admin.rulesets.show', $ruleset);
+    }
+
+    public function destroy(Ruleset $ruleset): RedirectResponse
+    {
+        Gate::authorize('delete', $ruleset);
+
+        $ruleset->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Aturan sudah dihapus.']);
+
+        return to_route('admin.rulesets.index');
+    }
+
+    private function save(SaveRulesetRequest $request, SaveRuleset $saveRuleset, ?Ruleset $ruleset = null): Ruleset
+    {
+        return $saveRuleset->handle(
+            $ruleset,
+            $request->string('name')->toString(),
+            $request->integer('wave_id') ?: null,
+            $request->integer('organization_id') ?: null,
+            $request->enum('gender', Gender::class),
+            $request->boolean('is_active'),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function summary(Ruleset $ruleset): array
+    {
+        return [
+            'id' => $ruleset->id,
+            'name' => $ruleset->name,
+            'priority' => $ruleset->priority,
+            'is_active' => $ruleset->is_active,
+            'wave_id' => $ruleset->wave_id,
+            'organization_id' => $ruleset->organization_id,
+            'gender_value' => $ruleset->gender?->value,
+            'wave' => $ruleset->wave?->name,
+            'organization' => $ruleset->organization?->name,
+            'gender' => $ruleset->gender?->label(),
+        ];
+    }
+
+    /**
+     * @return array<string, array<int, array{value: int|string, label: string}>>
+     */
+    private function options(): array
+    {
+        return [
+            'waves' => Wave::query()->orderByDesc('id')->get()->map(fn (Wave $wave): array => ['value' => $wave->id, 'label' => $wave->name])->values()->all(),
+            'organizations' => Organization::query()->orderBy('sort_order')->orderBy('name')->get()->map(fn (Organization $organization): array => ['value' => $organization->id, 'label' => $organization->name])->values()->all(),
+            'genders' => array_map(fn (HasLabel $gender): array => ['value' => $gender->value, 'label' => $gender->label()], Gender::cases()),
+        ];
+    }
+}

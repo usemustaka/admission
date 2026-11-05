@@ -2,13 +2,17 @@
 
 return [
     'accepted' => ':attribute harus disetujui.',
+    'after' => ':attribute harus setelah :date.',
+    'after_or_equal' => ':attribute tidak boleh sebelum :date.',
     'array' => ':attribute harus berupa daftar.',
     'before_or_equal' => ':attribute tidak boleh lebih dari :date.',
     'boolean' => ':attribute harus berupa ya atau tidak.',
     'confirmed' => 'Konfirmasi :attribute tidak cocok.',
     'current_password' => 'Kata sandinya salah.',
+    'date_format' => 'Format :attribute harus :format.',
     'date' => ':attribute bukan tanggal yang valid.',
     'digits' => ':attribute harus :digits digit angka.',
+    'distinct' => ':attribute tidak boleh sama dengan yang lain.',
     'email' => ':attribute harus berupa alamat email yang valid.',
     'enum' => 'Pilihan :attribute tidak valid.',
     'exists' => 'Pilihan :attribute tidak ditemukan.',
@@ -16,6 +20,8 @@ return [
     'in' => 'Pilihan :attribute tidak valid.',
     'integer' => ':attribute harus berupa angka bulat.',
     'max' => [
+        'after' => ':attribute harus setelah :date.',
+        'after_or_equal' => ':attribute tidak boleh sebelum :date.',
         'array' => ':attribute tidak boleh lebih dari :max item.',
         'file' => 'Ukuran :attribute tidak boleh lebih dari :max KB.',
         'numeric' => ':attribute tidak boleh lebih dari :max.',
@@ -23,6 +29,8 @@ return [
     ],
     'mimes' => ':attribute harus berupa file dengan format: :values.',
     'min' => [
+        'after' => ':attribute harus setelah :date.',
+        'after_or_equal' => ':attribute tidak boleh sebelum :date.',
         'array' => ':attribute minimal :min item.',
         'file' => 'Ukuran :attribute minimal :min KB.',
         'numeric' => ':attribute minimal :min.',
@@ -30,6 +38,7 @@ return [
     ],
     'not_in' => 'Pilihan :attribute tidak valid.',
     'numeric' => ':attribute harus berupa angka.',
+    'present' => ':attribute wajib ada.',
     'regex' => 'Format :attribute tidak valid.',
     'required' => ':attribute wajib diisi.',
     'required_if' => ':attribute wajib diisi.',
@@ -47,6 +56,7 @@ return [
     'attributes' => [
         'name' => 'Nama',
         'nik' => 'NIK',
+        'distinct' => ':attribute tidak boleh sama dengan yang lain.',
         'email' => 'Email',
         'password' => 'Kata sandi',
         'gender' => 'Jenis kelamin',

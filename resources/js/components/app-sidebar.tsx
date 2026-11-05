@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Users } from 'lucide-react';
+import { CalendarRange, LayoutGrid, ListChecks, Users } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as people } from '@/routes/admin/people';
+import { index as rulesets } from '@/routes/admin/rulesets';
+import { index as waves } from '@/routes/admin/waves';
 import type { NavItem } from '@/types';
 
 type NavGroup = {
@@ -34,6 +36,23 @@ const navGroups: NavGroup[] = [
                 href: people(),
                 icon: Users,
                 ability: 'core::person.view',
+            },
+        ],
+    },
+    {
+        label: 'Pendaftaran',
+        items: [
+            {
+                title: 'Gelombang',
+                href: waves(),
+                icon: CalendarRange,
+                ability: 'admission::wave.view',
+            },
+            {
+                title: 'Aturan pendaftaran',
+                href: rulesets(),
+                icon: ListChecks,
+                ability: 'admission::ruleset.view',
             },
         ],
     },

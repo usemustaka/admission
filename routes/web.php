@@ -1,6 +1,10 @@
 <?php
 
 use App\Enums\Ability;
+use App\Http\Controllers\Admin\Admission\RulesetContentController;
+use App\Http\Controllers\Admin\Admission\RulesetController;
+use App\Http\Controllers\Admin\Admission\RulesetOrderController;
+use App\Http\Controllers\Admin\Admission\WaveController;
 use App\Http\Controllers\Admin\NoteController;
 use App\Http\Controllers\Admin\ParentshipController;
 use App\Http\Controllers\Admin\PersonController;
@@ -31,6 +35,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->scoped();
 
             Route::resource('notes', NoteController::class)->only(['store', 'update', 'destroy']);
+
+            Route::resource('waves', WaveController::class)->only(['index', 'store', 'update']);
+
+            Route::resource('rulesets', RulesetController::class);
+            Route::patch('rulesets/{ruleset}/move', RulesetOrderController::class)->name('rulesets.move');
+            Route::put('rulesets/{ruleset}/bills', [RulesetContentController::class, 'bills'])->name('rulesets.bills');
+            Route::put('rulesets/{ruleset}/exam-aspects', [RulesetContentController::class, 'examAspects'])->name('rulesets.exam-aspects');
+            Route::put('rulesets/{ruleset}/exam-schedule', [RulesetContentController::class, 'examSchedule'])->name('rulesets.exam-schedule');
         });
 });
 

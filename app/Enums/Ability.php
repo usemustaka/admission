@@ -15,6 +15,10 @@ enum Ability: string
     case NoteView = 'core::note.view';
     case NoteCreate = 'core::note.create';
     case NoteManage = 'core::note.manage';
+    case WaveView = 'admission::wave.view';
+    case WaveManage = 'admission::wave.manage';
+    case RulesetView = 'admission::ruleset.view';
+    case RulesetManage = 'admission::ruleset.manage';
 
     public function label(): string
     {
@@ -27,6 +31,10 @@ enum Ability: string
             self::NoteView => 'Melihat catatan publik',
             self::NoteCreate => 'Menulis catatan',
             self::NoteManage => 'Mengubah dan menghapus catatan orang lain',
+            self::WaveView => 'Melihat gelombang pendaftaran',
+            self::WaveManage => 'Mengatur gelombang pendaftaran',
+            self::RulesetView => 'Melihat aturan pendaftaran',
+            self::RulesetManage => 'Mengatur aturan pendaftaran',
         };
     }
 }
