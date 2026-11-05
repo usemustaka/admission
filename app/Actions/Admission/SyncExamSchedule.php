@@ -4,27 +4,26 @@ namespace App\Actions\Admission;
 
 use App\Models\ExamDay;
 use App\Models\ExamSession;
-use App\Models\Ruleset;
 use App\Support\SyncRows;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SyncExamSchedule
 {
     /**
-     * Make the exam days and sessions of a ruleset match the submitted schedule. The submitted dates are already
-     * known to be distinct, but days may take over each other's dates, so the dates are changed in steps.
+     * Make the exam days and sessions of one scope match the submitted schedule. A scope is an organization and a
+     * wave, where `null` means "all"; days of other scopes are never touched. The submitted dates are already
+     * known to be distinct.
      *
      * @param  list<array{id?: int|null, date: string, sessions: list<array{id?: int|null, label: string, start_time: string, end_time: string, quota: int}>}>  $days
      *
      * @throws ValidationException
      */
-    public function handle(Ruleset $ruleset, array $days): void
+    public function handle(?int $organizationId, ?int $waveId, array $days): void
     {
-        DB::transaction(function () use ($ruleset, $days): void {
-            $existingDays = $ruleset->examDays()->with('sessions')->get()->keyBy('id');
+        DB::transaction(function () use ($organizationId, $waveId, $days): void {
+            $existingDays = ExamDay::query()->inScope($organizationId, $waveId)->with('sessions')->lockForUpdate()->get()->keyBy('id');
 
             $sessions = ExamSession::query()
                 ->whereIn('exam_day_id', $existingDays->keys())
@@ -36,7 +35,7 @@ class SyncExamSchedule
             $this->guardSessionsInUse($existingDays, $sessions, $days);
             $this->guardQuota($existingDays, $sessions, $days);
 
-            $models = $this->syncDays($ruleset, $existingDays, $days);
+            $models = $this->syncDays($organizationId, $waveId, $existingDays, $days);
 
             foreach ($models as $index => $day) {
                 SyncRows::handle($day->sessions(), $days[$index]['sessions'] ?? [], fn (array $row): array => [
@@ -135,14 +134,17 @@ class SyncExamSchedule
     }
 
     /**
-     * Delete the days that were removed, move the others to their new dates through temporary dates (so days can
-     * swap or shift into each other's dates without hitting the unique date per ruleset), and create the new ones.
+     * Delete the days that were removed, move the others to their new dates, and create the new ones. A date is
+     * used once per scope: the schedule is checked again once it is written, so two admins adding the same date
+     * at the same time cannot both succeed.
      *
      * @param  Collection<int, ExamDay>  $existingDays
      * @param  list<array{id?: int|null, date: string}>  $days
      * @return array<int, ExamDay> the day of each submitted row, by its index
+     *
+     * @throws ValidationException
      */
-    private function syncDays(Ruleset $ruleset, Collection $existingDays, array $days): array
+    private function syncDays(?int $organizationId, ?int $waveId, Collection $existingDays, array $days): array
     {
         $models = [];
 
@@ -152,37 +154,24 @@ class SyncExamSchedule
 
         $keptIds = array_map(fn (ExamDay $day): int => $day->id, array_filter($models));
 
-        ExamDay::query()->where('ruleset_id', $ruleset->id)->whereNotIn('id', $keptIds)->delete();
-
-        $moving = [];
+        ExamDay::query()->inScope($organizationId, $waveId)->whereNotIn('id', $keptIds)->delete();
 
         foreach ($models as $index => $day) {
             if ($day !== null && $day->date->toDateString() !== $days[$index]['date']) {
-                $moving[$index] = $day;
-            }
-        }
-
-        $used = array_flip(array_merge(
-            $existingDays->map(fn (ExamDay $day): string => $day->date->toDateString())->all(),
-            array_column($days, 'date'),
-        ));
-        $placeholder = Carbon::create(1000, 1, 1);
-
-        foreach ($moving as $day) {
-            while (isset($used[$placeholder->toDateString()])) {
-                $placeholder->addDay();
+                $day->update(['date' => $days[$index]['date']]);
             }
 
-            $day->update(['date' => $placeholder->toDateString()]);
-            $placeholder->addDay();
+            $models[$index] ??= ExamDay::query()->create([
+                'organization_id' => $organizationId,
+                'wave_id' => $waveId,
+                'date' => $days[$index]['date'],
+            ]);
         }
 
-        foreach ($moving as $index => $day) {
-            $day->update(['date' => $days[$index]['date']]);
-        }
+        $repeated = ExamDay::query()->inScope($organizationId, $waveId)->get()->groupBy(fn (ExamDay $day): string => $day->date->toDateString())->filter(fn ($group): bool => $group->count() > 1);
 
-        foreach ($models as $index => $day) {
-            $models[$index] ??= $ruleset->examDays()->create(['date' => $days[$index]['date']]);
+        if ($repeated->isNotEmpty()) {
+            throw ValidationException::withMessages(['days' => 'Tanggal ujian '.$repeated->keys()->implode(', ').' sudah ada di jadwal ini. Muat ulang halaman dan coba lagi.']);
         }
 
         return $models;

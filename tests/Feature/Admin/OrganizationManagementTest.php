@@ -2,6 +2,7 @@
 
 use App\Enums\DefaultRole;
 use App\Models\Employee;
+use App\Models\ExamDay;
 use App\Models\Organization;
 use App\Models\Registrant;
 use App\Models\Ruleset;
@@ -147,6 +148,7 @@ test('only a lembaga nobody uses can be deleted, the others are deactivated inst
         fn (Organization $organization) => Registrant::factory()->create(['organization_id' => $organization->id]),
         fn (Organization $organization) => Student::factory()->create(['organization_id' => $organization->id]),
         fn (Organization $organization) => Employee::factory()->create(['organization_id' => $organization->id]),
+        fn (Organization $organization) => ExamDay::factory()->create(['organization_id' => $organization->id]),
     ] as $use) {
         $organization = Organization::factory()->create();
         $use($organization);
@@ -156,6 +158,16 @@ test('only a lembaga nobody uses can be deleted, the others are deactivated inst
         expect(session('errors')->first('organization'))->toContain('Nonaktifkan')
             ->and(Organization::whereKey($organization->id)->exists())->toBeTrue();
     }
+});
+
+test('a lembaga is in use once it has an exam day, even when nothing else uses it', function () {
+    $organization = Organization::factory()->create();
+
+    expect($organization->isInUse())->toBeFalse();
+
+    ExamDay::factory()->create(['organization_id' => $organization->id]);
+
+    expect($organization->isInUse())->toBeTrue();
 });
 
 test('an inactive lembaga is not offered to new registrations, but its old data stays', function () {

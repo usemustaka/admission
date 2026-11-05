@@ -181,7 +181,7 @@ export default function RulesetsIndex({
                 <PageHeader
                     icon={ListChecks}
                     title="Aturan pendaftaran"
-                    description="Tiap aturan berisi tagihan, aspek ujian, dan jadwal ujian untuk pendaftar yang cocok dengan syaratnya. Aturan dicek dari atas ke bawah dan yang pertama cocok dipakai, jadi taruh aturan khusus di atas aturan umum."
+                    description="Tiap aturan berisi tagihan dan aspek ujian untuk pendaftar yang cocok dengan syaratnya. Aturan dicek dari atas ke bawah dan yang pertama cocok dipakai, jadi taruh aturan khusus di atas aturan umum."
                     actions={
                         can.manage && (
                             <Button asChild>

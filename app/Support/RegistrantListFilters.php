@@ -242,7 +242,7 @@ class RegistrantListFilters
     }
 
     /**
-     * Registrations whose ruleset has an exam schedule but who have not picked a session yet.
+     * Registrations whose organization and wave have an exam schedule but who have not picked a session yet.
      *
      * @param  Builder<Registrant>  $query
      * @return Builder<Registrant>
@@ -251,10 +251,10 @@ class RegistrantListFilters
     {
         return $query
             ->whereNull('registrants.exam_session_id')
-            ->whereNotNull('registrants.ruleset_id')
             ->whereExists(fn ($days) => $days->selectRaw('1')
                 ->from('exam_days')
-                ->whereColumn('exam_days.ruleset_id', 'registrants.ruleset_id')
+                ->where(fn ($organization) => $organization->whereNull('exam_days.organization_id')->orWhereColumn('exam_days.organization_id', 'registrants.organization_id'))
+                ->where(fn ($wave) => $wave->whereNull('exam_days.wave_id')->orWhereColumn('exam_days.wave_id', 'registrants.wave_id'))
                 ->whereExists(fn ($sessions) => $sessions->selectRaw('1')->from('exam_sessions')->whereColumn('exam_sessions.exam_day_id', 'exam_days.id')));
     }
 }

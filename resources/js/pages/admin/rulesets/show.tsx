@@ -1,6 +1,6 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
-    CalendarDays,
+    CalendarClock,
     ListChecks,
     Pencil,
     Trash2,
@@ -10,7 +10,6 @@ import {
 import { useState } from 'react';
 import { BillEditor } from '@/components/admission/bill-editor';
 import { ExamAspectEditor } from '@/components/admission/exam-aspect-editor';
-import { ExamScheduleEditor } from '@/components/admission/exam-schedule-editor';
 import { RulesetConditions } from '@/components/admission/ruleset-conditions';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { PageHeader } from '@/components/page-header';
@@ -19,11 +18,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
+import { edit as editSchedule } from '@/routes/admin/exams/schedule';
 import { destroy, edit, index, show } from '@/routes/admin/rulesets';
 import type {
     BillItemRow,
     ExamAspectRow,
-    ExamDayRow,
     RulesetSummary,
 } from '@/types/admission';
 
@@ -31,16 +30,16 @@ export default function RulesetShow({
     ruleset,
     bills,
     aspects,
-    days,
     can,
 }: {
     ruleset: RulesetSummary;
     bills: { registration: BillItemRow[]; settlement: BillItemRow[] };
     aspects: ExamAspectRow[];
-    days: ExamDayRow[];
     can: { update: boolean; delete: boolean };
 }) {
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const { abilities } = usePage().props.auth;
+    const canManageSchedule = abilities.includes('admission::exam.manage');
 
     return (
         <>
@@ -49,7 +48,7 @@ export default function RulesetShow({
                 <PageHeader
                     icon={ListChecks}
                     title={ruleset.name}
-                    description="Isi tagihan, aspek ujian, dan jadwal ujian untuk pendaftar yang cocok dengan syarat aturan ini."
+                    description="Isi tagihan dan aspek ujian untuk pendaftar yang cocok dengan syarat aturan ini."
                     actions={
                         <>
                             {can.update && (
@@ -122,16 +121,38 @@ export default function RulesetShow({
                         </SectionCard>
 
                         <SectionCard
-                            title="Jadwal ujian"
-                            description="Tanggal dan sesi yang bisa dipilih orang tua. Kuota membatasi jumlah yang bisa memilih satu sesi."
-                            icon={CalendarDays}
+                            title="Jadwal ujian diatur di menu Ujian, bukan per aturan"
+                            description="Tanggal, sesi, dan kuota dipakai bersama oleh semua pendaftar di lembaga dan gelombang yang sama, apa pun aturannya."
+                            icon={CalendarClock}
+                            actions={
+                                canManageSchedule && (
+                                    <Button variant="outline" asChild>
+                                        <Link
+                                            href={editSchedule({
+                                                query: {
+                                                    ...(ruleset.organization_id !==
+                                                        null && {
+                                                        lembaga:
+                                                            ruleset.organization_id,
+                                                    }),
+                                                    ...(ruleset.wave_id !==
+                                                        null && {
+                                                        gelombang:
+                                                            ruleset.wave_id,
+                                                    }),
+                                                },
+                                            })}
+                                        >
+                                            Atur jadwal ujian
+                                        </Link>
+                                    </Button>
+                                )
+                            }
                         >
-                            <ExamScheduleEditor
-                                key={JSON.stringify(days)}
-                                rulesetId={ruleset.id}
-                                initial={days}
-                                canEdit={can.update}
-                            />
+                            <p className="text-sm text-muted-foreground">
+                                Aturan ini hanya menentukan tagihan dan aspek
+                                ujian.
+                            </p>
                         </SectionCard>
                     </div>
 
@@ -196,7 +217,7 @@ export default function RulesetShow({
                 description={
                     ruleset.registrants_count > 0
                         ? `${ruleset.registrants_count} pendaftar sudah memakai aturan ini, jadi aturan tidak bisa dihapus. Nonaktifkan saja lewat Ubah syarat supaya tidak dipakai pendaftar baru.`
-                        : 'Tagihan, aspek ujian, dan jadwal ujian aturan ini ikut terhapus dan tidak bisa dikembalikan.'
+                        : 'Tagihan dan aspek ujian aturan ini ikut terhapus dan tidak bisa dikembalikan. Jadwal ujian tidak terpengaruh.'
                 }
                 confirmLabel={
                     ruleset.registrants_count > 0 ? 'Ubah syarat' : 'Ya, hapus'

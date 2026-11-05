@@ -11,9 +11,7 @@ use App\Enums\BillType;
 use App\Enums\Gender;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Admission\SaveRulesetRequest;
-use App\Models\ExamSession;
 use App\Models\Organization;
-use App\Models\Registrant;
 use App\Models\Ruleset;
 use App\Models\RulesetBillItem;
 use App\Models\Wave;
@@ -94,7 +92,6 @@ class RulesetController extends Controller
 
         $ruleset->load([
             'wave', 'organization', 'bills.items', 'examAspects',
-            'examDays.sessions' => fn ($sessions) => $sessions->withCount('registrants'),
         ])->loadCount('registrants');
 
         $shadowed = $findShadowedRulesets->handle(Ruleset::query()->byPriority()->get());
@@ -112,18 +109,6 @@ class RulesetController extends Controller
                 'id' => $aspect->id,
                 'name' => $aspect->name,
                 'passing_score' => $aspect->passing_score,
-            ])->values(),
-            'days' => $ruleset->examDays->map(fn ($day): array => [
-                'id' => $day->id,
-                'date' => $day->date->toDateString(),
-                'sessions' => $day->sessions->map(fn ($session): array => [
-                    'id' => $session->id,
-                    'label' => $session->label,
-                    'start_time' => substr($session->start_time, 0, 5),
-                    'end_time' => substr($session->end_time, 0, 5),
-                    'quota' => $session->quota,
-                    'taken' => $session->registrants_count,
-                ])->values(),
             ])->values(),
             'can' => ['update' => $request->user()->can('update', $ruleset), 'delete' => $request->user()->can('delete', $ruleset)],
         ]);
@@ -154,16 +139,6 @@ class RulesetController extends Controller
 
         if ($ruleset->registrants()->exists()) {
             Inertia::flash('toast', ['type' => 'error', 'message' => 'Aturan ini sudah dipakai pendaftar, jadi tidak bisa dihapus. Nonaktifkan saja lewat Ubah syarat supaya tidak dipakai pendaftar baru.']);
-
-            return back();
-        }
-
-        $sessionsInUse = Registrant::query()->whereIn('exam_session_id', ExamSession::query()
-            ->whereHas('day', fn ($days) => $days->where('ruleset_id', $ruleset->id))
-            ->select('id'))->exists();
-
-        if ($sessionsInUse) {
-            Inertia::flash('toast', ['type' => 'error', 'message' => 'Aturan ini belum bisa dihapus karena sesi ujiannya sudah dipilih pendaftar.']);
 
             return back();
         }

@@ -85,14 +85,6 @@ class Ruleset extends Model
     }
 
     /**
-     * @return HasMany<ExamDay, $this>
-     */
-    public function examDays(): HasMany
-    {
-        return $this->hasMany(ExamDay::class)->orderBy('date');
-    }
-
-    /**
      * @param  Builder<Ruleset>  $query
      */
     #[Scope]

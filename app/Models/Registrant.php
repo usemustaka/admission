@@ -203,11 +203,11 @@ class Registrant extends Model
     }
 
     /**
-     * Whether the ruleset has an exam schedule the parent has to pick a session from.
+     * Whether there is an exam schedule for this organization and wave that the parent has to pick a session from.
      */
     public function hasExamSchedule(): bool
     {
-        return $this->ruleset_id !== null && ExamDay::query()->where('ruleset_id', $this->ruleset_id)->whereHas('sessions')->exists();
+        return ExamDay::query()->forRegistrant($this)->whereHas('sessions')->exists();
     }
 
     /**

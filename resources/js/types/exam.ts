@@ -4,9 +4,10 @@ export type ExamSessionInfo = {
     date: string;
     /** Session label and time, e.g. "Sesi 1 · 08:00 s.d. 10:00". */
     label: string;
-    ruleset: string;
-    /** Null when the ruleset applies to every organization. */
+    /** Null when the schedule is for every organization. */
     organization: string | null;
+    /** Null when the schedule is for every wave. */
+    wave: string | null;
     quota: number;
     taken: number;
     /** Registrations that still lack at least one score. */

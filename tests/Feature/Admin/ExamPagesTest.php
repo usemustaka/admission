@@ -10,26 +10,23 @@ use App\Models\Person;
 use App\Models\Registrant;
 use App\Models\Ruleset;
 use App\Models\User;
+use App\Models\Wave;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function () {
     $this->withoutVite();
 
-    $this->sessionOn = function (string $date, ?Ruleset $ruleset = null, int $quota = 30, string $label = 'Sesi 1'): ExamSession {
-        $ruleset ??= Ruleset::factory()->create();
+    $this->sessionOn = function (string $date, ?Organization $organization = null, int $quota = 30, string $label = 'Sesi 1', ?Wave $wave = null): ExamSession {
+        $day = ExamDay::query()->inScope($organization?->id, $wave?->id)->whereDate('date', $date)->first()
+            ?? ExamDay::factory()->create(['organization_id' => $organization?->id, 'wave_id' => $wave?->id, 'date' => $date]);
 
-        return ExamSession::factory()->create([
-            'label' => $label,
-            'quota' => $quota,
-            'exam_day_id' => (ExamDay::query()->where('ruleset_id', $ruleset->id)->whereDate('date', $date)->first()
-                ?? ExamDay::factory()->create(['ruleset_id' => $ruleset->id, 'date' => $date]))->id,
-        ]);
+        return ExamSession::factory()->create(['label' => $label, 'quota' => $quota, 'exam_day_id' => $day->id]);
     };
 
     $this->join = function (ExamSession $session, ?array $scores = null, array $attributes = []): Registrant {
         return admissionRegistrant(RegistrantStatus::Review, [
-            'ruleset_id' => $session->day->ruleset_id,
+            ...array_filter(['organization_id' => $session->day->organization_id, 'wave_id' => $session->day->wave_id]),
             'exam_session_id' => $session->id,
             'exam_scores' => $scores,
             ...$attributes,
@@ -49,11 +46,10 @@ describe('the exams page', function () {
 
     test('by default it lists the sessions from today onward, grouped by day, and "semua" adds the past', function () {
         $this->actingAs(registrantViewer());
-        $ruleset = Ruleset::factory()->create();
-        ($this->sessionOn)(now()->subDays(3)->toDateString(), $ruleset, label: 'Sesi lampau');
-        $today = ($this->sessionOn)(now()->toDateString(), $ruleset, label: 'Sesi 2');
-        ($this->sessionOn)(now()->toDateString(), $ruleset, label: 'Sesi 1');
-        ($this->sessionOn)(now()->addDays(2)->toDateString(), $ruleset, label: 'Sesi nanti');
+        ($this->sessionOn)(now()->subDays(3)->toDateString(), label: 'Sesi lampau');
+        $today = ($this->sessionOn)(now()->toDateString(), label: 'Sesi 2');
+        ($this->sessionOn)(now()->toDateString(), label: 'Sesi 1');
+        ($this->sessionOn)(now()->addDays(2)->toDateString(), label: 'Sesi nanti');
         $today->update(['start_time' => '13:00:00', 'end_time' => '15:00:00']);
 
         $this->get(route('admin.exams.index'))->assertInertia(fn (AssertableInertia $page) => $page
@@ -72,10 +68,9 @@ describe('the exams page', function () {
 
     test('a date or a range narrows the sessions, and a bad date falls back to the default', function () {
         $this->actingAs(registrantViewer());
-        $ruleset = Ruleset::factory()->create();
-        $first = ($this->sessionOn)('2026-12-01', $ruleset);
-        ($this->sessionOn)('2026-12-02', $ruleset);
-        ($this->sessionOn)('2026-12-05', $ruleset);
+        $first = ($this->sessionOn)('2026-12-01');
+        ($this->sessionOn)('2026-12-02');
+        ($this->sessionOn)('2026-12-05');
 
         $this->get(route('admin.exams.index', ['tanggal' => '2026-12-01']))->assertInertia(fn (AssertableInertia $page) => $page
             ->has('days', 1)
@@ -89,20 +84,55 @@ describe('the exams page', function () {
             ->where('filters.tanggal', ''));
     });
 
-    test('the organization filter keeps sessions of rulesets for that organization or for any', function () {
+    test('the organization filter keeps the sessions for that organization or for all', function () {
         $this->actingAs(registrantViewer());
         $date = now()->addDay()->toDateString();
         $sd = Organization::factory()->create();
         $smp = Organization::factory()->create();
-        $forSd = ($this->sessionOn)($date, Ruleset::factory()->create(['organization_id' => $sd->id]));
-        $forSmp = ($this->sessionOn)($date, Ruleset::factory()->create(['organization_id' => $smp->id]));
-        $forAny = ($this->sessionOn)($date, Ruleset::factory()->create(['organization_id' => null]));
+        $forSd = ($this->sessionOn)($date, $sd);
+        $forSmp = ($this->sessionOn)($date, $smp);
+        $forAll = ($this->sessionOn)($date);
 
         $this->get(route('admin.exams.index', ['lembaga' => $sd->id]))->assertInertia(fn (AssertableInertia $page) => $page
             ->has('days.0.sessions', 2)
-            ->where('days.0.sessions', fn ($sessions) => collect($sessions)->pluck('id')->sort()->values()->all() === collect([$forSd->id, $forAny->id])->sort()->values()->all()));
+            ->where('days.0.sessions', fn ($sessions) => collect($sessions)->pluck('id')->sort()->values()->all() === collect([$forSd->id, $forAll->id])->sort()->values()->all())
+            ->where('filters.lembaga', (string) $sd->id));
+
+        $this->get(route('admin.exams.index'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('summary.sessions', 3));
 
         expect($forSmp->id)->not->toBe($forSd->id);
+    });
+
+    test('a session says which organization and wave it is for, and null when it is for all', function () {
+        $this->actingAs(registrantViewer());
+        $date = now()->addDay()->toDateString();
+        $organization = Organization::factory()->create();
+        $wave = Wave::factory()->create();
+        ($this->sessionOn)($date, $organization, label: 'Sesi khusus', wave: $wave);
+        ($this->sessionOn)($date, label: 'Sesi umum');
+
+        $this->get(route('admin.exams.index'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('days.0.sessions', fn ($sessions) => collect($sessions)->every(fn (array $row): bool => ! array_key_exists('ruleset', $row))
+                && collect($sessions)->contains(fn (array $row): bool => $row['organization'] === $organization->name && $row['wave'] === $wave->name)
+                && collect($sessions)->contains(fn (array $row): bool => $row['organization'] === null && $row['wave'] === null)));
+    });
+
+    test('a session shared by registrants of two rulesets is listed once with everyone counted', function () {
+        $this->actingAs(registrantViewer());
+        $organization = Organization::factory()->create();
+        $session = ($this->sessionOn)(now()->addDay()->toDateString(), $organization);
+        $other = ($this->sessionOn)(now()->addDay()->toDateString(), $organization, label: 'Sesi 2');
+        $first = ($this->join)($session);
+        $second = ($this->join)($session);
+        $second->update(['ruleset_id' => Ruleset::factory()->create()->id]);
+
+        expect($first->ruleset_id)->not->toBe($second->refresh()->ruleset_id);
+
+        $this->get(route('admin.exams.index', ['lembaga' => $organization->id]))->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('days.0.sessions', 2)
+            ->where('days.0.sessions', fn ($sessions) => collect($sessions)->firstWhere('id', $session->id)['taken'] === 2
+                && collect($sessions)->firstWhere('id', $other->id)['taken'] === 0));
     });
 
     test('a session counts who picked it, who still lacks scores, and who passed or not', function () {
@@ -124,11 +154,10 @@ describe('the exams page', function () {
 
     test('"perlu dinilai" keeps the sessions of today or the past that still lack scores', function () {
         $this->actingAs(registrantViewer());
-        $ruleset = Ruleset::factory()->create();
-        $pastMissing = ($this->sessionOn)(now()->subDays(2)->toDateString(), $ruleset);
-        $pastDone = ($this->sessionOn)(now()->subDays(3)->toDateString(), $ruleset);
-        $todayMissing = ($this->sessionOn)(now()->toDateString(), $ruleset);
-        $futureMissing = ($this->sessionOn)(now()->addDays(2)->toDateString(), $ruleset);
+        $pastMissing = ($this->sessionOn)(now()->subDays(2)->toDateString());
+        $pastDone = ($this->sessionOn)(now()->subDays(3)->toDateString());
+        $todayMissing = ($this->sessionOn)(now()->toDateString());
+        $futureMissing = ($this->sessionOn)(now()->addDays(2)->toDateString());
 
         ($this->join)($pastMissing, [80, null]);
         ($this->join)($pastDone, [80, 70]);

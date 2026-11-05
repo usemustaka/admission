@@ -27,6 +27,7 @@ import type { LucideIcon } from 'lucide-react';
 import { dashboard } from '@/routes';
 import { edit as admissionSettings } from '@/routes/admin/admission-settings';
 import { index as exams } from '@/routes/admin/exams';
+import { edit as examSchedule } from '@/routes/admin/exams/schedule';
 import { index as organizations } from '@/routes/admin/organizations';
 import {
     arrears,
@@ -82,6 +83,12 @@ export const adminSections: AdminSection[] = [
                 href: exams(),
                 icon: ClipboardCheck,
                 ability: 'admission::registrant.view',
+            },
+            {
+                title: 'Jadwal ujian',
+                href: examSchedule(),
+                icon: CalendarClock,
+                ability: 'admission::exam.manage',
             },
             {
                 title: 'Gelombang',

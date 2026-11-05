@@ -14,7 +14,7 @@ import {
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useInitials } from '@/hooks/use-initials';
-import { cn, nameColor } from '@/lib/utils';
+import { cn, nameColor, toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
 export function useAdminNavigation() {
@@ -49,6 +49,10 @@ export function AdminHeader() {
     }, []);
 
     const subPages = active && active.pages.length > 1 ? active.pages : [];
+    // Sibling pages can share a prefix (/admin/exams and /admin/exams/jadwal), so only the most specific match is current.
+    const currentPage = subPages
+        .filter((page) => isCurrentOrParentUrl(page.href))
+        .sort((a, b) => toUrl(b.href).length - toUrl(a.href).length)[0];
 
     return (
         <header className="sticky top-0 z-40 border-b border-line bg-background/75 backdrop-blur-sm">
@@ -161,7 +165,7 @@ export function AdminHeader() {
                         items={subPages.map((page) => ({
                             href: page.href,
                             label: page.title,
-                            selected: isCurrentOrParentUrl(page.href),
+                            selected: page === currentPage,
                         }))}
                     />
                 </div>

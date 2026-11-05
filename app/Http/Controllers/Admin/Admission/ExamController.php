@@ -31,10 +31,10 @@ class ExamController extends Controller
     ];
 
     /**
-     * The exam sessions of every ruleset by day. By default the sessions from today onward; `tanggal` can be
+     * The exam sessions of every organization and wave by day. By default the sessions from today onward; `tanggal` can be
      * a date (with `sampai` for a range) or `semua`. `perlu_dinilai` keeps the sessions that are today or
      * past and still have registrations without a full set of scores, across all dates unless `tanggal` says
-     * where to start. `lembaga` keeps the sessions of rulesets for that organization or for any.
+     * where to start. `lembaga` keeps the sessions for that organization or for all of them.
      */
     public function index(Request $request): Response
     {
@@ -57,11 +57,11 @@ class ExamController extends Controller
         $sessions = ExamSession::query()
             ->select('exam_sessions.*')
             ->join('exam_days', 'exam_days.id', '=', 'exam_sessions.exam_day_id')
-            ->with('day.ruleset.organization')
+            ->with('day.organization', 'day.wave')
             ->when($from, fn (Builder $query) => $query->whereDate('exam_days.date', '>=', $from))
             ->when($to, fn (Builder $query) => $query->whereDate('exam_days.date', '<=', $to))
-            ->when($organizationId, fn (Builder $query) => $query->whereHas('day.ruleset', fn (Builder $ruleset) => $ruleset
-                ->where(fn (Builder $any) => $any->where('organization_id', $organizationId)->orWhereNull('organization_id'))))
+            ->when($organizationId, fn (Builder $query) => $query->where(fn (Builder $any) => $any
+                ->where('exam_days.organization_id', $organizationId)->orWhereNull('exam_days.organization_id')))
             ->orderBy('exam_days.date')
             ->orderBy('exam_sessions.start_time')
             ->orderBy('exam_sessions.id')
@@ -74,8 +74,8 @@ class ExamController extends Controller
                 'id' => $session->id,
                 'date' => $session->day->date->toDateString(),
                 'label' => ExamSchedulePresenter::label($session),
-                'ruleset' => $session->day->ruleset->name,
-                'organization' => $session->day->ruleset->organization?->name,
+                'organization' => $session->day->organization?->name,
+                'wave' => $session->day->wave?->name,
                 'quota' => $session->quota,
                 ...$stats[$session->id],
                 'needs_grading' => $session->day->date->toDateString() <= $today && $stats[$session->id]['missing'] > 0,

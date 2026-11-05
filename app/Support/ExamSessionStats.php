@@ -48,20 +48,20 @@ class ExamSessionStats
     }
 
     /**
-     * A session as the exam pages show it: when, which ruleset and organization, the quota and the counts.
+     * A session as the exam pages show it: when, for whom (organization and wave), the quota and the counts.
      *
-     * @return array{id: int, date: string, label: string, ruleset: string, organization: string|null, quota: int, taken: int, missing: int, passed: int, failed: int}
+     * @return array{id: int, date: string, label: string, organization: string|null, wave: string|null, quota: int, taken: int, missing: int, passed: int, failed: int}
      */
     public static function describe(ExamSession $session): array
     {
-        $session->loadMissing('day.ruleset.organization');
+        $session->loadMissing('day.organization', 'day.wave');
 
         return [
             'id' => $session->id,
             'date' => $session->day->date->toDateString(),
             'label' => ExamSchedulePresenter::label($session),
-            'ruleset' => $session->day->ruleset->name,
-            'organization' => $session->day->ruleset->organization?->name,
+            'organization' => $session->day->organization?->name,
+            'wave' => $session->day->wave?->name,
             'quota' => $session->quota,
             ...self::for([$session->id])[$session->id],
         ];

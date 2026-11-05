@@ -75,3 +75,16 @@ export type ExamDayRow = {
     date: string;
     sessions: ExamSessionRow[];
 };
+
+/** Who a schedule is for: null means all organizations or all waves. */
+export type ExamScheduleScope = {
+    organization_id: number | null;
+    wave_id: number | null;
+};
+
+/** An existing schedule, one per organization and wave. */
+export type ExamScheduleSummary = ExamScheduleScope & {
+    label: string;
+    days: number;
+    sessions: number;
+};

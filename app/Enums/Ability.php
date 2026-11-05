@@ -27,6 +27,7 @@ enum Ability: string
     case RulesetManage = 'admission::ruleset.manage';
     case RegistrantView = 'admission::registrant.view';
     case RegistrantManage = 'admission::registrant.manage';
+    case ExamManage = 'admission::exam.manage';
     case RegistrantExport = 'admission::registrant.export';
     case RegistrantBulk = 'admission::registrant.bulk';
     case RegistrantPlace = 'admission::registrant.place';
@@ -71,6 +72,7 @@ enum Ability: string
             self::RulesetManage => 'Mengatur aturan pendaftaran',
             self::RegistrantView => 'Melihat pendaftar',
             self::RegistrantManage => 'Memeriksa, mengubah, mengumumkan, dan menempatkan pendaftar',
+            self::ExamManage => 'Mengatur jadwal ujian: tanggal, sesi, dan kuota',
             self::RegistrantExport => 'Mengekspor data pendaftar (CSV)',
             self::RegistrantBulk => 'Menjalankan aksi massal pada pendaftar',
             self::RegistrantPlace => 'Menempatkan pendaftar menjadi siswa',

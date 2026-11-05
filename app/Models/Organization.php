@@ -47,6 +47,14 @@ class Organization extends Model
     }
 
     /**
+     * @return HasMany<ExamDay, $this>
+     */
+    public function examDays(): HasMany
+    {
+        return $this->hasMany(ExamDay::class);
+    }
+
+    /**
      * @return HasMany<Ruleset, $this>
      */
     public function rulesets(): HasMany
@@ -87,6 +95,7 @@ class Organization extends Model
         return $this->rulesets()->exists()
             || $this->registrants()->exists()
             || $this->students()->exists()
-            || $this->employees()->exists();
+            || $this->employees()->exists()
+            || $this->examDays()->exists();
     }
 }

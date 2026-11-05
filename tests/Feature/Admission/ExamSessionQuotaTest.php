@@ -5,7 +5,6 @@ use App\Actions\Admission\SyncExamSchedule;
 use App\Enums\RegistrantStatus;
 use App\Models\ExamDay;
 use App\Models\Registrant;
-use App\Models\Ruleset;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -31,7 +30,7 @@ test('a parent picks a session and it counts as a seat', function () {
 });
 
 test('a full session cannot be chosen by someone else', function () {
-    $other = admissionRegistrant(RegistrantStatus::Draft, ['ruleset_id' => $this->registrant->ruleset_id, 'exam_session_id' => $this->session->id]);
+    $other = admissionRegistrant(RegistrantStatus::Draft, ['organization_id' => $this->registrant->organization_id, 'wave_id' => $this->registrant->wave_id, 'exam_session_id' => $this->session->id]);
 
     $this->actingAs($this->parent)
         ->post(route('portal.children.exam.update', $this->registrant), ['exam_session_id' => $this->session->id])
@@ -49,10 +48,10 @@ test('whoever holds the last seat can keep it', function () {
     expect($this->registrant->refresh()->exam_session_id)->toBe($this->session->id);
 });
 
-test('a session of another ruleset cannot be chosen', function () {
-    $foreign = examSessionFor(Registrant::factory()->create(['ruleset_id' => admissionRegistrant()->ruleset_id]));
+test('a session of another organization cannot be chosen', function () {
+    $foreign = examSessionFor(Registrant::factory()->create(['wave_id' => $this->registrant->wave_id]));
 
-    expect(fn () => app(ChooseExamSession::class)->handle($this->registrant, $foreign))->toThrow(ValidationException::class);
+    expect(fn () => app(ChooseExamSession::class)->handle($this->registrant, $foreign))->toThrow(ValidationException::class, 'Sesi ini bukan untuk pendaftaran ini.');
 });
 
 test('a parent cannot choose a session once the data was sent', function () {
@@ -65,14 +64,15 @@ test('a parent cannot choose a session once the data was sent', function () {
 
 test('a session that applicants picked cannot be removed from the schedule', function () {
     $this->registrant->update(['exam_session_id' => $this->session->id]);
-    $ruleset = Ruleset::query()->findOrFail($this->registrant->ruleset_id);
+    $organizationId = $this->registrant->organization_id;
+    $waveId = $this->registrant->wave_id;
 
-    expect(fn () => app(SyncExamSchedule::class)->handle($ruleset, []))->toThrow(ValidationException::class);
-    expect(ExamDay::query()->where('ruleset_id', $ruleset->id)->count())->toBe(1);
+    expect(fn () => app(SyncExamSchedule::class)->handle($organizationId, $waveId, []))->toThrow(ValidationException::class);
+    expect(ExamDay::query()->inScope($organizationId, $waveId)->count())->toBe(1);
 
     $day = $this->session->day;
 
-    app(SyncExamSchedule::class)->handle($ruleset, [[
+    app(SyncExamSchedule::class)->handle($organizationId, $waveId, [[
         'id' => $day->id,
         'date' => $day->date->toDateString(),
         'sessions' => [['id' => $this->session->id, 'label' => 'Sesi pagi', 'start_time' => '07:00', 'end_time' => '09:00', 'quota' => 5]],

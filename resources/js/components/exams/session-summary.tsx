@@ -29,7 +29,16 @@ export function SeatCount({ taken, quota }: { taken: number; quota: number }) {
 }
 
 /**
- * What a session is, in a few lines: when, which ruleset, how full it is and how far the scoring has got.
+ * Who a session is for, e.g. "SMP · Gelombang 1"; "Semua ..." when the schedule is not limited.
+ */
+export function sessionAudience(
+    session: Pick<ExamSessionInfo, 'organization' | 'wave'>,
+): string {
+    return `${session.organization ?? 'Semua lembaga'} · ${session.wave ?? 'Semua gelombang'}`;
+}
+
+/**
+ * What a session is, in a few lines: when, for whom, how full it is and how far the scoring has got.
  */
 export function SessionSummary({ session }: { session: ExamSessionInfo }) {
     return (
@@ -48,9 +57,7 @@ export function SessionSummary({ session }: { session: ExamSessionInfo }) {
                     <SeatCount taken={session.taken} quota={session.quota} />
                 </span>
             </p>
-            <p className="text-muted-foreground">
-                {session.ruleset} · {session.organization ?? 'Semua lembaga'}
-            </p>
+            <p className="text-muted-foreground">{sessionAudience(session)}</p>
             <p className="flex flex-wrap gap-2">
                 {session.missing > 0 && (
                     <Badge variant="warning">

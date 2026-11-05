@@ -4,6 +4,7 @@ use App\Enums\Ability;
 use App\Enums\SettingGroup;
 use App\Http\Controllers\Admin\Admission\AdmissionSettingController;
 use App\Http\Controllers\Admin\Admission\ExamController;
+use App\Http\Controllers\Admin\Admission\ExamScheduleController;
 use App\Http\Controllers\Admin\Admission\ExamScoreGridController;
 use App\Http\Controllers\Admin\Admission\RegistrantBulkController;
 use App\Http\Controllers\Admin\Admission\RegistrantController;
@@ -112,6 +113,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             });
 
             Route::get('exams', [ExamController::class, 'index'])->name('exams.index');
+            Route::get('exams/jadwal', [ExamScheduleController::class, 'edit'])->name('exams.schedule.edit');
+            Route::put('exams/jadwal', [ExamScheduleController::class, 'update'])->name('exams.schedule.update');
             Route::get('exams/sessions/{session}', [ExamController::class, 'show'])->name('exams.sessions.show');
             Route::get('exams/sessions/{session}/ekspor', [ExamController::class, 'export'])->name('exams.sessions.export');
             Route::get('exams/sessions/{session}/nilai', [ExamScoreGridController::class, 'edit'])->name('exams.sessions.scores.edit');
@@ -162,7 +165,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::patch('rulesets/{ruleset}/move', RulesetOrderController::class)->name('rulesets.move');
             Route::put('rulesets/{ruleset}/bills', [RulesetContentController::class, 'bills'])->name('rulesets.bills');
             Route::put('rulesets/{ruleset}/exam-aspects', [RulesetContentController::class, 'examAspects'])->name('rulesets.exam-aspects');
-            Route::put('rulesets/{ruleset}/exam-schedule', [RulesetContentController::class, 'examSchedule'])->name('rulesets.exam-schedule');
         });
 });
 

@@ -6,7 +6,6 @@ use App\Actions\Admission\SaveSessionScores;
 use App\Enums\Ability;
 use App\Enums\RegistrantStatus;
 use App\Http\Controllers\Controller;
-use App\Models\ExamAspect;
 use App\Models\ExamSession;
 use App\Models\Registrant;
 use App\Support\ExamSessionStats;
@@ -39,12 +38,6 @@ class ExamScoreGridController extends Controller
             ->map(fn (Registrant $registrant): array => $registrant->ruleset_snapshot['exam_aspects'] ?? [])
             ->sortByDesc(fn (array $aspects): int => count($aspects))
             ->first() ?? [];
-
-        if ($columns === []) {
-            $session->loadMissing('day');
-            $columns = ExamAspect::query()->where('ruleset_id', $session->day->ruleset_id)->orderBy('sort_order')->orderBy('id')->get()
-                ->map(fn (ExamAspect $aspect): array => ['name' => $aspect->name, 'passing_score' => $aspect->passing_score])->all();
-        }
 
         return Inertia::render('admin/exams/scores', [
             'session' => ExamSessionStats::describe($session),

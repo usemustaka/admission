@@ -143,13 +143,19 @@ class DemoSeeder extends Seeder
             ['Pesantren', 'pesantren', null, [BillType::Settlement->value => [['name' => 'Uang pangkal', 'amount' => 1500000]]], [['name' => 'Tes baca Al-Qur\'an', 'passing_score' => 60]], 20],
         ];
 
+        $scheduled = [];
+
         foreach ($definitions as [$name, $code, $gender, $bills, $aspects, $quota]) {
             /** @var Ruleset $ruleset */
             $ruleset = app(SaveRuleset::class)->handle(null, $name, null, $this->organization($code)->id, $gender, true);
 
             app(SyncBills::class)->handle($ruleset, $bills);
             app(SyncExamAspects::class)->handle($ruleset, $aspects);
-            app(SyncExamSchedule::class)->handle($ruleset, $sessions($quota));
+
+            if (! isset($scheduled[$code])) {
+                $scheduled[$code] = true;
+                app(SyncExamSchedule::class)->handle($this->organization($code)->id, null, $sessions($quota));
+            }
         }
     }
 
@@ -179,8 +185,8 @@ class DemoSeeder extends Seeder
             'family_card_number' => '3201020202020'.str_pad((string) $registrant->id, 3, '0', STR_PAD_LEFT),
         ]);
 
-        $session = $registrant->ruleset_id === null ? null : ExamSession::query()
-            ->whereHas('day', fn ($days) => $days->where('ruleset_id', $registrant->ruleset_id))
+        $session = ExamSession::query()
+            ->whereHas('day', fn ($days) => $days->forRegistrant($registrant))
             ->orderBy('start_time')
             ->skip($sessionNumber - 1)
             ->first();

@@ -9,18 +9,14 @@ use App\Models\Registrant;
 class ExamSchedulePresenter
 {
     /**
-     * The exam days of the ruleset a registration was made under, with the seats taken in each session. The
-     * shape matches what the session picker expects.
+     * The exam days a registration can pick from (for its organization and wave, or for all), with the seats
+     * taken in each session. The shape matches what the session picker expects.
      *
      * @return list<array{date: string, sessions: list<array{id: string, label: string, quota: int, taken: int}>}>
      */
     public static function days(Registrant $registrant): array
     {
-        if ($registrant->ruleset_id === null) {
-            return [];
-        }
-
-        $days = ExamDay::query()->where('ruleset_id', $registrant->ruleset_id)->with('sessions')->orderBy('date')->get();
+        $days = ExamDay::query()->forRegistrant($registrant)->with('sessions')->orderBy('date')->get();
 
         $taken = Registrant::query()
             ->whereIn('exam_session_id', $days->flatMap(fn (ExamDay $day) => $day->sessions->modelKeys()))

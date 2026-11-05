@@ -39,7 +39,7 @@ test('a child goes from registration to placement', function () {
         'settlement' => [['name' => 'Uang pangkal', 'amount' => 1000000]],
     ]);
     app(SyncExamAspects::class)->handle($ruleset, [['name' => 'Tes tulis', 'passing_score' => 70]]);
-    app(SyncExamSchedule::class)->handle($ruleset, [['date' => now()->addWeek()->toDateString(), 'sessions' => [['label' => 'Sesi 1', 'start_time' => '08:00', 'end_time' => '10:00', 'quota' => 5]]]]);
+    app(SyncExamSchedule::class)->handle($organization->id, null, [['date' => now()->addWeek()->toDateString(), 'sessions' => [['label' => 'Sesi 1', 'start_time' => '08:00', 'end_time' => '10:00', 'quota' => 5]]]]);
 
     $parent = User::factory()->create();
     $admin = userWithRole(DefaultRole::Admin);

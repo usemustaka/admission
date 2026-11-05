@@ -4,6 +4,7 @@ namespace App\Actions\Admission;
 
 use App\Actions\Notes\WritePersonAuditNote;
 use App\Enums\Ability;
+use App\Models\ExamDay;
 use App\Models\ExamSession;
 use App\Models\Registrant;
 use App\Models\User;
@@ -16,8 +17,8 @@ class ChooseExamSession
     public function __construct(private WritePersonAuditNote $writeAuditNote) {}
 
     /**
-     * Pick the exam session of a registration. The session has to belong to the ruleset the registration was
-     * made under, and a full one cannot be chosen; the seats taken are counted under a lock so two parents
+     * Pick the exam session of a registration. The session has to be on a day for the registration's organization
+     * and wave (or for all), and a full one cannot be chosen; the seats taken are counted under a lock so two parents
      * cannot take the last one together.
      *
      * Committee members (`$by` with the right to manage registrants) can still put a registration in a full
@@ -33,7 +34,7 @@ class ChooseExamSession
         DB::transaction(function () use ($registrant, $session, $by, $overrideFull, $overrideReason): void {
             $locked = ExamSession::query()->with('day')->lockForUpdate()->findOrFail($session->id);
 
-            if ($registrant->ruleset_id === null || $locked->day->ruleset_id !== $registrant->ruleset_id) {
+            if (! ExamDay::query()->forRegistrant($registrant)->whereKey($locked->exam_day_id)->exists()) {
                 throw ValidationException::withMessages(['exam_session_id' => 'Sesi ini bukan untuk pendaftaran ini.']);
             }
 

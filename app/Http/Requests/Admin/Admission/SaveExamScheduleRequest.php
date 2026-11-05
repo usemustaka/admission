@@ -2,14 +2,16 @@
 
 namespace App\Http\Requests\Admin\Admission;
 
+use App\Enums\Ability;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class SaveExamScheduleRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('update', $this->route('ruleset'));
+        return $this->user()->can(Ability::ExamManage->value);
     }
 
     /**
@@ -18,6 +20,8 @@ class SaveExamScheduleRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'organization_id' => ['nullable', 'integer', Rule::exists('organizations', 'id')],
+            'wave_id' => ['nullable', 'integer', Rule::exists('waves', 'id')],
             'days' => ['present', 'array'],
             'days.*.id' => ['nullable', 'integer', 'distinct'],
             'days.*.date' => ['required', 'date_format:Y-m-d', 'distinct'],
@@ -36,6 +40,8 @@ class SaveExamScheduleRequest extends FormRequest
     public function attributes(): array
     {
         return [
+            'organization_id' => 'Lembaga',
+            'wave_id' => 'Gelombang',
             'days.*.date' => 'Tanggal ujian',
             'days.*.sessions.*.label' => 'Nama sesi',
             'days.*.sessions.*.start_time' => 'Jam mulai',

@@ -1,6 +1,8 @@
 <?php
 
 use App\Enums\DefaultRole;
+use App\Models\ExamDay;
+use App\Models\ExamSession;
 use App\Models\Organization;
 use App\Models\Registrant;
 use App\Models\Ruleset;
@@ -221,5 +223,17 @@ describe('deleting a ruleset', function () {
         $this->delete(route('admin.rulesets.destroy', $this->ruleset))->assertRedirect(route('admin.rulesets.index'));
 
         expect(Ruleset::find($this->ruleset->id))->toBeNull();
+    });
+
+    test('the exam sessions of its lembaga do not keep a ruleset from being deleted', function () {
+        $organization = Organization::factory()->create();
+        $ruleset = Ruleset::factory()->create(['organization_id' => $organization->id]);
+        $session = ExamSession::factory()->create(['exam_day_id' => ExamDay::factory()->create(['organization_id' => $organization->id])->id]);
+        Registrant::factory()->create(['organization_id' => $organization->id, 'exam_session_id' => $session->id]);
+
+        $this->delete(route('admin.rulesets.destroy', $ruleset))->assertRedirect(route('admin.rulesets.index'));
+
+        expect(Ruleset::find($ruleset->id))->toBeNull()
+            ->and(ExamSession::find($session->id))->not->toBeNull();
     });
 });

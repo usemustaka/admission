@@ -14,7 +14,7 @@ beforeEach(function () {
 
     $this->registrant = admissionRegistrant(RegistrantStatus::Review);
     $this->full = examSessionFor($this->registrant, quota: 1);
-    admissionRegistrant(RegistrantStatus::Review, ['ruleset_id' => $this->registrant->ruleset_id, 'exam_session_id' => $this->full->id]);
+    admissionRegistrant(RegistrantStatus::Review, ['organization_id' => $this->registrant->organization_id, 'wave_id' => $this->registrant->wave_id, 'exam_session_id' => $this->full->id]);
 
     $this->notesOf = fn (Registrant $registrant) => Note::query()->where('person_id', $registrant->person_id)->get();
 });

@@ -1,8 +1,18 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { ClipboardCheck, ListChecks, SearchX, UsersRound } from 'lucide-react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    CalendarClock,
+    ClipboardCheck,
+    ListChecks,
+    SearchX,
+    UsersRound,
+} from 'lucide-react';
 import { useState } from 'react';
 import { EmptyState } from '@/components/empty-state';
-import { SeatCount, formatExamDate } from '@/components/exams/session-summary';
+import {
+    SeatCount,
+    formatExamDate,
+    sessionAudience,
+} from '@/components/exams/session-summary';
 import { FilterPills } from '@/components/filter-pills';
 import { OptionSelect } from '@/components/option-select';
 import { PageHeader } from '@/components/page-header';
@@ -22,6 +32,7 @@ import {
 } from '@/components/ui/table';
 import { dashboard } from '@/routes';
 import { index } from '@/routes/admin/exams';
+import { edit as editSchedule } from '@/routes/admin/exams/schedule';
 import { show as showRoster } from '@/routes/admin/exams/sessions';
 import { edit as editScores } from '@/routes/admin/exams/sessions/scores';
 import type { ExamFilters, ExamSessionRow } from '@/types/exam';
@@ -56,6 +67,8 @@ export default function ExamsIndex({
     can: { manage: boolean };
 }) {
     const [loading, setLoading] = useState(false);
+    const { abilities } = usePage().props.auth;
+    const canManageSchedule = abilities.includes('admission::exam.manage');
     const mode = modeOf(filters);
 
     function visit(changes: Partial<ExamFilters>) {
@@ -99,7 +112,17 @@ export default function ExamsIndex({
                 <PageHeader
                     icon={ClipboardCheck}
                     title="Ujian"
-                    description="Jadwal sesi ujian dari semua aturan pendaftaran, lengkap dengan peserta, daftar hadir, dan nilai yang belum masuk."
+                    description="Sesi ujian per lembaga dan gelombang, lengkap dengan peserta, daftar hadir, dan nilai yang belum masuk."
+                    actions={
+                        canManageSchedule && (
+                            <Button variant="outline" asChild>
+                                <Link href={editSchedule()}>
+                                    <CalendarClock />
+                                    Atur jadwal
+                                </Link>
+                            </Button>
+                        )
+                    }
                 />
 
                 <div className="grid gap-3 @3xl:grid-cols-3">
@@ -191,7 +214,7 @@ export default function ExamsIndex({
                         description={
                             hasFilter
                                 ? 'Coba rentang tanggal lain atau longgarkan filternya.'
-                                : 'Jadwal ujian diatur di aturan pendaftaran. Pilih "Semua" untuk melihat sesi yang sudah lewat.'
+                                : 'Pilih "Semua" untuk melihat sesi yang sudah lewat, atau tambah sesi baru lewat jadwal ujian.'
                         }
                         action={
                             hasFilter ? (
@@ -206,6 +229,13 @@ export default function ExamsIndex({
                                     }
                                 >
                                     Hapus semua filter
+                                </Button>
+                            ) : canManageSchedule ? (
+                                <Button asChild>
+                                    <Link href={editSchedule()}>
+                                        <CalendarClock />
+                                        Atur jadwal
+                                    </Link>
                                 </Button>
                             ) : undefined
                         }
@@ -238,7 +268,7 @@ export default function ExamsIndex({
                                         <TableRow>
                                             <TableHead>Sesi</TableHead>
                                             <TableHead className="hidden md:table-cell">
-                                                Aturan
+                                                Untuk
                                             </TableHead>
                                             <TableHead>Terisi</TableHead>
                                             <TableHead>Nilai</TableHead>
@@ -263,14 +293,10 @@ export default function ExamsIndex({
                                                     </Link>
                                                 </TableCell>
                                                 <TableCell className="hidden md:table-cell">
-                                                    <span className="grid">
-                                                        <span>
-                                                            {session.ruleset}
-                                                        </span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {session.organization ??
-                                                                'Semua lembaga'}
-                                                        </span>
+                                                    <span className="text-sm text-muted-foreground">
+                                                        {sessionAudience(
+                                                            session,
+                                                        )}
                                                     </span>
                                                 </TableCell>
                                                 <TableCell>

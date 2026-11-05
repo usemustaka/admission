@@ -1,23 +1,34 @@
 import { useForm } from '@inertiajs/react';
 import { CalendarPlus, CircleAlert, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { newRowKey } from '@/components/admission/row-key';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
-import { examSchedule } from '@/routes/admin/rulesets';
+import { update } from '@/routes/admin/exams/schedule';
 import type { ExamDayRow, ExamSessionRow } from '@/types/admission';
 
+/**
+ * Edits the dates and sessions of one schedule: the sessions offered to registrations of `organizationId` and
+ * `waveId`, where null means all of them. Remount it (with a `key`) when the scope changes.
+ */
 export function ExamScheduleEditor({
-    rulesetId,
+    organizationId,
+    waveId,
     initial,
     canEdit,
 }: {
-    rulesetId: number;
+    organizationId: number | null;
+    waveId: number | null;
     initial: ExamDayRow[];
     canEdit: boolean;
 }) {
-    const form = useForm<{ days: ExamDayRow[] }>({ days: initial });
+    const form = useForm<{
+        organization_id: number | null;
+        wave_id: number | null;
+        days: ExamDayRow[];
+    }>({ organization_id: organizationId, wave_id: waveId, days: initial });
     const errors = form.errors as Record<string, string>;
 
     function setDays(days: ExamDayRow[]) {
@@ -60,15 +71,21 @@ export function ExamScheduleEditor({
         <form
             onSubmit={(event) => {
                 event.preventDefault();
-                form.put(examSchedule(rulesetId).url, { preserveScroll: true });
+                form.put(update().url, {
+                    preserveScroll: true,
+                    onError: () =>
+                        toast.error(
+                            'Jadwal belum tersimpan. Cek isian yang ditandai merah.',
+                        ),
+                });
             }}
             className="grid gap-5"
         >
             <p className="text-sm text-muted-foreground">
-                Tanggal dan sesi baru hanya bisa dipilih anak yang mendaftar
-                setelah ini. Mengubah jam atau tanggal sesi yang sudah dipilih
-                akan ikut mengubah jadwal pendaftar yang memilihnya, jadi kabari
-                mereka kalau perlu.
+                Tanggal dan sesi baru bisa dipilih pendaftar setelah jadwal
+                disimpan. Perubahan jam atau tanggal sesi yang sudah dipilih
+                pendaftar ikut berubah untuk mereka, jadi kabari mereka kalau
+                perlu.
             </p>
 
             {generalErrors.length > 0 && (
@@ -84,7 +101,8 @@ export function ExamScheduleEditor({
 
             {form.data.days.length === 0 && (
                 <p className="text-sm text-muted-foreground">
-                    Belum ada jadwal ujian. Tambahkan tanggal, lalu sesinya.
+                    Belum ada tanggal untuk jadwal ini. Tambahkan tanggal, lalu
+                    sesinya.
                 </p>
             )}
 

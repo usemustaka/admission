@@ -136,6 +136,6 @@ function examSessionFor(Registrant $registrant, int $quota = 30): ExamSession
 {
     return ExamSession::factory()->create([
         'quota' => $quota,
-        'exam_day_id' => ExamDay::factory()->create(['ruleset_id' => $registrant->ruleset_id])->id,
+        'exam_day_id' => ExamDay::factory()->create(['organization_id' => $registrant->organization_id, 'wave_id' => $registrant->wave_id])->id,
     ]);
 }

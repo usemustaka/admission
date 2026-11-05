@@ -117,7 +117,7 @@ describe('defaults and rendering', function () {
     test('the exam reminder carries the chosen session, or says none was chosen', function () {
         expect(Announcement::textFor($this->registrant, 'exam'))->toContain('jadwal belum dipilih');
 
-        $day = ExamDay::factory()->create(['ruleset_id' => $this->registrant->ruleset_id, 'date' => '2026-11-09']);
+        $day = ExamDay::factory()->create(['organization_id' => $this->registrant->organization_id, 'wave_id' => $this->registrant->wave_id, 'date' => '2026-11-09']);
         $session = ExamSession::factory()->create(['exam_day_id' => $day->id, 'label' => 'Sesi 1', 'start_time' => '08:00:00', 'end_time' => '10:00:00']);
         $this->registrant->update(['exam_session_id' => $session->id]);
 
