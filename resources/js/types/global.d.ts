@@ -23,3 +23,11 @@ declare module '@inertiajs/core' {
         };
     }
 }
+
+declare module '@tanstack/react-table' {
+    // The tables in this app only add a class name to a column.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    interface ColumnMeta<TData, TValue> {
+        className?: string;
+    }
+}

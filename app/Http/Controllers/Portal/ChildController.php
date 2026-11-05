@@ -7,13 +7,17 @@ use App\Actions\Portal\RegisterChildData;
 use App\Enums\Gender;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
+use App\Enums\RegistrantStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\RegisterChildRequest;
 use App\Models\Organization;
 use App\Models\Parentship;
 use App\Models\Registrant;
 use App\Models\Wave;
+use App\Support\ExamResult;
+use App\Support\ExamSchedulePresenter;
 use App\Support\RegistrantPresenter;
+use App\Support\RegistrantReadiness;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -68,8 +72,15 @@ class ChildController extends Controller
             $registrant->loadMissing(['person.parentships.relatedPerson']);
         }
 
+        $showResult = in_array($registrant->status, [RegistrantStatus::Announced, RegistrantStatus::Placed], true);
+
         return Inertia::render('portal/children/show', [
             'registrant' => RegistrantPresenter::summary($registrant),
+            'readiness' => $registrant->status->isEditableByParent() ? RegistrantReadiness::missing($registrant) : [],
+            'examSession' => ExamSchedulePresenter::chosen($registrant),
+            'hasExamSchedule' => $registrant->hasExamSchedule(),
+            'result' => $showResult ? ExamResult::for($registrant) : null,
+            'timeline' => RegistrantPresenter::timeline($registrant, forParent: true),
             'completeness' => $pending ? ['filled' => 0, 'total' => 0] : RegistrantPresenter::completeness($registrant),
             'family' => $pending ? [] : $registrant->person->parentships->map(fn (Parentship $parentship): array => [
                 'id' => $parentship->id,

@@ -10,7 +10,9 @@ use App\Enums\BillType;
 use App\Enums\Gender;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Admission\SaveRulesetRequest;
+use App\Models\ExamSession;
 use App\Models\Organization;
+use App\Models\Registrant;
 use App\Models\Ruleset;
 use App\Models\RulesetBillItem;
 use App\Models\Wave;
@@ -132,6 +134,16 @@ class RulesetController extends Controller
     public function destroy(Ruleset $ruleset): RedirectResponse
     {
         Gate::authorize('delete', $ruleset);
+
+        $sessionsInUse = Registrant::query()->whereIn('exam_session_id', ExamSession::query()
+            ->whereHas('day', fn ($days) => $days->where('ruleset_id', $ruleset->id))
+            ->select('id'))->exists();
+
+        if ($sessionsInUse) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Aturan ini belum bisa dihapus karena sesi ujiannya sudah dipilih pendaftar.']);
+
+            return back();
+        }
 
         $ruleset->delete();
 

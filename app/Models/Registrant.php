@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
@@ -26,6 +27,7 @@ use Illuminate\Support\Facades\Storage;
  * @property int $person_id
  * @property int $organization_id
  * @property int $wave_id
+ * @property int|null $exam_session_id
  * @property int|null $ruleset_id
  * @property array{ruleset_id: int, name: string, bills: list<array{type: string, items: list<array{name: string, amount: int}>}>, exam_aspects: list<array{name: string, passing_score: int}>}|null $ruleset_snapshot
  * @property int $registered_by_person_id
@@ -35,10 +37,12 @@ use Illuminate\Support\Facades\Storage;
  * @property RegistrantStatus $status
  * @property bool $needs_identity_review
  * @property string|null $formal_photo_path
+ * @property array<int, int|null>|null $exam_scores score per exam aspect, in the order of the aspects in the snapshot
+ * @property Carbon|null $submitted_at
  * @property-read string|null $formal_photo_url
  * @property Carbon|null $created_at
  */
-#[Fillable(['person_id', 'organization_id', 'wave_id', 'ruleset_id', 'ruleset_snapshot', 'registered_by_person_id', 'submitted_name', 'registered_as_relation', 'registered_as_kind', 'status', 'needs_identity_review', 'formal_photo_path'])]
+#[Fillable(['person_id', 'organization_id', 'wave_id', 'exam_session_id', 'ruleset_id', 'ruleset_snapshot', 'registered_by_person_id', 'submitted_name', 'registered_as_relation', 'registered_as_kind', 'status', 'needs_identity_review', 'formal_photo_path', 'exam_scores', 'submitted_at'])]
 class Registrant extends Model
 {
     /** @use HasFactory<RegistrantFactory> */
@@ -55,6 +59,8 @@ class Registrant extends Model
             'registered_as_kind' => ParentKind::class,
             'status' => RegistrantStatus::class,
             'needs_identity_review' => 'boolean',
+            'exam_scores' => 'array',
+            'submitted_at' => 'datetime',
         ];
     }
 
@@ -92,6 +98,30 @@ class Registrant extends Model
     public function registeredBy(): BelongsTo
     {
         return $this->belongsTo(Person::class, 'registered_by_person_id');
+    }
+
+    /**
+     * @return BelongsTo<ExamSession, $this>
+     */
+    public function examSession(): BelongsTo
+    {
+        return $this->belongsTo(ExamSession::class);
+    }
+
+    /**
+     * @return HasMany<RegistrantStatusChange, $this>
+     */
+    public function statusChanges(): HasMany
+    {
+        return $this->hasMany(RegistrantStatusChange::class)->orderBy('id');
+    }
+
+    /**
+     * @return HasOne<Student, $this>
+     */
+    public function student(): HasOne
+    {
+        return $this->hasOne(Student::class);
     }
 
     /**
@@ -170,6 +200,14 @@ class Registrant extends Model
         array_push($steps, 'announcement', 'placement');
 
         return $steps;
+    }
+
+    /**
+     * Whether the ruleset has an exam schedule the parent has to pick a session from.
+     */
+    public function hasExamSchedule(): bool
+    {
+        return $this->ruleset_id !== null && ExamDay::query()->where('ruleset_id', $this->ruleset_id)->whereHas('sessions')->exists();
     }
 
     /**

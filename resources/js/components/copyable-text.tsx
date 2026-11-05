@@ -11,10 +11,13 @@ import { whatsappUrl } from '@/lib/format';
 export function CopyableText({
     text,
     phone,
+    whatsappHref,
 }: {
     text: string;
     /** When given, shows a button that opens WhatsApp to this number. */
     phone?: string;
+    /** A ready-made WhatsApp link, for when the server decides where it goes. */
+    whatsappHref?: string | null;
 }) {
     const [copiedText, copy] = useClipboard();
     const isCopied = copiedText === text;
@@ -42,10 +45,12 @@ export function CopyableText({
                     {isCopied ? <Check /> : <Copy />}
                     {isCopied ? 'Tersalin' : 'Salin teks'}
                 </Button>
-                {phone && (
+                {(whatsappHref || phone) && (
                     <Button asChild size="sm">
                         <a
-                            href={whatsappUrl(phone, text)}
+                            href={
+                                whatsappHref ?? whatsappUrl(phone ?? '', text)
+                            }
                             target="_blank"
                             rel="noreferrer"
                         >

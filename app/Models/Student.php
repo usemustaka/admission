@@ -14,9 +14,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $person_id
  * @property int $organization_id
+ * @property int|null $year_id
+ * @property int|null $registrant_id
+ * @property string|null $nis
  * @property string|null $photo_path
  */
-#[Fillable(['person_id', 'organization_id', 'photo_path'])]
+#[Fillable(['person_id', 'organization_id', 'year_id', 'registrant_id', 'nis', 'photo_path'])]
 class Student extends Model
 {
     /** @use HasFactory<StudentFactory> */
@@ -36,5 +39,21 @@ class Student extends Model
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    /**
+     * @return BelongsTo<Year, $this>
+     */
+    public function year(): BelongsTo
+    {
+        return $this->belongsTo(Year::class);
+    }
+
+    /**
+     * @return BelongsTo<Registrant, $this>
+     */
+    public function registrant(): BelongsTo
+    {
+        return $this->belongsTo(Registrant::class);
     }
 }

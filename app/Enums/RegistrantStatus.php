@@ -43,4 +43,20 @@ enum RegistrantStatus: string implements HasLabel
     {
         return $this === self::Draft || $this === self::Revision;
     }
+
+    /**
+     * Where the normal flow can go from here. Bypassing the flow is a separate, noted action.
+     *
+     * @return list<self>
+     */
+    public function nextInFlow(): array
+    {
+        return match ($this) {
+            self::Draft, self::Revision => [self::Review],
+            self::Review => [self::Validated, self::Revision],
+            self::Validated => [self::Announced],
+            self::Announced => [self::Placed],
+            self::Placed => [],
+        };
+    }
 }

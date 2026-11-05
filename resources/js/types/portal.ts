@@ -8,6 +8,8 @@ export type PortalRegistrant = {
     steps: string[];
     current_step: string;
     can_edit: boolean;
+    /** Why the committee sent the data back, while it waits for the parent. */
+    revision_reason: string | null;
     /** The committee is still confirming the child's NIK, so no details are shown. */
     identity_pending: boolean;
 };

@@ -3,12 +3,16 @@
 use App\Enums\BillType;
 use App\Enums\DefaultRole;
 use App\Enums\PaymentStatus;
+use App\Enums\RegistrantStatus;
 use App\Models\Bill;
 use App\Models\BillItem;
+use App\Models\ExamDay;
+use App\Models\ExamSession;
 use App\Models\Parentship;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Models\Registrant;
+use App\Models\Ruleset;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -87,4 +91,41 @@ function verifiedPayment(BillItem $item, int $amount): Payment
     PaymentAllocation::factory()->create(['payment_id' => $payment->id, 'bill_item_id' => $item->id, 'amount' => $amount]);
 
     return $payment;
+}
+
+/**
+ * A registration with a ruleset copy that has a settlement bill and two exam aspects (KKM 70 and 60), and a
+ * child whose profile is complete enough to be sent for review.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function admissionRegistrant(RegistrantStatus $status = RegistrantStatus::Review, array $attributes = []): Registrant
+{
+    $ruleset = Ruleset::factory()->create();
+
+    $registrant = Registrant::factory()->create([
+        'status' => $status,
+        'ruleset_id' => $ruleset->id,
+        'ruleset_snapshot' => [
+            'ruleset_id' => $ruleset->id,
+            'name' => $ruleset->name,
+            'bills' => [['type' => 'settlement', 'items' => [['name' => 'Uang pangkal', 'amount' => 1000000], ['name' => 'Seragam', 'amount' => 500000]]]],
+            'exam_aspects' => [['name' => 'Tes tulis', 'passing_score' => 70], ['name' => 'Wawancara', 'passing_score' => 60]],
+        ],
+        'formal_photo_path' => 'registrants/formal-photos/pas.jpg',
+        ...$attributes,
+    ]);
+
+    $registrant->person->update(['religion' => 'Islam', 'address' => 'Jl. Melati 3', 'family_card_number' => '3201234567890123']);
+    Parentship::factory()->primaryContact()->create(['person_id' => $registrant->person_id]);
+
+    return $registrant;
+}
+
+function examSessionFor(Registrant $registrant, int $quota = 30): ExamSession
+{
+    return ExamSession::factory()->create([
+        'quota' => $quota,
+        'exam_day_id' => ExamDay::factory()->create(['ruleset_id' => $registrant->ruleset_id])->id,
+    ]);
 }

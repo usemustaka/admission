@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     CalendarRange,
+    ClipboardList,
     LayoutGrid,
     ListChecks,
     Users,
@@ -21,6 +22,7 @@ import {
 import { dashboard } from '@/routes';
 import { index as payments } from '@/routes/admin/payments';
 import { index as people } from '@/routes/admin/people';
+import { index as registrants } from '@/routes/admin/registrants';
 import { index as rulesets } from '@/routes/admin/rulesets';
 import { index as waves } from '@/routes/admin/waves';
 import type { NavItem } from '@/types';
@@ -49,6 +51,12 @@ const navGroups: NavGroup[] = [
     {
         label: 'Pendaftaran',
         items: [
+            {
+                title: 'Pendaftar',
+                href: registrants(),
+                icon: ClipboardList,
+                ability: 'admission::registrant.view',
+            },
             {
                 title: 'Gelombang',
                 href: waves(),
