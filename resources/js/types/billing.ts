@@ -100,3 +100,85 @@ export type PaymentQuickViewData = {
     can: { verify: boolean };
     queue: { next_id: number | null; left: number };
 };
+
+/** What the signed-in staff member may do with the payment on its detail page. */
+export type PaymentDetailCan = {
+    verify: boolean;
+    /** Take back a verified payment. */
+    void: boolean;
+    /** Put a rejected payment back in the queue. */
+    reopen: boolean;
+    /** The payment is verified, so it has a receipt. */
+    receipt: boolean;
+};
+
+/** A line from the system's own audit trail about one payment. */
+export type PaymentHistoryEntry = {
+    id: number;
+    body: string;
+    created_at: string | null;
+};
+
+/** A payment of the payer that still waits for verification, shown as a warning when recording another. */
+export type PendingPaymentHint = {
+    id: number;
+    amount: number;
+    paid_on: string;
+    method: string;
+};
+
+export type ReceiptLine = {
+    child: string;
+    organization: string;
+    bill: string;
+    item: string;
+    amount: number;
+};
+
+export type ReceiptData = {
+    number: string;
+    paid_on: string;
+    payer: string;
+    method: string;
+    lines: ReceiptLine[];
+    total: number;
+    total_words: string;
+    note: string | null;
+    verified_by: string | null;
+    verified_at: string | null;
+};
+
+export type ReconciliationMethod = {
+    value: string;
+    label: string;
+    count: number;
+    total: number;
+};
+
+export type ReconciliationVerifiedRow = PaymentRow & {
+    verified_by: string | null;
+    verified_time: string | null;
+};
+
+export type ReconciliationPendingRow = PaymentRow & {
+    age_days: number;
+};
+
+export type ReconciliationData = {
+    date: string;
+    today: string;
+    methods: ReconciliationMethod[];
+    verified: {
+        count: number;
+        total: number;
+        transfer_total: number;
+        rows: ReconciliationVerifiedRow[];
+    };
+    pending: {
+        count: number;
+        total: number;
+        rows: ReconciliationPendingRow[];
+    };
+    list_limit: number;
+    can: { export: boolean };
+};

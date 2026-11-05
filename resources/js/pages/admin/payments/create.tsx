@@ -1,5 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Wallet } from 'lucide-react';
+import { CircleAlert, Clock, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -15,15 +15,19 @@ import {
 import { PersonAvatar } from '@/components/person-avatar';
 import { SearchInput } from '@/components/search-input';
 import { SectionCard } from '@/components/section-card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { formatDate, formatRupiah } from '@/lib/format';
 import { dashboard } from '@/routes';
-import { index, openItems, store } from '@/routes/admin/payments';
+import { index, openItems, show, store } from '@/routes/admin/payments';
 import { search } from '@/routes/admin/people';
-import type { OpenGroup, Selection } from '@/types/billing';
+import type { OpenGroup, PendingPaymentHint, Selection } from '@/types/billing';
 import type { Option } from '@/types/people';
 
 type Candidate = { id: number; name: string; nik: string | null };
@@ -33,6 +37,9 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
     const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [payer, setPayer] = useState<Candidate | null>(null);
     const [groups, setGroups] = useState<OpenGroup[]>([]);
+    const [pendingPayments, setPendingPayments] = useState<
+        PendingPaymentHint[]
+    >([]);
     const [selection, setSelection] = useState<Selection>({});
     const [loaded, setLoaded] = useState(false);
     const [searched, setSearched] = useState(false);
@@ -44,6 +51,7 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
         method: 'cash',
         note: '',
         proof: null as File | null,
+        confirm_duplicate: false,
     });
     const errors = form.errors as Record<string, string>;
 
@@ -86,11 +94,13 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
         setPayer(candidate);
         setSelection({});
         setGroups([]);
+        setPendingPayments([]);
         setLoaded(false);
         form.setData((data) => ({
             ...data,
             payer_person_id: String(candidate.id),
             items: [],
+            confirm_duplicate: false,
         }));
 
         try {
@@ -100,7 +110,10 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
             );
 
             if (response.ok) {
-                setGroups((await response.json()).groups);
+                const body = await response.json();
+
+                setGroups(body.groups);
+                setPendingPayments(body.pending_payments ?? []);
             } else {
                 toast.error('Tagihan tidak bisa dimuat. Coba pilih ulang.');
             }
@@ -114,10 +127,16 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
     function clearPayer() {
         setPayer(null);
         setGroups([]);
+        setPendingPayments([]);
         setSelection({});
         setLoaded(false);
         setSearched(false);
-        form.setData((data) => ({ ...data, payer_person_id: '', items: [] }));
+        form.setData((data) => ({
+            ...data,
+            payer_person_id: '',
+            items: [],
+            confirm_duplicate: false,
+        }));
     }
 
     function change(next: Selection) {
@@ -217,6 +236,37 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
                         </p>
                     )}
                 </SectionCard>
+
+                {payer && pendingPayments.length > 0 && (
+                    <Alert variant="warning">
+                        <Clock />
+                        <AlertTitle>
+                            Ada pembayaran menunggu verifikasi
+                        </AlertTitle>
+                        <AlertDescription>
+                            <p>
+                                {payer.name} sudah punya{' '}
+                                {pendingPayments.length} pembayaran yang belum
+                                diperiksa. Verifikasi itu saja, jangan catat
+                                ulang.
+                            </p>
+                            <ul className="mt-2 grid gap-1">
+                                {pendingPayments.map((payment) => (
+                                    <li key={payment.id}>
+                                        <Link
+                                            href={show(payment.id)}
+                                            className="font-semibold underline underline-offset-4"
+                                        >
+                                            {formatRupiah(payment.amount)}
+                                        </Link>{' '}
+                                        · {formatDate(payment.paid_on)} ·{' '}
+                                        {payment.method}
+                                    </li>
+                                ))}
+                            </ul>
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 {payer && !loaded && (
                     <div
@@ -326,6 +376,38 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
                                 </FormField>
                             </div>
                         </SectionCard>
+
+                        {errors.confirm_duplicate && (
+                            <Alert variant="warning">
+                                <CircleAlert />
+                                <AlertTitle>
+                                    Mungkin tercatat dua kali
+                                </AlertTitle>
+                                <AlertDescription>
+                                    <p>{errors.confirm_duplicate}</p>
+                                    <div className="mt-3 flex items-center gap-2">
+                                        <Checkbox
+                                            id="confirm-duplicate"
+                                            checked={
+                                                form.data.confirm_duplicate
+                                            }
+                                            onCheckedChange={(checked) =>
+                                                form.setData(
+                                                    'confirm_duplicate',
+                                                    checked === true,
+                                                )
+                                            }
+                                        />
+                                        <Label
+                                            htmlFor="confirm-duplicate"
+                                            className="font-semibold"
+                                        >
+                                            Tetap catat
+                                        </Label>
+                                    </div>
+                                </AlertDescription>
+                            </Alert>
+                        )}
 
                         <div className="flex justify-end gap-3">
                             <Button variant="outline" asChild>

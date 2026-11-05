@@ -1,4 +1,4 @@
-import { useForm } from '@inertiajs/react';
+import { Link, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
 import { FormField } from '@/components/form-field';
 import { OptionSelect } from '@/components/option-select';
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { toastFirstError } from '@/hooks/use-flash-toast';
+import { index as yearsIndex } from '@/routes/admin/years';
 import { bypass, place, revise } from '@/routes/admin/registrants';
 import type { Option } from '@/types/people';
 
@@ -205,6 +206,8 @@ export function PlaceDialog({
         nis: '',
     });
     const errors = form.errors as Record<string, string>;
+    const { auth } = usePage().props;
+    const canManageYears = auth.abilities.includes('core::year.manage');
 
     return (
         <DialogShell
@@ -242,6 +245,21 @@ export function PlaceDialog({
                     />
                 )}
             </FormField>
+            {years.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                    Belum ada tahun ajaran, jadi siswa belum bisa ditempatkan.{' '}
+                    {canManageYears ? (
+                        <Link
+                            href={yearsIndex()}
+                            className="font-semibold text-foreground underline"
+                        >
+                            Buat tahun ajaran dulu
+                        </Link>
+                    ) : (
+                        'Minta admin membuat tahun ajaran dulu.'
+                    )}
+                </p>
+            )}
             <FormField
                 label="Nomor induk siswa (NIS)"
                 required

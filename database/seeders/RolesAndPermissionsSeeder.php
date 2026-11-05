@@ -17,8 +17,8 @@ use Spatie\Permission\PermissionRegistrar;
 class RolesAndPermissionsSeeder extends Seeder
 {
     /**
-     * Default abilities of the committee operator. Bypass, template editing, settings, accounts and roles stay
-     * with admins.
+     * Default abilities of the committee operator. Bypass, template editing, settings, accounts, roles, years,
+     * organizations, payment voiding and student corrections stay with admins.
      *
      * @return list<Ability>
      */
@@ -39,6 +39,7 @@ class RolesAndPermissionsSeeder extends Seeder
             Ability::RegistrantExport,
             Ability::RegistrantBulk,
             Ability::RegistrantPlace,
+            Ability::StudentView,
             Ability::PaymentView,
             Ability::PaymentRecord,
             Ability::PaymentVerify,

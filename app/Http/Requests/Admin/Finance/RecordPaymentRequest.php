@@ -30,6 +30,7 @@ class RecordPaymentRequest extends FormRequest
             'method' => ['required', Rule::enum(PaymentMethod::class)],
             'note' => ['nullable', 'string', 'max:500'],
             'proof' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
+            'confirm_duplicate' => ['nullable', 'boolean'],
         ];
     }
 

@@ -1,8 +1,20 @@
 import { Head, router } from '@inertiajs/react';
-import { Check, CircleAlert, Wallet, X } from 'lucide-react';
+import {
+    Check,
+    CircleAlert,
+    Plus,
+    Printer,
+    RotateCcw,
+    Undo2,
+    Wallet,
+    X,
+} from 'lucide-react';
 import { useState } from 'react';
 import { DescriptionList } from '@/components/description-list';
 import { PageHeader } from '@/components/page-header';
+import { PaymentAllocationAdder } from '@/components/payments/payment-allocation-adder';
+import { PaymentCorrectionDialog } from '@/components/payments/payment-correction-dialog';
+import type { CorrectionTarget } from '@/components/payments/payment-correction-dialog';
 import { PaymentProof } from '@/components/payments/payment-proof';
 import { PaymentRejectForm } from '@/components/payments/payment-reject-form';
 import { SectionCard } from '@/components/section-card';
@@ -14,77 +26,192 @@ import { Spinner } from '@/components/ui/spinner';
 import { formatDate, formatRupiah } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
-import { index, reject, verify } from '@/routes/admin/payments';
-import type { PaymentAllocationRow, PaymentDetail } from '@/types/billing';
+import {
+    index,
+    reject,
+    reopen,
+    verify,
+    voidMethod,
+} from '@/routes/admin/payments';
+import { receipt } from '@/routes/payments';
+import type {
+    OpenGroup,
+    PaymentAllocationRow,
+    PaymentDetail,
+    PaymentDetailCan,
+    PaymentHistoryEntry,
+} from '@/types/billing';
+
+/** One line of the division: the submitted ones come from the server, the added ones from the family's open items. */
+type DivisionRow = {
+    bill_item_id: number;
+    item: string;
+    child: string;
+    bill: string;
+    item_amount: number;
+    /** What the item can still take, when known. */
+    room: number | null;
+    isAdded: boolean;
+};
 
 export default function PaymentShow({
     payment,
     allocations,
     can,
+    open_groups: openGroups,
+    history,
 }: {
     payment: PaymentDetail;
     allocations: PaymentAllocationRow[];
-    can: { verify: boolean };
+    can: PaymentDetailCan;
+    open_groups: OpenGroup[];
+    history: PaymentHistoryEntry[];
 }) {
     const [amounts, setAmounts] = useState<Record<number, string>>(
         Object.fromEntries(
             allocations.map((row) => [row.bill_item_id, String(row.amount)]),
         ),
     );
+    const [addedIds, setAddedIds] = useState<number[]>([]);
+    const [adding, setAdding] = useState(false);
     const [rejecting, setRejecting] = useState(false);
+    const [correction, setCorrection] = useState<'void' | 'reopen' | null>(
+        null,
+    );
+    const [correctionKey, setCorrectionKey] = useState(0);
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    const total = Object.values(amounts).reduce(
-        (sum, value) => sum + (Number(value) || 0),
-        0,
-    );
-    const isChanged = allocations.some(
-        (row) => Number(amounts[row.bill_item_id]) !== row.amount,
-    );
+    const submitted: DivisionRow[] = allocations.map((row) => ({
+        bill_item_id: row.bill_item_id,
+        item: row.item,
+        child: row.child,
+        bill: row.bill,
+        item_amount: row.item_amount,
+        room: row.room,
+        isAdded: false,
+    }));
+    const added: DivisionRow[] = addedIds.flatMap((id) => {
+        for (const group of openGroups) {
+            const item = group.items.find((candidate) => candidate.id === id);
+
+            if (item) {
+                return [
+                    {
+                        bill_item_id: item.id,
+                        item: item.name,
+                        child: group.registrant.child_name,
+                        bill: group.type_label,
+                        item_amount: item.amount,
+                        room: item.outstanding,
+                        isAdded: true,
+                    },
+                ];
+            }
+        }
+
+        return [];
+    });
+    // The order of this list is the order the server reads the division in, so its errors point at these positions.
+    const division = [...submitted, ...added];
+
+    const amountOf = (row: DivisionRow) =>
+        Number(amounts[row.bill_item_id]) || 0;
+    const total = division.reduce((sum, row) => sum + amountOf(row), 0);
+    const isChanged =
+        added.length > 0 ||
+        allocations.some(
+            (row) => Number(amounts[row.bill_item_id]) !== row.amount,
+        );
     const matches = total === payment.amount;
+    const isOverRoom = division.some(
+        (row) => row.room !== null && amountOf(row) > row.room,
+    );
+    const canAddMore = openGroups.length > 0;
+
+    function addItem(itemId: number) {
+        const item = openGroups
+            .flatMap((group) => group.items)
+            .find((candidate) => candidate.id === itemId);
+
+        if (!item) {
+            return;
+        }
+
+        const leftToPlace = Math.max(payment.amount - total, 0);
+
+        setAddedIds([...addedIds, itemId]);
+        setAmounts({
+            ...amounts,
+            [itemId]: String(Math.min(item.outstanding, leftToPlace)),
+        });
+        setAdding(false);
+    }
+
+    function removeAdded(itemId: number) {
+        setAddedIds(addedIds.filter((id) => id !== itemId));
+        setAmounts(
+            Object.fromEntries(
+                Object.entries(amounts).filter(
+                    ([key]) => Number(key) !== itemId,
+                ),
+            ),
+        );
+    }
+
+    function visit(
+        url: string,
+        data: Parameters<typeof router.put>[1],
+        onSuccess?: () => void,
+    ) {
+        router.put(url, data, {
+            preserveScroll: true,
+            onStart: () => {
+                setProcessing(true);
+                setErrors({});
+            },
+            onFinish: () => setProcessing(false),
+            onError: setErrors,
+            onSuccess,
+        });
+    }
 
     function submitVerify() {
-        router.put(
+        visit(
             verify(payment.id).url,
             isChanged
                 ? {
-                      allocations: allocations.map((row) => ({
+                      allocations: division.map((row) => ({
                           bill_item_id: row.bill_item_id,
-                          amount: Number(amounts[row.bill_item_id]) || 0,
+                          amount: amountOf(row),
                       })),
                   }
                 : {},
-            {
-                preserveScroll: true,
-                onStart: () => {
-                    setProcessing(true);
-                    setErrors({});
-                },
-                onFinish: () => setProcessing(false),
-                onError: setErrors,
-            },
         );
     }
 
     function submitReject(reason: string) {
-        router.put(
-            reject(payment.id).url,
-            { reason },
-            {
-                preserveScroll: true,
-                onStart: () => {
-                    setProcessing(true);
-                    setErrors({});
-                },
-                onFinish: () => setProcessing(false),
-                onError: setErrors,
-                onSuccess: () => setRejecting(false),
+        visit(reject(payment.id).url, { reason }, () => setRejecting(false));
+    }
+
+    function submitCorrection(values: {
+        reason: string;
+        to: CorrectionTarget;
+    }) {
+        const isVoid = correction === 'void';
+
+        visit(
+            isVoid ? voidMethod(payment.id).url : reopen(payment.id).url,
+            isVoid ? values : { reason: values.reason },
+            () => {
+                setCorrection(null);
+                setCorrectionKey((key) => key + 1);
             },
         );
     }
 
     const problem = errors.allocations ?? errors.payment;
+    const correctionProblem = correction !== null ? errors.payment : undefined;
 
     return (
         <>
@@ -98,6 +225,20 @@ export default function PaymentShow({
                         <div className="pt-1">
                             <StatusBadge status={payment.status} />
                         </div>
+                    }
+                    actions={
+                        can.receipt && (
+                            <Button variant="outline" asChild>
+                                <a
+                                    href={receipt(payment.id).url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    <Printer />
+                                    Cetak kwitansi
+                                </a>
+                            </Button>
+                        )
                     }
                 />
 
@@ -117,17 +258,23 @@ export default function PaymentShow({
                             title="Untuk membayar apa"
                             description={
                                 can.verify
-                                    ? 'Kamu bisa membagi ulang nominalnya. Totalnya harus tetap sama dengan pembayaran.'
+                                    ? 'Kamu bisa membagi ulang nominalnya, juga ke rincian lain milik keluarga ini. Totalnya harus tetap sama dengan pembayaran.'
                                     : undefined
                             }
                         >
                             <div className="grid gap-4">
                                 <ul className="grid divide-y divide-line">
-                                    {allocations.map((row, position) => {
+                                    {division.map((row, position) => {
                                         const error =
                                             errors[
                                                 `allocations.${position}.amount`
+                                            ] ??
+                                            errors[
+                                                `allocations.${position}.bill_item_id`
                                             ];
+                                        const over =
+                                            row.room !== null &&
+                                            amountOf(row) > row.room;
 
                                         return (
                                             <li
@@ -137,6 +284,11 @@ export default function PaymentShow({
                                                 <div className="grid gap-0.5 text-sm">
                                                     <span className="font-semibold">
                                                         {row.item}
+                                                        {row.isAdded && (
+                                                            <span className="ml-2 text-xs font-medium text-muted-foreground">
+                                                                ditambahkan
+                                                            </span>
+                                                        )}
                                                     </span>
                                                     <span className="text-xs text-muted-foreground tabular-nums">
                                                         {row.child} · Tagihan{' '}
@@ -150,41 +302,66 @@ export default function PaymentShow({
                                                 </div>
                                                 {can.verify ? (
                                                     <div className="grid gap-1">
-                                                        <Input
-                                                            type="number"
-                                                            inputMode="numeric"
-                                                            min={0}
-                                                            aria-label={`Alokasi ${row.item}`}
-                                                            value={
-                                                                amounts[
-                                                                    row
-                                                                        .bill_item_id
-                                                                ]
-                                                            }
-                                                            aria-invalid={Boolean(
-                                                                error,
+                                                        <div className="flex items-center gap-2">
+                                                            <Input
+                                                                type="number"
+                                                                inputMode="numeric"
+                                                                min={0}
+                                                                max={
+                                                                    row.room ??
+                                                                    undefined
+                                                                }
+                                                                aria-label={`Alokasi ${row.item} ${row.child}`}
+                                                                value={
+                                                                    amounts[
+                                                                        row
+                                                                            .bill_item_id
+                                                                    ] ?? ''
+                                                                }
+                                                                aria-invalid={Boolean(
+                                                                    error ||
+                                                                    over,
+                                                                )}
+                                                                className="tabular-nums"
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    setAmounts({
+                                                                        ...amounts,
+                                                                        [row.bill_item_id]:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    })
+                                                                }
+                                                            />
+                                                            {row.isAdded && (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    aria-label={`Hapus ${row.item} ${row.child}`}
+                                                                    onClick={() =>
+                                                                        removeAdded(
+                                                                            row.bill_item_id,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <X />
+                                                                </Button>
                                                             )}
-                                                            className="tabular-nums"
-                                                            onChange={(event) =>
-                                                                setAmounts({
-                                                                    ...amounts,
-                                                                    [row.bill_item_id]:
-                                                                        event
-                                                                            .target
-                                                                            .value,
-                                                                })
-                                                            }
-                                                        />
-                                                        {error && (
+                                                        </div>
+                                                        {(error || over) && (
                                                             <p className="text-sm font-medium text-destructive-foreground">
-                                                                {error}
+                                                                {error ??
+                                                                    `Melebihi sisa (${formatRupiah(row.room ?? 0)})`}
                                                             </p>
                                                         )}
                                                     </div>
                                                 ) : (
                                                     <p className="font-semibold tabular-nums sm:text-right">
                                                         {formatRupiah(
-                                                            row.amount,
+                                                            amountOf(row),
                                                         )}
                                                     </p>
                                                 )}
@@ -192,6 +369,49 @@ export default function PaymentShow({
                                         );
                                     })}
                                 </ul>
+
+                                {can.verify && canAddMore && (
+                                    <div className="grid gap-3 border-t border-line pt-3">
+                                        {adding ? (
+                                            <>
+                                                <PaymentAllocationAdder
+                                                    groups={openGroups}
+                                                    used={
+                                                        new Set(
+                                                            division.map(
+                                                                (row) =>
+                                                                    row.bill_item_id,
+                                                            ),
+                                                        )
+                                                    }
+                                                    onAdd={addItem}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="justify-self-start"
+                                                    onClick={() =>
+                                                        setAdding(false)
+                                                    }
+                                                >
+                                                    Tutup daftar
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="justify-self-start"
+                                                onClick={() => setAdding(true)}
+                                            >
+                                                <Plus />
+                                                Tambah rincian lain
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
 
                                 {can.verify && (
                                     <p
@@ -246,6 +466,27 @@ export default function PaymentShow({
                                 ]}
                             />
                         </SectionCard>
+
+                        {history.length > 0 && (
+                            <SectionCard
+                                title="Jejak perubahan"
+                                description="Dicatat otomatis setiap kali pembayaran dibatalkan atau dibuka ulang."
+                            >
+                                <ul className="grid divide-y divide-line">
+                                    {history.map((entry) => (
+                                        <li
+                                            key={entry.id}
+                                            className="grid gap-1 py-3 text-sm first:pt-0 last:pb-0"
+                                        >
+                                            <span className="text-xs font-medium text-muted-foreground">
+                                                {entry.created_at}
+                                            </span>
+                                            <span>{entry.body}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </SectionCard>
+                        )}
                     </div>
 
                     <div className="grid min-w-0 gap-6 @5xl:sticky @5xl:top-20">
@@ -282,7 +523,9 @@ export default function PaymentShow({
                                             <Button
                                                 size="lg"
                                                 disabled={
-                                                    processing || !matches
+                                                    processing ||
+                                                    !matches ||
+                                                    isOverRoom
                                                 }
                                                 onClick={submitVerify}
                                             >
@@ -313,7 +556,62 @@ export default function PaymentShow({
                                                     .
                                                 </p>
                                             )}
+                                            {matches && isOverRoom && (
+                                                <p className="text-sm text-muted-foreground">
+                                                    Ada rincian yang diberi
+                                                    lebih dari sisanya.
+                                                </p>
+                                            )}
                                         </div>
+                                    )}
+                                </div>
+                            </SectionCard>
+                        )}
+
+                        {(can.void || can.reopen) && (
+                            <SectionCard
+                                title="Koreksi"
+                                description={
+                                    can.void
+                                        ? 'Salah verifikasi? Batalkan supaya tidak lagi dihitung ke tagihan.'
+                                        : 'Ditolak karena keliru? Buka ulang supaya bisa diverifikasi.'
+                                }
+                            >
+                                <div className="grid gap-2">
+                                    {!can.verify && problem && (
+                                        <Alert variant="destructive">
+                                            <CircleAlert />
+                                            <AlertTitle>
+                                                Belum bisa diproses
+                                            </AlertTitle>
+                                            <AlertDescription>
+                                                {problem}
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
+                                    {can.void && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => {
+                                                setErrors({});
+                                                setCorrection('void');
+                                            }}
+                                        >
+                                            <Undo2 />
+                                            Batalkan pembayaran
+                                        </Button>
+                                    )}
+                                    {can.reopen && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => {
+                                                setErrors({});
+                                                setCorrection('reopen');
+                                            }}
+                                        >
+                                            <RotateCcw />
+                                            Buka ulang
+                                        </Button>
                                     )}
                                 </div>
                             </SectionCard>
@@ -330,6 +628,17 @@ export default function PaymentShow({
                     </div>
                 </div>
             </div>
+
+            <PaymentCorrectionDialog
+                key={correctionKey}
+                mode={correction ?? 'void'}
+                open={correction !== null}
+                onOpenChange={(open) => !open && setCorrection(null)}
+                processing={processing}
+                error={errors.reason}
+                targetError={errors.to ?? correctionProblem}
+                onSubmit={submitCorrection}
+            />
         </>
     );
 }

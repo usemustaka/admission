@@ -44,13 +44,14 @@ class RegistrantPresenter
      * the status and the NIK check allow them. While the NIK is unconfirmed nothing moves forward and nothing is
      * sent back (the parent cannot edit yet); `bypass` stays, but the status picker leaves out the steps ahead.
      *
-     * @return array{manage: bool, accept: bool, revise: bool, announce: bool, place: bool, bypass: bool}
+     * @return array{manage: bool, accept: bool, revise: bool, announce: bool, place: bool, bypass: bool, cancel_placement: bool}
      */
     public static function abilities(Registrant $registrant, User $user): array
     {
         $canManage = $user->can(Ability::RegistrantManage->value);
         $canPlace = $canManage && $user->can(Ability::RegistrantPlace->value);
         $canBypass = $canManage && $user->can(Ability::RegistrantBypass->value);
+        $canCancelPlacement = $user->can(Ability::StudentManage->value);
         $status = $registrant->status;
 
         return [
@@ -60,6 +61,7 @@ class RegistrantPresenter
             'announce' => $canManage && $status === RegistrantStatus::Validated && ! $registrant->needs_identity_review,
             'place' => $canPlace && $status === RegistrantStatus::Announced && ! $registrant->needs_identity_review,
             'bypass' => $canBypass && $status !== RegistrantStatus::Placed,
+            'cancel_placement' => $canCancelPlacement && $status === RegistrantStatus::Placed,
         ];
     }
 

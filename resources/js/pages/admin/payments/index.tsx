@@ -10,6 +10,7 @@ import {
     Landmark,
     Plus,
     RotateCcw,
+    Scale,
     Wallet,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -45,6 +46,7 @@ import {
     create,
     exportMethod,
     index,
+    reconciliation,
     show,
 } from '@/routes/admin/payments';
 import type {
@@ -378,6 +380,12 @@ export default function PaymentsIndex({
                     description="Cek bukti transfer dari orang tua dan catat pembayaran tunai. Hanya yang sudah diverifikasi yang dihitung ke tagihan."
                     actions={
                         <>
+                            <Button variant="outline" asChild>
+                                <Link href={reconciliation()}>
+                                    <Scale />
+                                    Rekonsiliasi
+                                </Link>
+                            </Button>
                             {can.export && (
                                 <Button variant="outline" asChild>
                                     <a

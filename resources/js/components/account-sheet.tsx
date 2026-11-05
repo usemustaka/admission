@@ -1,5 +1,12 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { LogOut, Settings, SlidersHorizontal, UserCog } from 'lucide-react';
+import {
+    CalendarDays,
+    LogOut,
+    School,
+    Settings,
+    SlidersHorizontal,
+    UserCog,
+} from 'lucide-react';
 import { PersonAvatar } from '@/components/person-avatar';
 import {
     Sheet,
@@ -8,8 +15,10 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import { logout } from '@/routes';
+import { index as organizations } from '@/routes/admin/organizations';
 import { edit as editSetting } from '@/routes/admin/settings';
 import { index as staff } from '@/routes/admin/users';
+import { index as years } from '@/routes/admin/years';
 import { edit as editProfile } from '@/routes/profile';
 
 /**
@@ -66,6 +75,26 @@ export function AccountSheet({
                     >
                         <SlidersHorizontal className="size-6 text-muted-foreground" />
                         Pengaturan aplikasi
+                    </Link>
+                )}
+                {auth.abilities.includes('core::year.manage') && (
+                    <Link
+                        href={years()}
+                        onClick={() => onOpenChange(false)}
+                        className="flex items-center gap-4 rounded-xl px-2 py-3 text-base font-semibold active:bg-accent"
+                    >
+                        <CalendarDays className="size-6 text-muted-foreground" />
+                        Tahun ajaran
+                    </Link>
+                )}
+                {auth.abilities.includes('core::organization.manage') && (
+                    <Link
+                        href={organizations()}
+                        onClick={() => onOpenChange(false)}
+                        className="flex items-center gap-4 rounded-xl px-2 py-3 text-base font-semibold active:bg-accent"
+                    >
+                        <School className="size-6 text-muted-foreground" />
+                        Lembaga
                     </Link>
                 )}
                 {auth.abilities.includes('core::user.manage') && (

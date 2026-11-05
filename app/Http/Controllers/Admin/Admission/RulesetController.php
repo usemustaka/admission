@@ -75,7 +75,7 @@ class RulesetController extends Controller
 
         return Inertia::render('admin/rulesets/form', [
             'ruleset' => null,
-            'options' => $this->options(),
+            'options' => $this->options(onlyActiveOrganizations: true),
         ]);
     }
 
@@ -135,7 +135,7 @@ class RulesetController extends Controller
 
         return Inertia::render('admin/rulesets/form', [
             'ruleset' => $this->summary($ruleset),
-            'options' => $this->options(),
+            'options' => $this->options(onlyActiveOrganizations: true, keepOrganizationId: $ruleset->organization_id),
         ]);
     }
 
@@ -209,13 +209,18 @@ class RulesetController extends Controller
     }
 
     /**
+     * The choices of the forms and filters. A form only offers active organizations, plus the one the ruleset
+     * already has, so an inactive organization keeps showing on the rulesets that were made for it.
+     *
      * @return array<string, array<int, array{value: int|string, label: string}>>
      */
-    private function options(): array
+    private function options(bool $onlyActiveOrganizations = false, ?int $keepOrganizationId = null): array
     {
         return [
             'waves' => Wave::query()->orderByDesc('id')->get()->map(fn (Wave $wave): array => ['value' => $wave->id, 'label' => $wave->name])->values()->all(),
-            'organizations' => Organization::query()->orderBy('sort_order')->orderBy('name')->get()->map(fn (Organization $organization): array => ['value' => $organization->id, 'label' => $organization->name])->values()->all(),
+            'organizations' => Organization::query()
+                ->when($onlyActiveOrganizations, fn ($query) => $query->where(fn ($query) => $query->where('is_active', true)->when($keepOrganizationId, fn ($query) => $query->orWhere('id', $keepOrganizationId))))
+                ->orderBy('sort_order')->orderBy('name')->get()->map(fn (Organization $organization): array => ['value' => $organization->id, 'label' => $organization->name])->values()->all(),
             'genders' => array_map(fn (HasLabel $gender): array => ['value' => $gender->value, 'label' => $gender->label()], Gender::cases()),
         ];
     }

@@ -11,6 +11,8 @@ enum Ability: string
     case SettingManage = 'core::setting.manage';
     case UserManage = 'core::user.manage';
     case RoleManage = 'core::role.manage';
+    case YearManage = 'core::year.manage';
+    case OrganizationManage = 'core::organization.manage';
     case PersonView = 'core::person.view';
     case PersonCreate = 'core::person.create';
     case PersonUpdate = 'core::person.update';
@@ -34,6 +36,9 @@ enum Ability: string
     case PaymentRecord = 'admission::payment.record';
     case PaymentVerify = 'admission::payment.verify';
     case PaymentExport = 'admission::payment.export';
+    case PaymentVoid = 'admission::payment.void';
+    case StudentView = 'admission::student.view';
+    case StudentManage = 'admission::student.manage';
 
     /**
      * The module prefix, such as `core` or `admission`, used to group abilities on screen.
@@ -50,6 +55,8 @@ enum Ability: string
             self::SettingManage => 'Mengatur identitas, tampilan, dan kontak aplikasi',
             self::UserManage => 'Mengelola akun staf: undang, ubah peran, nonaktifkan',
             self::RoleManage => 'Mengelola peran dan izinnya',
+            self::YearManage => 'Mengelola tahun ajaran dan periode',
+            self::OrganizationManage => 'Mengelola lembaga',
             self::PersonView => 'Melihat data orang',
             self::PersonCreate => 'Menambah orang',
             self::PersonUpdate => 'Mengubah data orang',
@@ -73,6 +80,9 @@ enum Ability: string
             self::PaymentRecord => 'Mencatat pembayaran langsung (tunai atau transfer yang diterima staf)',
             self::PaymentVerify => 'Memverifikasi dan menolak pembayaran yang dikirim orang tua',
             self::PaymentExport => 'Mengekspor data pembayaran (CSV)',
+            self::PaymentVoid => 'Membatalkan atau membuka ulang pembayaran yang sudah diproses',
+            self::StudentView => 'Melihat daftar siswa',
+            self::StudentManage => 'Mengubah nomor induk dan tahun siswa, atau membatalkan penempatan',
         };
     }
 }

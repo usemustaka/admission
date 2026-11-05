@@ -13,16 +13,23 @@ use App\Http\Controllers\Admin\Admission\RulesetController;
 use App\Http\Controllers\Admin\Admission\RulesetOrderController;
 use App\Http\Controllers\Admin\Admission\WaveController;
 use App\Http\Controllers\Admin\Finance\PaymentController as AdminPaymentController;
+use App\Http\Controllers\Admin\Finance\PaymentCorrectionController;
+use App\Http\Controllers\Admin\Finance\PaymentReconciliationController;
 use App\Http\Controllers\Admin\NoteController;
+use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\ParentshipController;
+use App\Http\Controllers\Admin\PeriodController;
 use App\Http\Controllers\Admin\PersonController;
 use App\Http\Controllers\Admin\PersonQuickViewController;
 use App\Http\Controllers\Admin\PersonSearchController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\YearController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentProofController;
+use App\Http\Controllers\PaymentReceiptController;
 use App\Http\Controllers\Portal\BillController;
 use App\Http\Controllers\Portal\ChildController;
 use App\Http\Controllers\Portal\ChildDataController;
@@ -60,6 +67,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('portal/pembayaran', [PaymentController::class, 'store'])->name('portal.payments.store');
 
     Route::get('payments/{payment}/bukti', PaymentProofController::class)->name('payments.proof');
+    Route::get('payments/{payment}/kwitansi', PaymentReceiptController::class)->name('payments.receipt');
 
     Route::middleware(['can:'.Ability::AdminAccess->value, RequireStaffTwoFactor::class])
         ->prefix('admin')
@@ -103,11 +111,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             Route::get('payments/open-items', [AdminPaymentController::class, 'openItems'])->name('payments.open-items');
             Route::get('payments/ekspor', [AdminPaymentController::class, 'export'])->name('payments.export');
+            Route::get('payments/rekonsiliasi', [PaymentReconciliationController::class, 'index'])->name('payments.reconciliation');
+            Route::get('payments/rekonsiliasi/ekspor', [PaymentReconciliationController::class, 'export'])->name('payments.reconciliation.export');
             Route::post('payments/verifikasi-massal', [AdminPaymentController::class, 'bulkVerify'])->name('payments.bulk-verify');
             Route::get('payments/{payment}/ringkasan', [AdminPaymentController::class, 'quickView'])->name('payments.quick-view');
             Route::resource('payments', AdminPaymentController::class)->only(['index', 'create', 'store', 'show']);
             Route::put('payments/{payment}/verify', [AdminPaymentController::class, 'verify'])->name('payments.verify');
             Route::put('payments/{payment}/reject', [AdminPaymentController::class, 'reject'])->name('payments.reject');
+            Route::put('payments/{payment}/void', [PaymentCorrectionController::class, 'void'])->name('payments.void');
+            Route::put('payments/{payment}/reopen', [PaymentCorrectionController::class, 'reopen'])->name('payments.reopen');
 
             Route::resource('users', UserController::class)->only(['index', 'create', 'store', 'show', 'update']);
             Route::prefix('users/{user}')->name('users.')->controller(UserController::class)->group(function () {
@@ -121,6 +133,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('roles/{role}/duplicate', [RoleController::class, 'duplicate'])->name('roles.duplicate');
 
             Route::resource('waves', WaveController::class)->only(['index', 'store', 'update']);
+
+            Route::resource('years', YearController::class)->only(['index', 'store', 'update', 'destroy']);
+            Route::post('years/{year}/activate', [YearController::class, 'activate'])->name('years.activate');
+            Route::resource('years.periods', PeriodController::class)->only(['store', 'update', 'destroy'])->scoped();
+
+            Route::resource('organizations', OrganizationController::class)->only(['index', 'store', 'update', 'destroy']);
+            Route::patch('organizations/{organization}/move', [OrganizationController::class, 'move'])->name('organizations.move');
+
+            Route::get('students', [StudentController::class, 'index'])->name('students.index');
+            Route::put('students/{student}', [StudentController::class, 'update'])->name('students.update');
+            Route::post('students/{student}/cancel-placement', [StudentController::class, 'cancelPlacement'])->name('students.cancel-placement');
 
             Route::resource('rulesets', RulesetController::class);
             Route::patch('rulesets/{ruleset}/move', RulesetOrderController::class)->name('rulesets.move');

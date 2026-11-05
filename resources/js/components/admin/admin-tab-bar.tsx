@@ -6,6 +6,9 @@ import { AccountSheet } from '@/components/account-sheet';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn } from '@/lib/utils';
 
+/** Sections that live behind the "Akun" tab on phones, to keep the tab bar to five items. */
+const moreSections = ['Akademik', 'Akses', 'Pengaturan'];
+
 const itemClass = (selected: boolean) =>
     cn(
         'flex flex-col items-center gap-0.5 pt-2 pb-1 text-[11px] font-semibold outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
@@ -25,15 +28,13 @@ const pillClass = (selected: boolean) =>
 export function AdminTabBar() {
     const { sections: allSections, active } = useAdminNavigation();
     const sections = allSections.filter(
-        (section) =>
-            section.title !== 'Pengaturan' && section.title !== 'Akses',
+        (section) => !moreSections.includes(section.title),
     );
     const { isCurrentOrParentUrl } = useCurrentUrl();
     const [menuOpen, setMenuOpen] = useState(false);
     const onSettings =
         isCurrentOrParentUrl('/settings') ||
-        active?.title === 'Pengaturan' ||
-        active?.title === 'Akses';
+        (active !== undefined && moreSections.includes(active.title));
 
     return (
         <>

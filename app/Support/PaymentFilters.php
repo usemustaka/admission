@@ -49,7 +49,7 @@ class PaymentFilters
         );
     }
 
-    private static function date(mixed $value): ?string
+    public static function date(mixed $value): ?string
     {
         if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1) {
             return null;

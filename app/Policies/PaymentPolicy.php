@@ -43,4 +43,13 @@ class PaymentPolicy
     {
         return $user->can(Ability::PaymentVerify->value);
     }
+
+    /**
+     * Taking back a verified payment or reopening a rejected one is stricter than verifying: it needs its own
+     * ability, and the right to see the payment.
+     */
+    public function void(User $user): bool
+    {
+        return $user->can(Ability::PaymentVoid->value) && $user->can(Ability::PaymentView->value);
+    }
 }

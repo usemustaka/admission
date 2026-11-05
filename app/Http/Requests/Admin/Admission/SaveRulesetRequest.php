@@ -26,13 +26,24 @@ class SaveRulesetRequest extends FormRequest
      */
     public function rules(): array
     {
+        $ruleset = $this->route('ruleset');
+        $currentOrganizationId = $ruleset instanceof Ruleset ? $ruleset->organization_id : null;
+
         return [
             'name' => ['required', 'string', 'max:255'],
             'wave_id' => ['nullable', 'integer', Rule::exists(Wave::class, 'id')],
-            'organization_id' => ['nullable', 'integer', Rule::exists(Organization::class, 'id')],
+            'organization_id' => ['nullable', 'integer', Rule::exists(Organization::class, 'id')->where(fn ($query) => $query->where('is_active', true)->when($currentOrganizationId, fn ($query) => $query->orWhere('id', $currentOrganizationId)))],
             'gender' => ['nullable', Rule::enum(Gender::class)],
             'is_active' => ['boolean'],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return ['organization_id.exists' => 'Lembaga ini tidak aktif atau tidak ada. Pilih lembaga yang aktif.'];
     }
 
     /**

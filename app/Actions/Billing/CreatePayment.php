@@ -6,6 +6,7 @@ use App\Enums\PaymentStatus;
 use App\Models\BillItem;
 use App\Models\Payment;
 use App\Support\Money;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -19,7 +20,8 @@ class CreatePayment
      * it directly. Only items of the payer's own children can be paid, and never more than what is left.
      *
      * The items are locked before their room is read, so two payments for the same item cannot both see the same
-     * room. The proof file is stored last and removed again when anything fails, so no orphan is left behind.
+     * room. The same payer paying the same amount on the same day again is most likely a double entry, so the
+     * committee has to confirm it. The proof file is stored last and removed again when anything fails, so no orphan is left behind.
      *
      * @throws ValidationException
      */
@@ -32,6 +34,10 @@ class CreatePayment
                 $itemIds = array_column($data->items, 'bill_item_id');
 
                 BillItem::lockForAllocation($itemIds);
+
+                if ($verified && ! $data->confirmDuplicate) {
+                    $this->refuseUnconfirmedDuplicate($data);
+                }
 
                 $items = BillItem::query()
                     ->whereIn('id', $itemIds)
@@ -98,5 +104,34 @@ class CreatePayment
 
             throw $exception;
         }
+    }
+
+    /**
+     * A soft warning for the committee's own form: the same payer, amount and day already exists (waiting or
+     * verified). It is a validation error on `confirm_duplicate`, which the form turns into a "record anyway" checkbox.
+     *
+     * @throws ValidationException
+     */
+    private function refuseUnconfirmedDuplicate(PaymentData $data): void
+    {
+        $day = CarbonImmutable::parse($data->paidOn);
+
+        $existing = Payment::query()
+            ->with('payer')
+            ->where('payer_person_id', $data->payerPersonId)
+            ->where('amount', array_sum(array_column($data->items, 'amount')))
+            ->where('paid_on', '>=', $day->toDateString())
+            ->where('paid_on', '<', $day->addDay()->toDateString())
+            ->whereIn('status', [PaymentStatus::Pending->value, PaymentStatus::Verified->value])
+            ->latest('id')
+            ->first();
+
+        if ($existing === null) {
+            return;
+        }
+
+        $status = mb_strtolower($existing->status->label());
+
+        throw ValidationException::withMessages(['confirm_duplicate' => 'Sudah ada pembayaran '.Money::format($existing->amount)." dari {$existing->payer->name} pada {$day->translatedFormat('j M Y')} (#{$existing->id}, {$status}). Kalau itu pembayaran yang sama, jangan dicatat lagi. Centang \"Tetap catat\" kalau ini memang pembayaran terpisah."]);
     }
 }

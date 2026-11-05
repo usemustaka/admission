@@ -10,10 +10,12 @@ import {
     MessageCircle,
     Phone,
     ShieldAlert,
+    Undo2,
     Users,
     Wallet,
 } from 'lucide-react';
 import { useState } from 'react';
+import { CancelPlacementDialog } from '@/components/academic/cancel-placement-dialog';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { CopyableText } from '@/components/copyable-text';
 import { DescriptionList } from '@/components/description-list';
@@ -126,7 +128,7 @@ export default function RegistrantShow({
         recipient: { name: string; phone: string } | null;
         whatsapp_url: string | null;
     } | null;
-    student: { nis: string | null; year: string | null } | null;
+    student: { id: number; nis: string | null; year: string | null } | null;
     years: { value: number; label: string; is_active: boolean }[];
     statuses: Option[];
     settlement: { has_bill: boolean; paid: boolean };
@@ -137,6 +139,7 @@ export default function RegistrantShow({
     const [revising, setRevising] = useState(false);
     const [bypassing, setBypassing] = useState(false);
     const [placing, setPlacing] = useState(false);
+    const [cancellingPlacement, setCancellingPlacement] = useState(false);
     const [accepting, setAccepting] = useState<'stay' | 'next' | null>(null);
     const [announcing, setAnnouncing] = useState<'stay' | 'next' | null>(null);
     const [resolving, setResolving] = useState(false);
@@ -434,6 +437,19 @@ export default function RegistrantShow({
                                         { label: 'NIS', value: student.nis },
                                     ]}
                                 />
+                                {can.cancel_placement && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="mt-4 max-md:h-10"
+                                        onClick={() =>
+                                            setCancellingPlacement(true)
+                                        }
+                                    >
+                                        <Undo2 />
+                                        Batalkan penempatan
+                                    </Button>
+                                )}
                             </SectionCard>
                         )}
 
@@ -612,6 +628,13 @@ export default function RegistrantShow({
                 onOpenChange={setBypassing}
                 statuses={statuses}
             />
+            {cancellingPlacement && student && (
+                <CancelPlacementDialog
+                    studentId={student.id}
+                    childName={registrant.child.name}
+                    onClose={() => setCancellingPlacement(false)}
+                />
+            )}
             <PlaceDialog
                 registrantId={registrant.id}
                 open={placing}

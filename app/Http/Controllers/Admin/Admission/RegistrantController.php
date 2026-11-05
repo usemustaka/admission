@@ -171,6 +171,7 @@ class RegistrantController extends Controller
                 'whatsapp_url' => Announcement::whatsappUrl($registrant),
             ] : null,
             'student' => $registrant->student === null ? null : [
+                'id' => $registrant->student->id,
                 'nis' => $registrant->student->nis,
                 'year' => $registrant->student->year?->name,
             ],

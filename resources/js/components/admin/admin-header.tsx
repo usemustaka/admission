@@ -81,7 +81,7 @@ export function AdminHeader() {
                                 prefetch
                                 aria-current={selected ? 'page' : undefined}
                                 className={cn(
-                                    'group flex w-24 flex-col items-center justify-center gap-1.5 border-b-2 pt-1 text-[13px] font-semibold transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+                                    'group flex w-20 flex-col items-center justify-center gap-1.5 border-b-2 pt-1 text-[13px] font-semibold transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:w-24',
                                     selected
                                         ? 'border-foreground text-foreground'
                                         : 'border-transparent text-muted-foreground hover:text-foreground',

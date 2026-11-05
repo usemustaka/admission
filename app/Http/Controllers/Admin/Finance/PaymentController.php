@@ -15,8 +15,11 @@ use App\Http\Requests\Admin\Finance\BulkVerifyPaymentsRequest;
 use App\Http\Requests\Admin\Finance\RecordPaymentRequest;
 use App\Http\Requests\Admin\Finance\VerifyPaymentRequest;
 use App\Models\Bill;
+use App\Models\Note;
 use App\Models\Payment;
+use App\Models\Person;
 use App\Support\BillPresenter;
+use App\Support\CsvCell;
 use App\Support\PaymentFilters;
 use App\Support\PaymentPresenter;
 use Illuminate\Database\Eloquent\Builder;
@@ -127,7 +130,7 @@ class PaymentController extends Controller
 
         return response()->streamDownload(function () use ($filters): void {
             $out = fopen('php://output', 'w') ?: throw new RuntimeException('Tidak bisa membuka keluaran untuk ekspor.');
-            $write = fn (array $row) => fputcsv($out, array_map(self::safeCell(...), $row), ',', '"', '');
+            $write = fn (array $row) => fputcsv($out, array_map(CsvCell::safe(...), $row), ',', '"', '');
 
             fwrite($out, "\xEF\xBB\xBF");
             $write(['ID', 'Tanggal bayar', 'Pembayar', 'Siswa', 'Rincian', 'Cara bayar', 'Nominal (Rp)', 'Status', 'Alasan ditolak', 'Catatan', 'Dikirim', 'Diperiksa oleh', 'Diperiksa pada']);
@@ -157,18 +160,6 @@ class PaymentController extends Controller
 
             fclose($out);
         }, 'pembayaran-'.today()->toDateString().'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
-    }
-
-    /**
-     * Spreadsheets run text that starts with these characters as a formula, so such cells get a leading quote.
-     */
-    private static function safeCell(mixed $value): mixed
-    {
-        if (is_string($value) && $value !== '' && in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
-            return "'{$value}";
-        }
-
-        return $value;
     }
 
     /**
@@ -227,7 +218,8 @@ class PaymentController extends Controller
     }
 
     /**
-     * What a payer can still pay, for the form that records a payment directly.
+     * What a payer can still pay, for the form that records a payment directly, together with the payments of that
+     * payer that still wait for verification, so the clerk verifies those instead of recording the money twice.
      */
     public function openItems(Request $request): JsonResponse
     {
@@ -235,14 +227,39 @@ class PaymentController extends Controller
 
         $payer = $request->integer('payer');
 
+        $pending = Payment::query()
+            ->where('payer_person_id', $payer)
+            ->where('status', PaymentStatus::Pending)
+            ->orderByDesc('paid_on')
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get()
+            ->map(fn (Payment $payment): array => [
+                'id' => $payment->id,
+                'amount' => $payment->amount,
+                'paid_on' => $payment->paid_on->toDateString(),
+                'method' => $payment->method->label(),
+            ]);
+
+        return response()->json(['groups' => $this->openGroups($payer), 'pending_payments' => $pending]);
+    }
+
+    /**
+     * The items of a payer's family that can still take money, grouped by bill. Money waiting for verification does
+     * not reserve room here: the committee decides what is verified.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function openGroups(int $payerPersonId): array
+    {
         $bills = Bill::query()
-            ->whereHas('registrant', fn (Builder $registrants) => $registrants->forParentPerson($payer))
+            ->whereHas('registrant', fn (Builder $registrants) => $registrants->forParentPerson($payerPersonId))
             ->with(['registrant.person', 'registrant.organization', 'items' => fn ($items) => $items->withPaymentTotals()])
             ->orderBy('registrant_id')
             ->orderBy('issued_at')
             ->get();
 
-        return response()->json(['groups' => BillPresenter::openGroups($bills, reservePending: false)]);
+        return BillPresenter::openGroups($bills, reservePending: false);
     }
 
     public function store(RecordPaymentRequest $request, CreatePayment $createPayment): RedirectResponse
@@ -258,6 +275,7 @@ class PaymentController extends Controller
             createdBy: $request->user(),
             note: $request->filled('note') ? $request->string('note')->toString() : null,
             proof: $request->file('proof'),
+            confirmDuplicate: $request->boolean('confirm_duplicate'),
         ), verified: true);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Pembayaran sudah dicatat.']);
@@ -270,12 +288,41 @@ class PaymentController extends Controller
         Gate::authorize('viewAny', Payment::class);
 
         $detail = PaymentPresenter::detail($payment);
+        $user = $request->user();
+        $canVerify = $user->can(Ability::PaymentVerify->value) && $payment->isPending();
 
         return Inertia::render('admin/payments/show', [
             'payment' => $detail['payment'],
             'allocations' => $detail['allocations'],
-            'can' => ['verify' => $request->user()->can(Ability::PaymentVerify->value) && $payment->isPending()],
+            'can' => [
+                'verify' => $canVerify,
+                'void' => $payment->status === PaymentStatus::Verified && $user->can('void', Payment::class),
+                'reopen' => $payment->status === PaymentStatus::Rejected && $user->can('void', Payment::class),
+                'receipt' => $payment->status === PaymentStatus::Verified,
+            ],
+            // Any open item of the family can take a share of a payment that is still being checked.
+            'open_groups' => $canVerify ? $this->openGroups($payment->payer_person_id) : [],
+            'history' => $this->history($payment),
         ]);
+    }
+
+    /**
+     * What the system noted about this payment on its payer (voided, reopened), newest first.
+     *
+     * @return list<array{id: int, body: string, created_at: string|null}>
+     */
+    private function history(Payment $payment): array
+    {
+        return Note::query()
+            ->where('noteable_type', (new Person)->getMorphClass())
+            ->where('noteable_id', $payment->payer_person_id)
+            ->whereNull('author_id')
+            ->where('body', 'like', "Pembayaran #{$payment->id} %")
+            ->latest()
+            ->limit(10)
+            ->get()
+            ->map(fn (Note $note): array => ['id' => $note->id, 'body' => $note->body, 'created_at' => $note->created_at?->translatedFormat('j M Y, H:i')])
+            ->all();
     }
 
     public function verify(VerifyPaymentRequest $request, Payment $payment, VerifyPayment $verifyPayment): RedirectResponse

@@ -43,4 +43,12 @@ class Year extends Model
     {
         return $this->hasMany(Period::class);
     }
+
+    /**
+     * @return HasMany<Student, $this>
+     */
+    public function students(): HasMany
+    {
+        return $this->hasMany(Student::class);
+    }
 }

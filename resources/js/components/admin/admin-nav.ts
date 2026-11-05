@@ -1,7 +1,9 @@
 import type { InertiaLinkProps } from '@inertiajs/react';
 import {
+    CalendarDays,
     CalendarRange,
     ClipboardList,
+    GraduationCap,
     House,
     KeyRound,
     Landmark,
@@ -10,6 +12,8 @@ import {
     PanelTop,
     Palette,
     Phone,
+    Scale,
+    School,
     Settings,
     ShieldCheck,
     Store,
@@ -20,14 +24,17 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { dashboard } from '@/routes';
 import { edit as admissionSettings } from '@/routes/admin/admission-settings';
-import { index as payments } from '@/routes/admin/payments';
+import { index as organizations } from '@/routes/admin/organizations';
+import { index as payments, reconciliation } from '@/routes/admin/payments';
 import { index as people } from '@/routes/admin/people';
 import { index as registrants } from '@/routes/admin/registrants';
 import { index as roles } from '@/routes/admin/roles';
 import { index as rulesets } from '@/routes/admin/rulesets';
 import { edit as editSetting } from '@/routes/admin/settings';
+import { index as students } from '@/routes/admin/students';
 import { index as users } from '@/routes/admin/users';
 import { index as waves } from '@/routes/admin/waves';
+import { index as years } from '@/routes/admin/years';
 
 export type AdminPage = {
     title: string;
@@ -93,6 +100,12 @@ export const adminSections: AdminSection[] = [
                 icon: Wallet,
                 ability: 'admission::payment.view',
             },
+            {
+                title: 'Rekonsiliasi',
+                href: reconciliation(),
+                icon: Scale,
+                ability: 'admission::payment.view',
+            },
         ],
     },
     {
@@ -104,6 +117,30 @@ export const adminSections: AdminSection[] = [
                 href: people(),
                 icon: Users,
                 ability: 'core::person.view',
+            },
+            {
+                title: 'Siswa',
+                href: students(),
+                icon: GraduationCap,
+                ability: 'admission::student.view',
+            },
+        ],
+    },
+    {
+        title: 'Akademik',
+        icon: School,
+        pages: [
+            {
+                title: 'Tahun ajaran',
+                href: years(),
+                icon: CalendarDays,
+                ability: 'core::year.manage',
+            },
+            {
+                title: 'Lembaga',
+                href: organizations(),
+                icon: School,
+                ability: 'core::organization.manage',
             },
         ],
     },
