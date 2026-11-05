@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Actions\People\LinkParent;
 use App\Actions\People\SetPrimaryContact;
+use App\Actions\People\UnlinkParent;
 use App\Enums\Ability;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
@@ -46,11 +47,11 @@ class ParentshipController extends Controller
         return to_route('admin.people.show', $person);
     }
 
-    public function destroy(Person $person, Parentship $parentship): RedirectResponse
+    public function destroy(Person $person, Parentship $parentship, UnlinkParent $unlinkParent): RedirectResponse
     {
         Gate::authorize(Ability::FamilyManage->value);
 
-        $parentship->delete();
+        $unlinkParent->handle($parentship);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Hubungan keluarga sudah dihapus.']);
 

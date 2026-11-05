@@ -76,14 +76,31 @@ class Bill extends Model
         return $this->items->sum(fn (BillItem $item): int => $item->pendingAmount());
     }
 
+    /**
+     * Verified money beyond what the items ask for, counted per item so one item's surplus cannot hide another's debt.
+     */
+    public function excessAmount(): int
+    {
+        return $this->items->sum(fn (BillItem $item): int => $item->excessAmount());
+    }
+
+    /**
+     * What is still owed, per item, so money beyond one item cannot cover what another still asks for.
+     */
+    public function outstandingAmount(): int
+    {
+        return $this->items->sum(fn (BillItem $item): int => $item->outstandingAmount(reservePending: false));
+    }
+
+    /**
+     * A bill that asks for nothing (every item is Rp0, such as a scholarship) is settled from the start.
+     */
     public function status(): BillStatus
     {
-        $paid = $this->paidAmount();
-
-        if ($paid <= 0) {
-            return BillStatus::Unpaid;
+        if ($this->outstandingAmount() <= 0) {
+            return BillStatus::Paid;
         }
 
-        return $paid >= $this->totalAmount() ? BillStatus::Paid : BillStatus::Partial;
+        return $this->paidAmount() <= 0 ? BillStatus::Unpaid : BillStatus::Partial;
     }
 }

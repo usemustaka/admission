@@ -36,10 +36,16 @@ class PaymentPresenter
      */
     public static function detail(Payment $payment): array
     {
-        $payment->load(['payer', 'createdBy.person', 'verifiedBy.person', 'allocations.billItem.bill.registrant.person']);
+        $payment->load([
+            'payer',
+            'createdBy.person',
+            'verifiedBy.person',
+            'allocations.billItem' => fn ($items) => $items->withPaymentTotals(),
+            'allocations.billItem.bill.registrant.person',
+        ]);
 
         $allocations = $payment->allocations->map(function (PaymentAllocation $allocation) use ($payment): array {
-            $item = $allocation->billItem()->withPaymentTotals()->firstOrFail();
+            $item = $allocation->billItem;
             $bill = $item->bill;
 
             return [

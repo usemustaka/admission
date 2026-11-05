@@ -66,7 +66,10 @@ export type PaymentSummary = {
     verified_this_month: number;
     month: { dari: string; sampai: string };
     rejected_count: number;
+    /** Still asked by the bill items, counted per item. */
     outstanding: number;
+    /** Verified money beyond what bill items asked for ("kelebihan bayar"). */
+    overpaid: number;
 };
 
 export type PaymentAllocationRow = {

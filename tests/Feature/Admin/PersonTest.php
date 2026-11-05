@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\DefaultRole;
+use App\Models\Parentship;
 use App\Models\Person;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 
 test('guests are redirected and users without staff access are forbidden', function () {
@@ -97,4 +99,20 @@ test('the quick lookup returns matches and skips the excluded person', function 
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.name', 'Rahmat Hakim');
+});
+
+test('the quick lookup masks the phone and flags people already linked to the child', function () {
+    $this->actingAs(userWithRole(DefaultRole::Operator));
+    $child = Person::factory()->create();
+    $linked = Person::factory()->create(['name' => 'Siti Terhubung', 'phone' => '0812-3456-7890']);
+    Person::factory()->create(['name' => 'Siti Baru', 'phone' => null]);
+    Parentship::factory()->create(['person_id' => $child->id, 'related_person_id' => $linked->id]);
+
+    $response = $this->getJson(route('admin.people.search', ['q' => 'Siti', 'except' => $child->id]))->assertOk();
+
+    expect(collect($response->json('data'))->keyBy('name')->map(fn (array $row): array => Arr::only($row, ['phone_masked', 'linked']))->all())->toBe([
+        'Siti Baru' => ['phone_masked' => null, 'linked' => false],
+        'Siti Terhubung' => ['phone_masked' => '0812••••7890', 'linked' => true],
+    ]);
+    expect($response->getContent())->not->toContain('3456');
 });

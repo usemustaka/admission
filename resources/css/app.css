@@ -7,11 +7,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * Sistem desain mengikuti prototipe Mustaka: Figtree, netral hangat (ink
- * #222), satu aksen lime, sudut besar, garis tipis sebagai pemisah. Token
- * semantik shadcn tetap dipakai komponen; yang berubah hanya nilainya.
- */
 @theme {
     --font-sans:
         'Figtree', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',

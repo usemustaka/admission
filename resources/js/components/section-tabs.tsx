@@ -1,14 +1,14 @@
-import { Link } from "@inertiajs/react";
-import type { InertiaLinkProps } from "@inertiajs/react";
-import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { Link } from '@inertiajs/react';
+import type { InertiaLinkProps } from '@inertiajs/react';
+import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 const tabClass = (selected: boolean) =>
     cn(
-        "-mb-px inline-flex items-center gap-2 border-b-2 pb-3 text-[15px] font-semibold whitespace-nowrap transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        '-mb-px inline-flex items-center gap-2 border-b-2 pb-3 text-[15px] font-semibold whitespace-nowrap transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
         selected
-            ? "border-foreground text-foreground"
-            : "border-transparent text-muted-foreground hover:text-foreground",
+            ? 'border-foreground text-foreground'
+            : 'border-transparent text-muted-foreground hover:text-foreground',
     );
 
 export type ValueTabItem<T extends string> = {
@@ -59,7 +59,7 @@ export function ValueTabs<T extends string>({
 }
 
 export type LinkTabItem = {
-    href: NonNullable<InertiaLinkProps["href"]>;
+    href: NonNullable<InertiaLinkProps['href']>;
     label: string;
     selected: boolean;
     badge?: ReactNode;
@@ -82,8 +82,8 @@ export function LinkTabs({
         <nav
             aria-label={label}
             className={cn(
-                "no-scrollbar flex gap-6 overflow-x-auto",
-                !bare && "border-b border-line",
+                'no-scrollbar flex gap-6 overflow-x-auto',
+                !bare && 'border-b border-line',
             )}
         >
             {items.map((item) => (
@@ -91,8 +91,8 @@ export function LinkTabs({
                     key={item.label}
                     href={item.href}
                     prefetch
-                    aria-current={item.selected ? "page" : undefined}
-                    className={cn(tabClass(item.selected), "py-4")}
+                    aria-current={item.selected ? 'page' : undefined}
+                    className={cn(tabClass(item.selected), 'py-4')}
                 >
                     {item.label}
                     {item.badge}

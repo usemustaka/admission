@@ -78,6 +78,25 @@ class BillItem extends Model
         return max($this->amount - $this->paidAmount() - ($reservePending ? $this->pendingAmount() : 0), 0);
     }
 
+    /**
+     * Verified money beyond what this item asks for. It is never hidden by `outstandingAmount`, which stops at zero.
+     */
+    public function excessAmount(): int
+    {
+        return max($this->paidAmount() - $this->amount, 0);
+    }
+
+    /**
+     * Lock these items in id order, so two payments that touch the same items wait for each other (and cannot
+     * deadlock) instead of both reading the same room. Call it inside a transaction, before reading the totals.
+     *
+     * @param  list<int>  $ids
+     */
+    public static function lockForAllocation(array $ids): void
+    {
+        static::query()->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->pluck('id');
+    }
+
     private function sumOf(string $attribute, PaymentStatus $status): int
     {
         if (array_key_exists($attribute, $this->getAttributes())) {

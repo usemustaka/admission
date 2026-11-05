@@ -7,6 +7,7 @@ import { ChoiceCardGroup } from '@/components/choice-card-group';
 import { EmptyState } from '@/components/empty-state';
 import { FormField } from '@/components/form-field';
 import { PageHeader } from '@/components/page-header';
+import { formatLocalDate } from '@/components/payments/payment-format';
 import {
     PaymentItemsPicker,
     selectedRows,
@@ -39,7 +40,7 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
     const form = useForm({
         payer_person_id: '',
         items: [] as { bill_item_id: number; amount: number }[],
-        paid_on: new Date().toISOString().slice(0, 10),
+        paid_on: formatLocalDate(),
         method: 'cash',
         note: '',
         proof: null as File | null,

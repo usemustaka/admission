@@ -103,6 +103,62 @@ test('the app name is required and files must be small images', function () {
     saveSettings('identitas', ['brand.name' => 'Sekolah', 'logo' => UploadedFile::fake()->image('besar.png')->size(2048)])->assertSessionHasErrors('logo');
 });
 
+test('a failed save keeps the old logo and stores nothing new', function () {
+    $this->actingAs(userWithRole(DefaultRole::Admin));
+
+    saveSettings('identitas', ['brand.name' => 'Sekolah', 'logo' => UploadedFile::fake()->image('a.png')]);
+    $old = Setting::get('brand.logo_path');
+
+    saveSettings('identitas', ['brand.name' => '', 'logo' => UploadedFile::fake()->image('b.png')])->assertSessionHasErrors('brand.name');
+
+    expect(Setting::get('brand.logo_path'))->toBe($old)
+        ->and(Storage::disk('public')->allFiles('brand'))->toBe([$old]);
+});
+
+test('the favicon accepts an ico file and the other small image formats', function () {
+    $this->actingAs(userWithRole(DefaultRole::Admin));
+
+    saveSettings('identitas', ['brand.name' => 'Sekolah', 'favicon' => UploadedFile::fake()->create('ikon.ico', 10, 'image/x-icon')])->assertSessionHasNoErrors();
+
+    expect(Setting::get('brand.favicon_path'))->toEndWith('.ico');
+    Storage::disk('public')->assertExists(Setting::get('brand.favicon_path'));
+
+    saveSettings('identitas', ['brand.name' => 'Sekolah', 'favicon' => UploadedFile::fake()->image('ikon.png', 64, 64)])->assertSessionHasNoErrors();
+
+    expect(Setting::get('brand.favicon_path'))->toEndWith('.png');
+});
+
+test('the favicon rejects svg, documents and files that are too large', function () {
+    $this->actingAs(userWithRole(DefaultRole::Admin));
+
+    saveSettings('identitas', ['brand.name' => 'Sekolah', 'favicon' => UploadedFile::fake()->create('ikon.svg', 10, 'image/svg+xml')])->assertSessionHasErrors('favicon');
+    saveSettings('identitas', ['brand.name' => 'Sekolah', 'favicon' => UploadedFile::fake()->create('ikon.pdf', 10, 'application/pdf')])->assertSessionHasErrors('favicon');
+    saveSettings('identitas', ['brand.name' => 'Sekolah', 'favicon' => UploadedFile::fake()->create('ikon.ico', 1024, 'image/x-icon')])->assertSessionHasErrors('favicon');
+
+    expect(Setting::get('brand.favicon_path'))->toBeNull();
+});
+
+test('the website must be an http or https address', function (string $website) {
+    $this->actingAs(userWithRole(DefaultRole::Admin));
+
+    saveSettings('kontak', ['contact.website' => $website])->assertSessionHasErrors('contact.website');
+
+    expect(Setting::get('contact.website'))->toBeNull();
+})->with(['ftp://sekolah.test', 'javascript:alert(1)', 'sekolah.test']);
+
+test('the whatsapp number is saved as bare digits and rejects letters', function () {
+    $this->actingAs(userWithRole(DefaultRole::Admin));
+
+    saveSettings('kontak', ['contact.whatsapp' => '0812-ABC-7890'])->assertSessionHasErrors('contact.whatsapp');
+    expect(Setting::get('contact.whatsapp'))->toBeNull();
+
+    saveSettings('kontak', ['contact.whatsapp' => '+62 812-3456-7890', 'contact.website' => 'https://sekolah.test'])->assertSessionHasNoErrors();
+    expect(Setting::get('contact.whatsapp'))->toBe('+6281234567890');
+
+    saveSettings('kontak', ['contact.whatsapp' => ''])->assertSessionHasNoErrors();
+    expect(Setting::get('contact.whatsapp'))->toBeNull();
+});
+
 test('only a six digit hex colour is accepted as the accent', function () {
     $this->actingAs(userWithRole(DefaultRole::Admin));
 

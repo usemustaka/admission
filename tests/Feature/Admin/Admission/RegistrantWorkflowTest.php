@@ -151,8 +151,9 @@ describe('announcing', function () {
             ->and(urldecode(explode('text=', $url)[1]))->toBe(Announcement::text($this->registrant));
     });
 
-    test('there is nobody to send to when the primary contact has no phone', function () {
+    test('there is nobody to send to when nobody reachable is linked to the child', function () {
         Person::query()->whereKey(Parentship::query()->where('person_id', $this->registrant->person_id)->value('related_person_id'))->update(['phone' => null]);
+        $this->registrant->registeredBy->update(['phone' => null]);
 
         expect(Announcement::recipient($this->registrant))->toBeNull()
             ->and(Announcement::whatsappUrl($this->registrant))->toBeNull();

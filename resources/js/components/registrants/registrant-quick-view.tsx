@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { PersonAvatar } from '@/components/person-avatar';
 import { QuickView } from '@/components/quick-view';
 import { RelativeTime } from '@/components/registrants/relative-time';
@@ -21,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
+import { toastFirstError } from '@/hooks/use-flash-toast';
 import { formatDate, formatRupiah } from '@/lib/format';
 import { accept, announce, quickView, show } from '@/routes/admin/registrants';
 import type { RegistrantQuickViewData } from '@/types/registrant';
@@ -361,16 +363,22 @@ export function RegistrantQuickView({
     open,
     onOpenChange,
     onChanged,
+    detailQuery,
 }: {
     registrantId: number | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
     /** Called after a workflow step succeeded, so the list can refresh. */
     onChanged?: () => void;
+    /** The list filters and order, passed on to the detail page so its queue follows the list. */
+    detailQuery?: Record<string, string | number | boolean | undefined>;
 }) {
     const [loaded, setLoaded] = useState<Loaded | null>(null);
     const [reloadKey, setReloadKey] = useState(0);
     const [processing, setProcessing] = useState<'accept' | 'announce' | null>(
+        null,
+    );
+    const [confirming, setConfirming] = useState<'accept' | 'announce' | null>(
         null,
     );
 
@@ -424,7 +432,14 @@ export function RegistrantQuickView({
                     setReloadKey((key) => key + 1);
                     onChanged?.();
                 },
-                onFinish: () => setProcessing(null),
+                onError: (errors) => {
+                    toastFirstError(errors);
+                    setReloadKey((key) => key + 1);
+                },
+                onFinish: () => {
+                    setProcessing(null);
+                    setConfirming(null);
+                },
             },
         );
     }
@@ -435,7 +450,7 @@ export function RegistrantQuickView({
                 {data?.can.accept && (
                     <Button
                         disabled={processing !== null}
-                        onClick={() => run('accept')}
+                        onClick={() => setConfirming('accept')}
                     >
                         {processing === 'accept' ? <Spinner /> : <BadgeCheck />}
                         Terima data
@@ -444,7 +459,7 @@ export function RegistrantQuickView({
                 {data?.can.announce && (
                     <Button
                         disabled={processing !== null}
-                        onClick={() => run('announce')}
+                        onClick={() => setConfirming('announce')}
                     >
                         {processing === 'announce' ? (
                             <Spinner />
@@ -456,7 +471,7 @@ export function RegistrantQuickView({
                 )}
                 {data?.can.revise && (
                     <Button variant="outline" asChild>
-                        <Link href={show(registrantId)}>
+                        <Link href={show(registrantId, { query: detailQuery })}>
                             <MessageSquareWarning />
                             Minta revisi
                         </Link>
@@ -464,14 +479,14 @@ export function RegistrantQuickView({
                 )}
                 {data?.can.place && (
                     <Button variant="outline" asChild>
-                        <Link href={show(registrantId)}>
+                        <Link href={show(registrantId, { query: detailQuery })}>
                             <GraduationCap />
                             Tempatkan siswa
                         </Link>
                     </Button>
                 )}
                 <Button variant="outline" asChild>
-                    <Link href={show(registrantId)}>
+                    <Link href={show(registrantId, { query: detailQuery })}>
                         <ExternalLink />
                         Buka detail
                     </Link>
@@ -480,38 +495,59 @@ export function RegistrantQuickView({
         );
 
     return (
-        <QuickView
-            open={open}
-            onOpenChange={onOpenChange}
-            title={data?.child.name ?? 'Ringkasan pendaftar'}
-            description="Ringkasan data pendaftar"
-            footer={footer}
-        >
-            {isLoading ? (
-                <QuickViewSkeleton />
-            ) : data === null ? (
-                <div className="grid justify-items-start gap-3">
-                    <Alert variant="destructive">
-                        <ShieldAlert />
-                        <AlertDescription>
-                            Ringkasan belum bisa dimuat. Coba lagi, atau buka
-                            halaman detailnya.
-                        </AlertDescription>
-                    </Alert>
-                    <Button
-                        variant="outline"
-                        onClick={() => {
-                            setLoaded(null);
-                            setReloadKey((key) => key + 1);
-                        }}
-                    >
-                        <RefreshCw />
-                        Coba lagi
-                    </Button>
-                </div>
-            ) : (
-                <QuickViewBody data={data} />
-            )}
-        </QuickView>
+        <>
+            <QuickView
+                open={open}
+                onOpenChange={onOpenChange}
+                title={data?.child.name ?? 'Ringkasan pendaftar'}
+                description="Ringkasan data pendaftar"
+                footer={footer}
+            >
+                {isLoading ? (
+                    <QuickViewSkeleton />
+                ) : data === null ? (
+                    <div className="grid justify-items-start gap-3">
+                        <Alert variant="destructive">
+                            <ShieldAlert />
+                            <AlertDescription>
+                                Ringkasan belum bisa dimuat. Coba lagi, atau
+                                buka halaman detailnya.
+                            </AlertDescription>
+                        </Alert>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setLoaded(null);
+                                setReloadKey((key) => key + 1);
+                            }}
+                        >
+                            <RefreshCw />
+                            Coba lagi
+                        </Button>
+                    </div>
+                ) : (
+                    <QuickViewBody data={data} />
+                )}
+            </QuickView>
+            <ConfirmDialog
+                open={confirming !== null}
+                onOpenChange={(next) => !next && setConfirming(null)}
+                title={
+                    confirming === 'accept'
+                        ? 'Terima data ini?'
+                        : 'Tandai sudah diumumkan?'
+                }
+                description={
+                    confirming === 'accept'
+                        ? 'Data dinyatakan valid dan tagihan pelunasan terbit kalau aturannya punya.'
+                        : 'Pastikan pengumumannya sudah dikirim ke kontak utama. Setelah ditandai, pendaftar lanjut ke tahap penempatan.'
+                }
+                confirmLabel={
+                    confirming === 'accept' ? 'Ya, terima' : 'Ya, tandai'
+                }
+                processing={processing !== null}
+                onConfirm={() => confirming && run(confirming)}
+            />
+        </>
     );
 }

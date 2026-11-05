@@ -6,6 +6,7 @@ import { ChoiceCardGroup } from '@/components/choice-card-group';
 import { FormField } from '@/components/form-field';
 import { PersonAvatar } from '@/components/person-avatar';
 import { SearchInput } from '@/components/search-input';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
+import { formatDate } from '@/lib/format';
 import { search } from '@/routes/admin/people';
 import { store } from '@/routes/admin/people/parentships';
 import type { Option } from '@/types/people';
@@ -27,7 +29,22 @@ type Candidate = {
     name: string;
     nik: string | null;
     birth_date: string | null;
+    phone_masked: string | null;
+    /** Already a parent or guardian of this child. */
+    linked: boolean;
 };
+
+function candidateDetails(candidate: Candidate): string {
+    return [
+        candidate.nik ?? 'NIK belum ada',
+        candidate.birth_date
+            ? `Lahir ${formatDate(new Date(`${candidate.birth_date}T00:00:00`))}`
+            : null,
+        candidate.phone_masked ?? 'Belum ada telepon',
+    ]
+        .filter(Boolean)
+        .join(' · ');
+}
 
 export function AddParentDialog({
     childId,
@@ -156,7 +173,7 @@ export function AddParentDialog({
                                     {selected.name}
                                 </span>
                                 <span className="text-xs text-muted-foreground tabular-nums">
-                                    {selected.nik ?? 'NIK belum ada'}
+                                    {candidateDetails(selected)}
                                 </span>
                             </div>
                             <Button
@@ -223,22 +240,27 @@ export function AddParentDialog({
                                 <li key={candidate.id}>
                                     <button
                                         type="button"
+                                        disabled={candidate.linked}
                                         onClick={() => setSelected(candidate)}
-                                        className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-neutral-50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none dark:hover:bg-muted"
+                                        className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-neutral-50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent dark:hover:bg-muted"
                                     >
                                         <PersonAvatar
                                             name={candidate.name}
                                             size="sm"
                                         />
-                                        <span className="grid leading-tight">
+                                        <span className="grid min-w-0 flex-1 leading-tight">
                                             <span className="text-sm font-semibold">
                                                 {candidate.name}
                                             </span>
                                             <span className="text-xs text-muted-foreground tabular-nums">
-                                                {candidate.nik ??
-                                                    'NIK belum ada'}
+                                                {candidateDetails(candidate)}
                                             </span>
                                         </span>
+                                        {candidate.linked && (
+                                            <Badge variant="muted">
+                                                Sudah tercatat
+                                            </Badge>
+                                        )}
                                     </button>
                                 </li>
                             ))}

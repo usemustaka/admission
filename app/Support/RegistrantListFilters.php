@@ -117,8 +117,8 @@ class RegistrantListFilters
     }
 
     /**
-     * A bill counts as open the same way `Bill::status()` says "not paid": nothing verified yet, or less than the
-     * total. `lunas` therefore needs at least one bill and none of them open; `belum` needs at least one open bill.
+     * A bill counts as open when `Bill::status()` does not call it paid, so a bill that asks for nothing (Rp0) is
+     * settled. `lunas` therefore needs at least one bill and none of them open; `belum` needs at least one open bill.
      *
      * @param  Builder<Registrant>  $query
      * @return Builder<Registrant>
@@ -127,16 +127,13 @@ class RegistrantListFilters
     {
         $verified = PaymentStatus::Verified->value;
 
+        // Open: some item has less verified money than it asks for. Rp0 items are never open.
         $openBill = <<<SQL
-            coalesce((select sum(payment_allocations.amount) from payment_allocations
-                inner join payments on payments.id = payment_allocations.payment_id and payments.status = '{$verified}'
-                inner join bill_items on bill_items.id = payment_allocations.bill_item_id
-                where bill_items.bill_id = bills.id), 0) <= 0
-            or coalesce((select sum(payment_allocations.amount) from payment_allocations
-                inner join payments on payments.id = payment_allocations.payment_id and payments.status = '{$verified}'
-                inner join bill_items on bill_items.id = payment_allocations.bill_item_id
-                where bill_items.bill_id = bills.id), 0)
-                < coalesce((select sum(bill_items.amount) from bill_items where bill_items.bill_id = bills.id), 0)
+            exists (select 1 from bill_items
+                where bill_items.bill_id = bills.id
+                and bill_items.amount > coalesce((select sum(payment_allocations.amount) from payment_allocations
+                    inner join payments on payments.id = payment_allocations.payment_id and payments.status = '{$verified}'
+                    where payment_allocations.bill_item_id = bill_items.id), 0))
             SQL;
 
         if ($this->payment === self::PAYMENT_UNPAID) {

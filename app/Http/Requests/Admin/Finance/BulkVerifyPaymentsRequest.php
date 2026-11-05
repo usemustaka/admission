@@ -21,6 +21,7 @@ class BulkVerifyPaymentsRequest extends FormRequest
         return [
             'ids' => ['required', 'array', 'min:1', 'max:200'],
             'ids.*' => ['required', 'integer', 'distinct'],
+            'include_without_proof' => ['nullable', 'boolean'],
         ];
     }
 

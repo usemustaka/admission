@@ -91,6 +91,19 @@ function toQuery(filters: Filters) {
     };
 }
 
+const LIST_FAILED = 'Daftar pendaftar belum bisa dimuat. Coba lagi ya.';
+
+/**
+ * What to tell the committee when loading the list with other filters fails; the old list stays on screen.
+ */
+const listFailure = {
+    onError: (errors: Record<string, string>) =>
+        toast.error(Object.values(errors)[0] ?? LIST_FAILED),
+    onNetworkError: () => {
+        toast.error(LIST_FAILED);
+    },
+};
+
 export default function RegistrantsIndex({
     registrants,
     filters,
@@ -131,14 +144,13 @@ export default function RegistrantsIndex({
     function visit(changes: Partial<Filters>) {
         const next = { ...filters, cari: term, ...changes };
 
-        if (!('urut' in changes) && !('arah' in changes)) {
-            setSelected(new Set());
-        }
+        setSelected(new Set());
 
         router.get(index().url, toQuery(next), {
             preserveState: true,
             replace: true,
             onStart: () => setLoading(true),
+            ...listFailure,
             onFinish: () => setLoading(false),
         });
     }
@@ -162,6 +174,7 @@ export default function RegistrantsIndex({
                 preserveState: true,
                 replace: true,
                 onStart: () => setLoading(true),
+                ...listFailure,
                 onFinish: () => setLoading(false),
             },
         );
@@ -231,6 +244,16 @@ export default function RegistrantsIndex({
             desc: filters.arah === 'desc',
         },
     ];
+
+    /** What the detail page needs to keep its queue in step with this list: the filters and the order. */
+    const detailQuery = useMemo(
+        () => ({
+            ...toQuery({ ...filters, cari: term }),
+            urut: filters.urut,
+            arah: filters.arah,
+        }),
+        [filters, term],
+    );
 
     const columns = useMemo<ColumnDef<RegistrantRow>[]>(
         () => [
@@ -399,14 +422,20 @@ export default function RegistrantsIndex({
                                 </Button>
                             )}
                             <Button variant="ghost" className="md:h-8" asChild>
-                                <Link href={show(row.original.id)}>Detail</Link>
+                                <Link
+                                    href={show(row.original.id, {
+                                        query: detailQuery,
+                                    })}
+                                >
+                                    Detail
+                                </Link>
                             </Button>
                         </span>
                     );
                 },
             },
         ],
-        [],
+        [detailQuery],
     );
 
     const hasFilter =
@@ -663,6 +692,7 @@ export default function RegistrantsIndex({
                 registrantId={quickId}
                 open={quickOpen}
                 onOpenChange={setQuickOpen}
+                detailQuery={detailQuery}
             />
 
             <BulkBar

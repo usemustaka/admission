@@ -79,6 +79,47 @@ test('a relation can be removed', function () {
     expect(Parentship::count())->toBe(0);
 });
 
+test('removing the primary contact promotes the next parent who has a phone', function () {
+    $primary = Parentship::factory()->primaryContact()->create(['person_id' => $this->child->id]);
+    Parentship::factory()->create(['person_id' => $this->child->id, 'related_person_id' => Person::factory()->create(['phone' => null])->id]);
+    $withPhone = Parentship::factory()->create(['person_id' => $this->child->id, 'related_person_id' => Person::factory()->create(['phone' => '0812-0000-1111'])->id]);
+    Parentship::factory()->create(['person_id' => $this->child->id, 'related_person_id' => Person::factory()->create(['phone' => '0812-0000-2222'])->id]);
+
+    $this->delete(route('admin.people.parentships.destroy', [$this->child, $primary]))->assertRedirect();
+
+    $primaries = $this->child->parentships()->where('is_primary_contact', true)->pluck('id');
+
+    expect($primaries->all())->toBe([$withPhone->id]);
+});
+
+test('removing the primary contact promotes nobody when no other parent has a phone', function () {
+    $primary = Parentship::factory()->primaryContact()->create(['person_id' => $this->child->id]);
+    Parentship::factory()->create(['person_id' => $this->child->id, 'related_person_id' => Person::factory()->create(['phone' => null])->id]);
+
+    $this->delete(route('admin.people.parentships.destroy', [$this->child, $primary]))->assertRedirect();
+
+    expect($this->child->parentships()->count())->toBe(1)
+        ->and($this->child->parentships()->where('is_primary_contact', true)->exists())->toBeFalse();
+});
+
+test('removing a parent who is not the primary contact leaves the primary contact alone', function () {
+    $primary = Parentship::factory()->primaryContact()->create(['person_id' => $this->child->id]);
+    $other = Parentship::factory()->create(['person_id' => $this->child->id]);
+
+    $this->delete(route('admin.people.parentships.destroy', [$this->child, $other]))->assertRedirect();
+
+    expect($primary->refresh()->is_primary_contact)->toBeTrue();
+});
+
+test('a person without a phone can still be made the primary contact', function () {
+    Parentship::factory()->primaryContact()->create(['person_id' => $this->child->id]);
+    $noPhone = Parentship::factory()->create(['person_id' => $this->child->id, 'related_person_id' => Person::factory()->create(['phone' => null])->id]);
+
+    $this->put(route('admin.people.parentships.update', [$this->child, $noPhone]))->assertRedirect();
+
+    expect($noPhone->refresh()->is_primary_contact)->toBeTrue();
+});
+
 test('a relation of another child cannot be changed through this childs url', function () {
     $foreign = Parentship::factory()->create();
 

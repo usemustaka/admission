@@ -51,7 +51,7 @@ import type {
 type Tab = 'data' | 'keluarga' | 'catatan';
 
 type PendingDelete =
-    | { kind: 'parent'; id: number; name: string }
+    | { kind: 'parent'; id: number; name: string; isPrimaryContact: boolean }
     | { kind: 'note'; id: number }
     | null;
 
@@ -82,6 +82,10 @@ export default function PersonShow({
     };
 }) {
     const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
+    const [pendingPrimary, setPendingPrimary] = useState<{
+        id: number;
+        name: string;
+    } | null>(null);
     const [processing, setProcessing] = useState(false);
     const [tab, setTab] = useState<Tab>('data');
     const [noteOpen, setNoteOpen] = useState(false);
@@ -113,6 +117,21 @@ export default function PersonShow({
 
     function writeNote() {
         setNoteOpen(true);
+    }
+
+    function makePrimaryContact(parentshipId: number) {
+        router.put(
+            makePrimary({ person: person.id, parentship: parentshipId }).url,
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setProcessing(true),
+                onFinish: () => {
+                    setProcessing(false);
+                    setPendingPrimary(null);
+                },
+            },
+        );
     }
 
     function confirmDelete() {
@@ -376,20 +395,20 @@ export default function PersonShow({
                                                                         size="sm"
                                                                         className="max-md:h-10"
                                                                         onClick={() =>
-                                                                            router.put(
-                                                                                makePrimary(
-                                                                                    {
-                                                                                        person: person.id,
-                                                                                        parentship:
-                                                                                            parent.id,
-                                                                                    },
-                                                                                )
-                                                                                    .url,
-                                                                                {},
-                                                                                {
-                                                                                    preserveScroll: true,
-                                                                                },
-                                                                            )
+                                                                            parent
+                                                                                .person
+                                                                                .phone
+                                                                                ? makePrimaryContact(
+                                                                                      parent.id,
+                                                                                  )
+                                                                                : setPendingPrimary(
+                                                                                      {
+                                                                                          id: parent.id,
+                                                                                          name: parent
+                                                                                              .person
+                                                                                              .name,
+                                                                                      },
+                                                                                  )
                                                                         }
                                                                     >
                                                                         Jadikan
@@ -409,6 +428,8 @@ export default function PersonShow({
                                                                                 name: parent
                                                                                     .person
                                                                                     .name,
+                                                                                isPrimaryContact:
+                                                                                    parent.is_primary_contact,
                                                                             },
                                                                         )
                                                                     }
@@ -733,9 +754,29 @@ export default function PersonShow({
                         ? `Hapus ${pendingDelete.name} dari keluarga?`
                         : 'Hapus catatan ini?'
                 }
-                description="Yang dihapus tidak bisa dikembalikan."
+                description={
+                    pendingDelete?.kind === 'parent'
+                        ? `${pendingDelete.name} tidak akan bisa lagi melihat data anak ini di portal orang tua.${
+                              pendingDelete.isPrimaryContact
+                                  ? ' Dia kontak utama, jadi kontak utama dialihkan ke orang tua lain yang punya nomor telepon dan penerima pengumuman WhatsApp bisa berubah.'
+                                  : ' Penerima pengumuman WhatsApp bisa berubah jika dia satu-satunya yang punya nomor telepon.'
+                          } Yang dihapus tidak bisa dikembalikan.`
+                        : 'Yang dihapus tidak bisa dikembalikan.'
+                }
                 confirmLabel="Ya, hapus"
                 onConfirm={confirmDelete}
+            />
+
+            <ConfirmDialog
+                open={pendingPrimary !== null}
+                onOpenChange={(open) => !open && setPendingPrimary(null)}
+                processing={processing}
+                title={`Jadikan ${pendingPrimary?.name ?? ''} kontak utama?`}
+                description="Orang ini belum punya nomor telepon, pengumuman WhatsApp tidak bisa dikirim."
+                confirmLabel="Tetap jadikan kontak utama"
+                onConfirm={() =>
+                    pendingPrimary && makePrimaryContact(pendingPrimary.id)
+                }
             />
         </>
     );

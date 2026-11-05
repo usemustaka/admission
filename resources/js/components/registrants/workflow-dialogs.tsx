@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { toastFirstError } from '@/hooks/use-flash-toast';
 import { bypass, place, revise } from '@/routes/admin/registrants';
 import type { Option } from '@/types/people';
 
@@ -96,6 +97,8 @@ export function ReviseDialog({
                         form.reset();
                         onOpenChange(false);
                     },
+                    onError: (errors) =>
+                        toastFirstError(errors, (key) => key === 'note'),
                 });
             }}
         >
@@ -148,6 +151,11 @@ export function BypassDialog({
                         form.reset();
                         onOpenChange(false);
                     },
+                    onError: (errors) =>
+                        toastFirstError(
+                            errors,
+                            (key) => key === 'status' || key === 'note',
+                        ),
                 });
             }}
         >
@@ -210,7 +218,14 @@ export function PlaceDialog({
                 event.preventDefault();
                 form.post(place(registrantId).url, {
                     preserveScroll: true,
-                    onSuccess: () => onOpenChange(false),
+                    onSuccess: () => {
+                        form.reset();
+                        onOpenChange(false);
+                    },
+                    onError: (errors) =>
+                        toastFirstError(errors, (key) =>
+                            ['year_id', 'nis', 'status'].includes(key),
+                        ),
                 });
             }}
         >

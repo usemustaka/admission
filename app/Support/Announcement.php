@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Parentship;
+use App\Models\Person;
 use App\Models\Registrant;
 use App\Models\Setting;
 
@@ -51,24 +52,25 @@ class Announcement
     }
 
     /**
-     * The child's primary contact, who receives the announcement.
+     * Who receives the announcement: the child's primary contact if they have a phone, otherwise any other parent
+     * with a phone (lowest id first), otherwise the person who registered the child.
      *
      * @return array{name: string, phone: string}|null
      */
     public static function recipient(Registrant $registrant): ?array
     {
-        $contact = Parentship::query()
+        $parentships = Parentship::query()
             ->where('person_id', $registrant->person_id)
-            ->where('is_primary_contact', true)
             ->with('relatedPerson')
-            ->first()
-            ?->relatedPerson;
+            ->orderByDesc('is_primary_contact')
+            ->orderBy('id')
+            ->get();
 
-        if ($contact === null || blank($contact->phone)) {
-            return null;
-        }
+        $candidates = $parentships->pluck('relatedPerson')->push($registrant->registeredBy()->first());
 
-        return ['name' => $contact->name, 'phone' => $contact->phone];
+        $contact = $candidates->first(fn (?Person $person): bool => $person !== null && filled($person->phone));
+
+        return $contact === null ? null : ['name' => $contact->name, 'phone' => $contact->phone];
     }
 
     /**

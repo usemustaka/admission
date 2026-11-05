@@ -130,3 +130,96 @@ test('the ruleset list and detail show how many registrations were made under ea
 
     expect($quiet->registrants()->count())->toBe(0);
 });
+
+describe('shadowed rulesets', function () {
+    beforeEach(function () {
+        $this->actingAs(userWithRole(DefaultRole::Operator));
+    });
+
+    test('a specific ruleset placed after a catch-all is flagged as never used', function () {
+        $catchAll = Ruleset::factory()->create(['priority' => 1, 'name' => 'Umum']);
+        $organization = Organization::factory()->create();
+        Ruleset::factory()->create(['priority' => 2, 'name' => 'SMP putra', 'organization_id' => $organization->id, 'gender' => 'male']);
+
+        $this->get(route('admin.rulesets.index'))->assertInertia(fn ($page) => $page
+            ->where('rulesets.0.shadowed_by', null)
+            ->where('rulesets.1.shadowed_by', ['id' => $catchAll->id, 'name' => 'Umum']));
+    });
+
+    test('a specific ruleset above the catch-all is not flagged, and neither is the catch-all', function () {
+        $organization = Organization::factory()->create();
+        Ruleset::factory()->create(['priority' => 1, 'organization_id' => $organization->id, 'gender' => 'male']);
+        Ruleset::factory()->create(['priority' => 2]);
+
+        $this->get(route('admin.rulesets.index'))->assertInertia(fn ($page) => $page
+            ->where('rulesets.0.shadowed_by', null)
+            ->where('rulesets.1.shadowed_by', null));
+    });
+
+    test('a ruleset that only partly overlaps an earlier one is not flagged', function () {
+        $organization = Organization::factory()->create();
+        Ruleset::factory()->create(['priority' => 1, 'organization_id' => $organization->id]);
+        Ruleset::factory()->create(['priority' => 2, 'gender' => 'male']);
+
+        $this->get(route('admin.rulesets.index'))->assertInertia(fn ($page) => $page
+            ->where('rulesets.1.shadowed_by', null));
+    });
+
+    test('inactive rulesets neither shadow nor get flagged', function () {
+        $organization = Organization::factory()->create();
+        Ruleset::factory()->create(['priority' => 1, 'is_active' => false]);
+        Ruleset::factory()->create(['priority' => 2, 'organization_id' => $organization->id]);
+        Ruleset::factory()->create(['priority' => 3, 'organization_id' => $organization->id, 'is_active' => false]);
+
+        $this->get(route('admin.rulesets.index'))->assertInertia(fn ($page) => $page
+            ->where('rulesets.1.shadowed_by', null)
+            ->where('rulesets.2.shadowed_by', null));
+    });
+
+    test('the detail page flags a shadowed ruleset too', function () {
+        $catchAll = Ruleset::factory()->create(['priority' => 1, 'name' => 'Umum']);
+        $shadowed = Ruleset::factory()->create(['priority' => 2, 'gender' => 'female']);
+
+        $this->get(route('admin.rulesets.show', $shadowed))
+            ->assertInertia(fn ($page) => $page->where('ruleset.shadowed_by.id', $catchAll->id));
+    });
+
+    test('the matching test lists every matching ruleset in order and marks the winner', function () {
+        $first = Ruleset::factory()->create(['priority' => 1, 'name' => 'Umum']);
+        $second = Ruleset::factory()->create(['priority' => 2, 'name' => 'Putra', 'gender' => 'male']);
+        Ruleset::factory()->create(['priority' => 3, 'name' => 'Putri', 'gender' => 'female']);
+
+        $this->get(route('admin.rulesets.index', ['uji' => 1, 'gender' => 'male']))
+            ->assertInertia(fn ($page) => $page
+                ->where('test.matches', [
+                    ['id' => $first->id, 'name' => 'Umum', 'is_winner' => true],
+                    ['id' => $second->id, 'name' => 'Putra', 'is_winner' => false],
+                ]));
+    });
+});
+
+describe('deleting a ruleset', function () {
+    beforeEach(function () {
+        $this->actingAs(userWithRole(DefaultRole::Admin));
+        $this->ruleset = Ruleset::factory()->create();
+    });
+
+    test('a ruleset that registrants were made under cannot be deleted', function () {
+        $registrant = Registrant::factory()->create(['ruleset_id' => $this->ruleset->id]);
+
+        $this->delete(route('admin.rulesets.destroy', $this->ruleset))
+            ->assertRedirect()
+            ->assertInertiaFlash('toast.type', 'error');
+
+        expect(Ruleset::find($this->ruleset->id))->not->toBeNull()
+            ->and($registrant->refresh()->ruleset_id)->toBe($this->ruleset->id);
+    });
+
+    test('a ruleset nobody registered under can be deleted', function () {
+        Registrant::factory()->create();
+
+        $this->delete(route('admin.rulesets.destroy', $this->ruleset))->assertRedirect(route('admin.rulesets.index'));
+
+        expect(Ruleset::find($this->ruleset->id))->toBeNull();
+    });
+});

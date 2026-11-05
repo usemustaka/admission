@@ -131,8 +131,8 @@ describe('the summary', function () {
     test('adds up the queue, this month, rejections and what is still owed', function () {
         listedPayment($this->parentA, $this->itemA1, 40000, ['status' => PaymentStatus::Pending]);
         listedPayment($this->parentA, $this->itemA2, 10000, ['status' => PaymentStatus::Pending]);
-        listedPayment($this->parentA, $this->itemA1, 100000, ['status' => PaymentStatus::Verified, 'paid_on' => today()->endOfMonth()]);
-        listedPayment($this->parentB, $this->itemB1, 30000, ['status' => PaymentStatus::Verified, 'paid_on' => today()->subMonths(2)]);
+        listedPayment($this->parentA, $this->itemA1, 100000, ['status' => PaymentStatus::Verified, 'verified_at' => now()]);
+        listedPayment($this->parentB, $this->itemB1, 30000, ['status' => PaymentStatus::Verified, 'verified_at' => now()->subMonths(2)]);
         listedPayment($this->parentB, $this->itemB1, 999000, ['status' => PaymentStatus::Rejected]);
 
         $this->get(route('admin.payments.index'))->assertInertia(fn ($page) => $page
@@ -142,6 +142,7 @@ describe('the summary', function () {
             ->where('summary.rejected_count', 1)
             // 150k + 50k + 200k billed, 130k verified; pending and rejected money does not count.
             ->where('summary.outstanding', 270000)
+            ->where('summary.overpaid', 0)
             ->where('summary.month.dari', today()->startOfMonth()->toDateString())
             ->where('summary.month.sampai', today()->endOfMonth()->toDateString()));
     });
@@ -210,8 +211,8 @@ describe('the quick view', function () {
 
 describe('verifying in bulk', function () {
     test('verifies every pending payment and counts them towards the bills', function () {
-        $first = listedPayment($this->parentA, $this->itemA1, 150000);
-        $second = listedPayment($this->parentB, $this->itemB1, 200000);
+        $first = listedPayment($this->parentA, $this->itemA1, 150000, ['proof_path' => 'payment-proofs/a.jpg']);
+        $second = listedPayment($this->parentB, $this->itemB1, 200000, ['proof_path' => 'payment-proofs/b.jpg']);
         $list = route('admin.payments.index');
 
         $this->from($list)->post(route('admin.payments.bulk-verify'), ['ids' => [$first->id, $second->id]])
@@ -224,9 +225,9 @@ describe('verifying in bulk', function () {
     });
 
     test('skips what cannot be verified with the reason and still handles the rest', function () {
-        $good = listedPayment($this->parentA, $this->itemA1, 150000);
+        $good = listedPayment($this->parentA, $this->itemA1, 150000, ['proof_path' => 'payment-proofs/a.jpg']);
         $handled = listedPayment($this->parentA, $this->itemA2, 50000, ['status' => PaymentStatus::Rejected]);
-        $tooMuch = listedPayment($this->parentB, $this->itemB1, 200000);
+        $tooMuch = listedPayment($this->parentB, $this->itemB1, 200000, ['proof_path' => 'payment-proofs/b.jpg']);
         verifiedPayment($this->itemB1, 100000);
 
         $response = $this->post(route('admin.payments.bulk-verify'), ['ids' => [$handled->id, $tooMuch->id, $good->id, 999999]]);

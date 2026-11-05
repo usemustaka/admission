@@ -66,6 +66,8 @@ class PaymentFilters
 
     /**
      * The payments that match, without ordering. Leave out the status to count every status in the same scope.
+     * `paid_on` is compared as a range (from the day, up to before the day after) so it never needs a function on
+     * the column.
      *
      * @return Builder<Payment>
      */
@@ -74,8 +76,8 @@ class PaymentFilters
         return Payment::query()
             ->when($withStatus && $this->status !== null, fn (Builder $query) => $query->where('status', $this->status))
             ->when($this->method !== null, fn (Builder $query) => $query->where('method', $this->method))
-            ->when($this->from !== null, fn (Builder $query) => $query->whereDate('paid_on', '>=', $this->from))
-            ->when($this->until !== null, fn (Builder $query) => $query->whereDate('paid_on', '<=', $this->until))
+            ->when($this->from !== null, fn (Builder $query) => $query->where('paid_on', '>=', $this->from))
+            ->when($this->until !== null, fn (Builder $query) => $query->where('paid_on', '<', CarbonImmutable::parse($this->until)->addDay()->toDateString()))
             ->when($this->search !== '', function (Builder $query): void {
                 $like = '%'.addcslashes($this->search, '%_\\').'%';
 
@@ -94,11 +96,11 @@ class PaymentFilters
      *
      * @return Builder<Payment>
      */
-    public function ordered(): Builder
+    public function ordered(bool $withStatus = true): Builder
     {
         $column = $this->sort === self::SORT_AMOUNT ? 'amount' : 'paid_on';
 
-        return $this->query()->orderBy($column, $this->direction)->orderByDesc('id');
+        return $this->query($withStatus)->orderBy($column, $this->direction)->orderByDesc('id');
     }
 
     public function isActive(): bool

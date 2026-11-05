@@ -1,5 +1,6 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { Check } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { FormField } from '@/components/form-field';
 import { PageHeader } from '@/components/page-header';
@@ -168,9 +169,22 @@ export default function SettingsEdit({
         group === 'tampilan'
             ? text('brand.accent_color') || defaults['brand.accent_color']
             : savedAccent;
-    const previewLogo = (form.data.logo as File | null)
-        ? URL.createObjectURL(form.data.logo as File)
-        : logoShown;
+    const logoFile = form.data.logo as File | null;
+    const [logoObjectUrl, setLogoObjectUrl] = useState<string | null>(null);
+    const previewLogo = logoObjectUrl ?? logoShown;
+
+    useEffect(() => {
+        if (!logoFile) {
+            setLogoObjectUrl(null);
+
+            return;
+        }
+
+        const url = URL.createObjectURL(logoFile);
+        setLogoObjectUrl(url);
+
+        return () => URL.revokeObjectURL(url);
+    }, [logoFile]);
 
     return (
         <>
@@ -210,6 +224,9 @@ export default function SettingsEdit({
                                         label="Logo"
                                         hint="PNG, JPG, atau WebP, maksimal 1 MB. Latar transparan paling cocok."
                                         maxSizeMb={1}
+                                        accept="image/png,image/jpeg,image/webp"
+                                        fit="contain"
+                                        previewClassName="h-24 w-40"
                                         value={logoShown}
                                         onChange={(file) =>
                                             form.setData((data) => ({
@@ -241,8 +258,11 @@ export default function SettingsEdit({
                                 <div className="grid gap-3">
                                     <PhotoUpload
                                         label="Ikon tab"
-                                        hint="Gambar persegi (PNG, ICO, atau WebP), maksimal 512 KB."
+                                        hint="Gambar persegi (PNG, ICO, WebP, atau JPG), maksimal 512 KB."
                                         maxSizeMb={0.5}
+                                        accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/webp,image/jpeg,.ico"
+                                        fit="contain"
+                                        previewClassName="h-24 w-24"
                                         value={
                                             form.data.remove_favicon
                                                 ? null
@@ -384,7 +404,7 @@ export default function SettingsEdit({
                                     {field('contact.whatsapp', 'WhatsApp', {
                                         placeholder: '0812 3456 7890',
                                         type: 'tel',
-                                        hint: 'Orang tua bisa langsung mengetuk untuk chat.',
+                                        hint: 'Angka saja, boleh diawali +. Orang tua bisa langsung mengetuk untuk chat.',
                                     })}
                                 </div>
                                 {field('contact.email', 'Email', {

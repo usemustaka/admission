@@ -11,10 +11,12 @@ use App\Support\Brand;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class SettingController extends Controller
 {
@@ -56,18 +58,45 @@ class SettingController extends Controller
     public function update(SaveSettingsRequest $request, string $group): RedirectResponse
     {
         $current = SettingGroup::from($group);
+        $validated = $request->validated();
+        $replaced = [];
 
-        foreach (array_keys($current->rules()) as $key) {
-            $value = data_get($request->validated(), $key);
+        $storedFiles = $current === SettingGroup::Identity
+            ? [
+                'brand.logo_path' => $this->storeFile($request->file('logo'), $request->boolean('remove_logo')),
+                'brand.favicon_path' => $this->storeFile($request->file('favicon'), $request->boolean('remove_favicon')),
+            ]
+            : [];
 
-            Setting::put($key, is_string($value) ? (trim($value) === '' ? null : trim($value)) : $value);
+        try {
+            DB::transaction(function () use ($current, $validated, $storedFiles, &$replaced): void {
+                foreach (array_keys($current->rules()) as $key) {
+                    $value = data_get($validated, $key);
+
+                    Setting::put($key, is_string($value) ? (trim($value) === '' ? null : trim($value)) : $value);
+                }
+
+                foreach ($storedFiles as $key => $stored) {
+                    if ($stored === false) {
+                        continue;
+                    }
+
+                    $old = Setting::get($key);
+
+                    if (is_string($old)) {
+                        $replaced[] = $old;
+                    }
+
+                    Setting::put($key, $stored);
+                }
+            });
+        } catch (Throwable $exception) {
+            Storage::disk('public')->delete(array_filter($storedFiles, is_string(...)));
+
+            throw $exception;
         }
 
-        if ($current === SettingGroup::Identity) {
-            $this->saveFile($request->file('logo'), $request->boolean('remove_logo'), 'brand.logo_path');
-            $this->saveFile($request->file('favicon'), $request->boolean('remove_favicon'), 'brand.favicon_path');
-        }
-
+        Storage::disk('public')->delete($replaced);
         Brand::flush();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "Pengaturan {$current->label()} sudah disimpan."]);
@@ -75,18 +104,17 @@ class SettingController extends Controller
         return back();
     }
 
-    private function saveFile(?UploadedFile $file, bool $remove, string $key): void
+    /**
+     * Store a new upload before anything is changed, so a failure leaves the old file in place.
+     *
+     * @return string|false|null The new path, null to clear the setting, false to leave it alone.
+     */
+    private function storeFile(?UploadedFile $file, bool $remove): string|false|null
     {
-        if ($file === null && ! $remove) {
-            return;
+        if ($file === null) {
+            return $remove ? null : false;
         }
 
-        $old = Setting::get($key);
-
-        if (is_string($old)) {
-            Storage::disk('public')->delete($old);
-        }
-
-        Setting::put($key, $file?->store('brand', 'public'));
+        return $file->store('brand', 'public') ?: false;
     }
 }

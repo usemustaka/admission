@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { Plus, Trash2 } from 'lucide-react';
+import { newRowKey } from '@/components/admission/row-key';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
@@ -30,6 +31,12 @@ export function ExamAspectEditor({
             }}
             className="grid gap-4"
         >
+            <p className="text-sm text-muted-foreground">
+                Perubahan hanya berlaku untuk anak yang mendaftar setelah ini.
+                Pendaftar yang sudah terdaftar tetap memakai aspek dan KKM saat
+                mereka mendaftar.
+            </p>
+
             {form.data.aspects.length === 0 && (
                 <p className="text-sm text-muted-foreground">
                     Belum ada aspek ujian. Tambahkan, misalnya Tes Tulis atau
@@ -39,7 +46,7 @@ export function ExamAspectEditor({
 
             {form.data.aspects.map((aspect, index) => (
                 <div
-                    key={aspect.id ?? `new-${index}`}
+                    key={aspect.id ?? aspect.key ?? `new-${index}`}
                     className="grid gap-2 sm:grid-cols-[1fr_9rem_auto] sm:items-start"
                 >
                     <div className="grid gap-1">
@@ -129,7 +136,11 @@ export function ExamAspectEditor({
                         onClick={() =>
                             setAspects([
                                 ...form.data.aspects,
-                                { name: '', passing_score: 70 },
+                                {
+                                    key: newRowKey(),
+                                    name: '',
+                                    passing_score: 70,
+                                },
                             ])
                         }
                     >

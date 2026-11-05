@@ -27,6 +27,17 @@ export function formatRelativeDay(
     return relativeFormatter.format(Math.round(days / 365), 'year');
 }
 
+/**
+ * A date as YYYY-MM-DD from the local calendar fields. `toISOString()` gives the UTC date, which is still
+ * yesterday for the first seven hours of a day in WIB.
+ */
+export function formatLocalDate(date: Date = new Date()): string {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${date.getFullYear()}-${month}-${day}`;
+}
+
 /** The first couple of item names, then how many more there are. */
 export function summarizeItems(names: string[], visible = 2): string {
     if (names.length <= visible) {

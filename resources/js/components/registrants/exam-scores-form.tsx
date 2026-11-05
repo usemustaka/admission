@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { toastFirstError } from '@/hooks/use-flash-toast';
 import { scores as scoresRoute } from '@/routes/admin/registrants';
 import type { ExamResultData } from '@/types/registrant';
 
@@ -54,7 +55,10 @@ export function ExamScoresForm({
             },
             {
                 preserveScroll: true,
-                onError: setErrors,
+                onError: (errors) => {
+                    setErrors(errors);
+                    toastFirstError(errors, (key) => /^scores\.\d+$/.test(key));
+                },
                 onSuccess: () => setErrors({}),
                 onFinish: () => setProcessing(false),
             },

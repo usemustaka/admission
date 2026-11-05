@@ -20,7 +20,7 @@ class VerifyPaymentRequest extends FormRequest
     {
         return [
             'allocations' => ['nullable', 'array', 'min:1'],
-            'allocations.*.bill_item_id' => ['required', 'integer'],
+            'allocations.*.bill_item_id' => ['required', 'integer', 'distinct'],
             'allocations.*.amount' => ['required', 'integer', 'min:0', 'max:1000000000000'],
         ];
     }
@@ -30,6 +30,14 @@ class VerifyPaymentRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['allocations.*.amount' => 'Alokasi'];
+        return ['allocations.*.bill_item_id' => 'Rincian', 'allocations.*.amount' => 'Alokasi'];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return ['allocations.*.bill_item_id.distinct' => 'Rincian yang sama tidak boleh muncul dua kali.'];
     }
 }

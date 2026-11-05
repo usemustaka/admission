@@ -1,21 +1,21 @@
-import { Link, usePage } from "@inertiajs/react";
-import { Search } from "lucide-react";
-import { useEffect, useState } from "react";
-import { AdminSearch } from "@/components/admin/admin-search";
-import { visibleAdminSections } from "@/components/admin/admin-nav";
-import AppLogo from "@/components/app-logo";
-import { LinkTabs } from "@/components/section-tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Link, usePage } from '@inertiajs/react';
+import { Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AdminSearch } from '@/components/admin/admin-search';
+import { visibleAdminSections } from '@/components/admin/admin-nav';
+import AppLogo from '@/components/app-logo';
+import { LinkTabs } from '@/components/section-tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { UserMenuContent } from "@/components/user-menu-content";
-import { useCurrentUrl } from "@/hooks/use-current-url";
-import { useInitials } from "@/hooks/use-initials";
-import { cn, nameColor } from "@/lib/utils";
-import { dashboard } from "@/routes";
+} from '@/components/ui/dropdown-menu';
+import { UserMenuContent } from '@/components/user-menu-content';
+import { useCurrentUrl } from '@/hooks/use-current-url';
+import { useInitials } from '@/hooks/use-initials';
+import { cn, nameColor } from '@/lib/utils';
+import { dashboard } from '@/routes';
 
 export function useAdminNavigation() {
     const { abilities } = usePage().props.auth;
@@ -37,15 +37,15 @@ export function AdminHeader() {
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
                 event.preventDefault();
                 setSearchOpen(true);
             }
         };
 
-        window.addEventListener("keydown", onKeyDown);
+        window.addEventListener('keydown', onKeyDown);
 
-        return () => window.removeEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
     }, []);
 
     const subPages = active && active.pages.length > 1 ? active.pages : [];
@@ -79,12 +79,12 @@ export function AdminHeader() {
                                 key={section.title}
                                 href={target.href}
                                 prefetch
-                                aria-current={selected ? "page" : undefined}
+                                aria-current={selected ? 'page' : undefined}
                                 className={cn(
-                                    "group flex w-24 flex-col items-center justify-center gap-1.5 border-b-2 pt-1 text-[13px] font-semibold transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+                                    'group flex w-24 flex-col items-center justify-center gap-1.5 border-b-2 pt-1 text-[13px] font-semibold transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
                                     selected
-                                        ? "border-foreground text-foreground"
-                                        : "border-transparent text-muted-foreground hover:text-foreground",
+                                        ? 'border-foreground text-foreground'
+                                        : 'border-transparent text-muted-foreground hover:text-foreground',
                                 )}
                             >
                                 <section.icon
@@ -137,11 +137,11 @@ export function AdminHeader() {
                                         className="text-sm font-bold text-white"
                                         style={{
                                             background: nameColor(
-                                                auth.user?.name ?? "",
+                                                auth.user?.name ?? '',
                                             ),
                                         }}
                                     >
-                                        {getInitials(auth.user?.name ?? "")}
+                                        {getInitials(auth.user?.name ?? '')}
                                     </AvatarFallback>
                                 </Avatar>
                             </button>

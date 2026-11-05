@@ -1,5 +1,7 @@
 import { useForm } from '@inertiajs/react';
-import { CalendarPlus, Plus, Trash2 } from 'lucide-react';
+import { CalendarPlus, CircleAlert, Plus, Trash2 } from 'lucide-react';
+import { newRowKey } from '@/components/admission/row-key';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
@@ -50,6 +52,10 @@ export function ExamScheduleEditor({
         ) : null;
     }
 
+    const generalErrors = Object.entries(errors)
+        .filter(([key]) => !key.includes('.'))
+        .map(([, message]) => message);
+
     return (
         <form
             onSubmit={(event) => {
@@ -58,6 +64,24 @@ export function ExamScheduleEditor({
             }}
             className="grid gap-5"
         >
+            <p className="text-sm text-muted-foreground">
+                Tanggal dan sesi baru hanya bisa dipilih anak yang mendaftar
+                setelah ini. Mengubah jam atau tanggal sesi yang sudah dipilih
+                akan ikut mengubah jadwal pendaftar yang memilihnya, jadi kabari
+                mereka kalau perlu.
+            </p>
+
+            {generalErrors.length > 0 && (
+                <Alert variant="destructive">
+                    <CircleAlert />
+                    <AlertDescription>
+                        {generalErrors.map((message) => (
+                            <p key={message}>{message}</p>
+                        ))}
+                    </AlertDescription>
+                </Alert>
+            )}
+
             {form.data.days.length === 0 && (
                 <p className="text-sm text-muted-foreground">
                     Belum ada jadwal ujian. Tambahkan tanggal, lalu sesinya.
@@ -66,7 +90,7 @@ export function ExamScheduleEditor({
 
             {form.data.days.map((day, dayIndex) => (
                 <div
-                    key={day.id ?? `new-${dayIndex}`}
+                    key={day.id ?? day.key ?? `new-${dayIndex}`}
                     className="grid gap-4 rounded-2xl border bg-neutral-50 p-4 dark:bg-card"
                 >
                     <div className="flex flex-wrap items-start gap-3">
@@ -94,6 +118,16 @@ export function ExamScheduleEditor({
                                 variant="ghost"
                                 size="sm"
                                 className="ml-auto max-md:h-10"
+                                disabled={day.sessions.some(
+                                    (session) => (session.taken ?? 0) > 0,
+                                )}
+                                title={
+                                    day.sessions.some(
+                                        (session) => (session.taken ?? 0) > 0,
+                                    )
+                                        ? 'Ada sesi di tanggal ini yang sudah dipilih pendaftar'
+                                        : undefined
+                                }
                                 onClick={() =>
                                     setDays(
                                         form.data.days.filter(
@@ -114,7 +148,11 @@ export function ExamScheduleEditor({
 
                             return (
                                 <div
-                                    key={session.id ?? `new-${sessionIndex}`}
+                                    key={
+                                        session.id ??
+                                        session.key ??
+                                        `new-${sessionIndex}`
+                                    }
                                     className="grid gap-2 sm:grid-cols-[1fr_7rem_7rem_6rem_auto] sm:items-start"
                                 >
                                     <div className="grid gap-1">
@@ -175,7 +213,11 @@ export function ExamScheduleEditor({
                                         <Input
                                             aria-label="Kuota"
                                             type="number"
-                                            min={1}
+                                            min={Math.max(
+                                                1,
+                                                session.taken ?? 0,
+                                            )}
+                                            max={65535}
                                             placeholder="Kuota"
                                             value={session.quota}
                                             disabled={!canEdit}
@@ -187,6 +229,11 @@ export function ExamScheduleEditor({
                                                 )
                                             }
                                         />
+                                        {session.taken !== undefined && (
+                                            <p className="text-xs text-muted-foreground tabular-nums">
+                                                terisi {session.taken}
+                                            </p>
+                                        )}
                                         {fieldError(`${base}.quota`)}
                                     </div>
                                     {canEdit && (
@@ -195,6 +242,12 @@ export function ExamScheduleEditor({
                                             variant="ghost"
                                             size="icon"
                                             aria-label="Hapus sesi"
+                                            disabled={(session.taken ?? 0) > 0}
+                                            title={
+                                                (session.taken ?? 0) > 0
+                                                    ? 'Sesi ini sudah dipilih pendaftar'
+                                                    : undefined
+                                            }
                                             onClick={() =>
                                                 updateDay(dayIndex, {
                                                     sessions:
@@ -224,6 +277,7 @@ export function ExamScheduleEditor({
                                         sessions: [
                                             ...day.sessions,
                                             {
+                                                key: newRowKey(),
                                                 label: `Sesi ${day.sessions.length + 1}`,
                                                 start_time: '08:00',
                                                 end_time: '10:00',
@@ -251,7 +305,7 @@ export function ExamScheduleEditor({
                         onClick={() =>
                             setDays([
                                 ...form.data.days,
-                                { date: '', sessions: [] },
+                                { key: newRowKey(), date: '', sessions: [] },
                             ])
                         }
                     >

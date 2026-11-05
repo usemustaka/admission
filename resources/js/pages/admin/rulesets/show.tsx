@@ -1,5 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { CalendarDays, ListChecks, Pencil, Trash2, Wallet } from 'lucide-react';
+import {
+    CalendarDays,
+    ListChecks,
+    Pencil,
+    Trash2,
+    TriangleAlert,
+    Wallet,
+} from 'lucide-react';
 import { useState } from 'react';
 import { BillEditor } from '@/components/admission/bill-editor';
 import { ExamAspectEditor } from '@/components/admission/exam-aspect-editor';
@@ -8,10 +15,11 @@ import { RulesetConditions } from '@/components/admission/ruleset-conditions';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
-import { destroy, edit, index } from '@/routes/admin/rulesets';
+import { destroy, edit, index, show } from '@/routes/admin/rulesets';
 import type {
     BillItemRow,
     ExamAspectRow,
@@ -65,6 +73,25 @@ export default function RulesetShow({
                         </>
                     }
                 />
+
+                {ruleset.shadowed_by && (
+                    <Alert variant="warning">
+                        <TriangleAlert />
+                        <AlertTitle>Aturan ini tidak pernah dipakai</AlertTitle>
+                        <AlertDescription>
+                            Aturan{' '}
+                            <Link
+                                href={show(ruleset.shadowed_by.id)}
+                                className="underline"
+                            >
+                                {ruleset.shadowed_by.name}
+                            </Link>{' '}
+                            dicek lebih dulu dan cocok dengan semua pendaftar
+                            yang cocok dengan aturan ini. Naikkan urutan aturan
+                            ini di daftar aturan.
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 <div className="grid gap-6 @5xl:grid-cols-[minmax(0,1fr)_24rem] @5xl:items-start">
                     <div className="grid min-w-0 gap-6">
@@ -160,11 +187,25 @@ export default function RulesetShow({
             <ConfirmDialog
                 open={confirmDelete}
                 onOpenChange={setConfirmDelete}
-                tone="danger"
-                title={`Hapus aturan ${ruleset.name}?`}
-                description="Pendaftar yang sudah memakai aturan ini tetap menyimpan salinannya. Yang dihapus tidak bisa dikembalikan."
-                confirmLabel="Ya, hapus"
-                onConfirm={() => router.delete(destroy(ruleset.id).url)}
+                tone={ruleset.registrants_count > 0 ? 'default' : 'danger'}
+                title={
+                    ruleset.registrants_count > 0
+                        ? 'Aturan ini belum bisa dihapus'
+                        : `Hapus aturan ${ruleset.name}?`
+                }
+                description={
+                    ruleset.registrants_count > 0
+                        ? `${ruleset.registrants_count} pendaftar sudah memakai aturan ini, jadi aturan tidak bisa dihapus. Nonaktifkan saja lewat Ubah syarat supaya tidak dipakai pendaftar baru.`
+                        : 'Tagihan, aspek ujian, dan jadwal ujian aturan ini ikut terhapus dan tidak bisa dikembalikan.'
+                }
+                confirmLabel={
+                    ruleset.registrants_count > 0 ? 'Ubah syarat' : 'Ya, hapus'
+                }
+                onConfirm={() =>
+                    ruleset.registrants_count > 0
+                        ? router.visit(edit(ruleset.id).url)
+                        : router.delete(destroy(ruleset.id).url)
+                }
             />
         </>
     );

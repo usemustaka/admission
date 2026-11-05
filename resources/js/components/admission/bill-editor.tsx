@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { Plus, Trash2 } from 'lucide-react';
+import { newRowKey } from '@/components/admission/row-key';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
@@ -52,6 +53,11 @@ export function BillEditor({
             }}
             className="grid gap-8"
         >
+            <p className="text-sm text-muted-foreground">
+                Perubahan hanya berlaku untuk anak yang mendaftar setelah ini.
+                Tagihan pendaftar yang sudah terdaftar tidak berubah.
+            </p>
+
             {groups.map((group) => {
                 const items = form.data.bills[group.key];
                 const total = items.reduce(
@@ -79,7 +85,7 @@ export function BillEditor({
 
                             return (
                                 <div
-                                    key={item.id ?? `new-${index}`}
+                                    key={item.id ?? item.key ?? `new-${index}`}
                                     className="grid gap-2 sm:grid-cols-[1fr_12rem_auto] sm:items-start"
                                 >
                                     <div className="grid gap-1">
@@ -174,7 +180,11 @@ export function BillEditor({
                                     onClick={() =>
                                         setItems(group.key, [
                                             ...items,
-                                            { name: '', amount: '' },
+                                            {
+                                                key: newRowKey(),
+                                                name: '',
+                                                amount: '',
+                                            },
                                         ])
                                     }
                                 >

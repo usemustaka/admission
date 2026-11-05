@@ -35,6 +35,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { toastFirstError } from '@/hooks/use-flash-toast';
 import { formatDate, formatRupiah, whatsappUrl } from '@/lib/format';
 import { dashboard } from '@/routes';
 import { edit as editPerson } from '@/routes/admin/people';
@@ -54,6 +55,7 @@ import type {
     ExamResultData,
     RegistrantAbilities,
     RegistrantQueue,
+    RegistrantQueueContext,
     TimelineEntry,
 } from '@/types/registrant';
 
@@ -100,6 +102,7 @@ export default function RegistrantShow({
     settlement,
     can,
     queue,
+    queueContext,
 }: {
     registrant: Detail;
     family: {
@@ -129,11 +132,13 @@ export default function RegistrantShow({
     settlement: { has_bill: boolean; paid: boolean };
     can: RegistrantAbilities;
     queue: RegistrantQueue;
+    queueContext: RegistrantQueueContext;
 }) {
     const [revising, setRevising] = useState(false);
     const [bypassing, setBypassing] = useState(false);
     const [placing, setPlacing] = useState(false);
     const [accepting, setAccepting] = useState<'stay' | 'next' | null>(null);
+    const [announcing, setAnnouncing] = useState<'stay' | 'next' | null>(null);
     const [resolving, setResolving] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [session, setSession] = useState(selectedSession ?? undefined);
@@ -152,6 +157,7 @@ export default function RegistrantShow({
             {
                 preserveScroll: true,
                 onSuccess: afterSuccess,
+                onError: (errors) => toastFirstError(errors),
                 onFinish: () => {
                     setProcessing(false);
                     onFinish?.();
@@ -165,7 +171,7 @@ export default function RegistrantShow({
      */
     function openNext() {
         if (queue.next_id !== null) {
-            router.visit(show(queue.next_id));
+            router.visit(show(queue.next_id, { query: queueContext.query }));
         }
     }
 
@@ -243,9 +249,7 @@ export default function RegistrantShow({
                                 setAccepting(goNext ? 'next' : 'stay')
                             }
                             onAnnounce={(goNext) =>
-                                post(announce(registrant.id).url, {
-                                    afterSuccess: goNext ? openNext : undefined,
-                                })
+                                setAnnouncing(goNext ? 'next' : 'stay')
                             }
                             onRevise={() => setRevising(true)}
                             onPlace={() => setPlacing(true)}
@@ -345,6 +349,12 @@ export default function RegistrantShow({
                                                             },
                                                             {
                                                                 preserveScroll: true,
+                                                                onError: (
+                                                                    errors,
+                                                                ) =>
+                                                                    toastFirstError(
+                                                                        errors,
+                                                                    ),
                                                                 onFinish: () =>
                                                                     setProcessing(
                                                                         false,
@@ -436,12 +446,16 @@ export default function RegistrantShow({
                         <SectionCard
                             title="Berikutnya dalam antrean"
                             icon={ListOrdered}
-                            description={`${queue.position} dari ${queue.total} yang berstatus ${registrant.status_label.toLowerCase()}, urut dari yang paling lama mendaftar.`}
+                            description={`${queue.position} dari ${queue.total} yang berstatus ${registrant.status_label.toLowerCase()}${Object.keys(queueContext.query).length > 0 ? ' sesuai filter daftar' : ''}, urut ${queueContext.order}.`}
                             contentClassName="grid grid-cols-2 gap-2"
                         >
                             {queue.previous_id !== null ? (
                                 <Button variant="outline" asChild>
-                                    <Link href={show(queue.previous_id)}>
+                                    <Link
+                                        href={show(queue.previous_id, {
+                                            query: queueContext.query,
+                                        })}
+                                    >
                                         <ChevronLeft />
                                         Sebelumnya
                                     </Link>
@@ -454,7 +468,11 @@ export default function RegistrantShow({
                             )}
                             {queue.next_id !== null ? (
                                 <Button variant="dark" asChild>
-                                    <Link href={show(queue.next_id)}>
+                                    <Link
+                                        href={show(queue.next_id, {
+                                            query: queueContext.query,
+                                        })}
+                                    >
                                         Berikutnya
                                         <ChevronRight />
                                     </Link>
@@ -620,6 +638,25 @@ export default function RegistrantShow({
                         afterSuccess:
                             accepting === 'next' ? openNext : undefined,
                         onFinish: () => setAccepting(null),
+                    })
+                }
+            />
+            <ConfirmDialog
+                open={announcing !== null}
+                onOpenChange={(open) => !open && setAnnouncing(null)}
+                title="Tandai sudah diumumkan?"
+                description="Pastikan pengumumannya sudah dikirim ke kontak utama. Setelah ditandai, pendaftar lanjut ke tahap penempatan."
+                confirmLabel={
+                    announcing === 'next'
+                        ? 'Ya, tandai dan lanjut'
+                        : 'Ya, tandai'
+                }
+                processing={processing}
+                onConfirm={() =>
+                    post(announce(registrant.id).url, {
+                        afterSuccess:
+                            announcing === 'next' ? openNext : undefined,
+                        onFinish: () => setAnnouncing(null),
                     })
                 }
             />

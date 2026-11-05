@@ -6,6 +6,7 @@ import {
     FlaskConical,
     ListChecks,
     Plus,
+    TriangleAlert,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { RulesetConditions } from '@/components/admission/ruleset-conditions';
@@ -25,6 +26,7 @@ import type { RulesetOptions, RulesetSummary } from '@/types/admission';
 type MatchTest = {
     ran: boolean;
     match: { id: number; name: string } | null;
+    matches: { id: number; name: string; is_winner: boolean }[];
     filters: { gelombang: string; lembaga: string; gender: string };
 };
 
@@ -84,6 +86,24 @@ export default function RulesetsIndex({
                                 <Badge variant="muted">Tidak aktif</Badge>
                             )}
                         </span>
+                        {row.original.shadowed_by && (
+                            <Badge
+                                variant="warning"
+                                className="h-auto max-w-full gap-1.5 py-1 whitespace-normal"
+                            >
+                                <TriangleAlert />
+                                <span>
+                                    Tidak pernah dipakai: tertutup oleh{' '}
+                                    <Link
+                                        href={show(row.original.shadowed_by.id)}
+                                        className="underline"
+                                    >
+                                        {row.original.shadowed_by.name}
+                                    </Link>
+                                    . Naikkan urutan aturan ini di atasnya.
+                                </span>
+                            </Badge>
+                        )}
                         <span className="md:hidden">
                             <RulesetConditions ruleset={row.original} />
                         </span>
@@ -161,7 +181,7 @@ export default function RulesetsIndex({
                 <PageHeader
                     icon={ListChecks}
                     title="Aturan pendaftaran"
-                    description="Tiap aturan berisi tagihan, aspek ujian, dan jadwal ujian untuk pendaftar yang cocok dengan syaratnya. Aturan paling atas dicek lebih dulu."
+                    description="Tiap aturan berisi tagihan, aspek ujian, dan jadwal ujian untuk pendaftar yang cocok dengan syaratnya. Aturan dicek dari atas ke bawah dan yang pertama cocok dipakai, jadi taruh aturan khusus di atas aturan umum."
                     actions={
                         can.manage && (
                             <Button asChild>
@@ -179,7 +199,7 @@ export default function RulesetsIndex({
                         <EmptyState
                             icon={ListChecks}
                             title="Belum ada aturan"
-                            description="Tanpa aturan, pendaftar belum bisa dikelompokkan. Buat satu aturan umum dulu, lalu tambahkan yang lebih khusus."
+                            description="Tanpa aturan, pendaftar belum bisa dikelompokkan. Aturan dicek dari atas ke bawah dan yang pertama cocok dipakai, jadi taruh aturan yang khusus di atas aturan umum."
                             action={
                                 can.manage && (
                                     <Button asChild>
@@ -274,6 +294,32 @@ export default function RulesetsIndex({
                                             >
                                                 Lihat isinya
                                             </Link>
+                                            {test.matches.length > 1 && (
+                                                <span className="mt-2 grid gap-1">
+                                                    <span>
+                                                        Aturan lain yang juga
+                                                        cocok, tapi kalah
+                                                        urutan:
+                                                    </span>
+                                                    <span className="flex flex-wrap gap-1.5">
+                                                        {test.matches
+                                                            .filter(
+                                                                (item) =>
+                                                                    !item.is_winner,
+                                                            )
+                                                            .map((item) => (
+                                                                <Badge
+                                                                    key={
+                                                                        item.id
+                                                                    }
+                                                                    variant="muted"
+                                                                >
+                                                                    {item.name}
+                                                                </Badge>
+                                                            ))}
+                                                    </span>
+                                                </span>
+                                            )}
                                         </AlertDescription>
                                     </Alert>
                                 ) : (

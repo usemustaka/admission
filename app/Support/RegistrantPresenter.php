@@ -40,8 +40,9 @@ class RegistrantPresenter
     }
 
     /**
-     * What the committee member may do with a registration right now: the workflow actions that need no extra
-     * input are only offered when the status and the NIK check allow them.
+     * What the committee member may do with a registration right now: the workflow actions are only offered when
+     * the status and the NIK check allow them. While the NIK is unconfirmed nothing moves forward and nothing is
+     * sent back (the parent cannot edit yet); `bypass` stays, but the status picker leaves out the steps ahead.
      *
      * @return array{manage: bool, accept: bool, revise: bool, announce: bool, place: bool, bypass: bool}
      */
@@ -53,7 +54,7 @@ class RegistrantPresenter
         return [
             'manage' => $canManage,
             'accept' => $canManage && $status === RegistrantStatus::Review && ! $registrant->needs_identity_review,
-            'revise' => $canManage && $status === RegistrantStatus::Review,
+            'revise' => $canManage && $status === RegistrantStatus::Review && ! $registrant->needs_identity_review,
             'announce' => $canManage && $status === RegistrantStatus::Validated && ! $registrant->needs_identity_review,
             'place' => $canManage && $status === RegistrantStatus::Announced && ! $registrant->needs_identity_review,
             'bypass' => $canManage && $status !== RegistrantStatus::Placed,

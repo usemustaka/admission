@@ -354,7 +354,7 @@ export default function Dashboard({
                     }
                     meta={
                         registrations && (
-                            <p className="text-sm">
+                            <p className="flex items-center gap-1 text-sm">
                                 <Trend
                                     now={registrations.last_week}
                                     before={registrations.previous_week}

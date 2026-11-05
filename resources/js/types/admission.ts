@@ -33,6 +33,8 @@ export type RulesetSummary = {
     organization: string | null;
     gender: string | null;
     registrants_count: number;
+    /** The earlier active ruleset that matches everything this one would, so this one is never used. */
+    shadowed_by: { id: number; name: string } | null;
 };
 
 export type RulesetOptions = {
@@ -43,18 +45,24 @@ export type RulesetOptions = {
 
 export type BillItemRow = {
     id?: number;
+    /** Client-only key that keeps a new row stable while rows around it change. */
+    key?: string;
     name: string;
     amount: number | string;
 };
 
 export type ExamAspectRow = {
     id?: number;
+    key?: string;
     name: string;
     passing_score: number | string;
 };
 
 export type ExamSessionRow = {
     id?: number;
+    key?: string;
+    /** Registrants who picked this session. Set by the server, not editable. */
+    taken?: number;
     label: string;
     start_time: string;
     end_time: string;
@@ -63,6 +71,7 @@ export type ExamSessionRow = {
 
 export type ExamDayRow = {
     id?: number;
+    key?: string;
     date: string;
     sessions: ExamSessionRow[];
 };

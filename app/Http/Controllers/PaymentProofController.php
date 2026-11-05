@@ -16,8 +16,10 @@ class PaymentProofController extends Controller
     {
         Gate::authorize('view', $payment);
 
-        abort_if($payment->proof_path === null, 404);
+        $disk = Storage::disk('local');
 
-        return Storage::disk('local')->response($payment->proof_path);
+        abort_if($payment->proof_path === null || ! $disk->exists($payment->proof_path), 404);
+
+        return $disk->response($payment->proof_path, null, ['X-Content-Type-Options' => 'nosniff']);
     }
 }

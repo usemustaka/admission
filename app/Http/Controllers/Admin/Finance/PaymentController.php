@@ -15,9 +15,7 @@ use App\Http\Requests\Admin\Finance\BulkVerifyPaymentsRequest;
 use App\Http\Requests\Admin\Finance\RecordPaymentRequest;
 use App\Http\Requests\Admin\Finance\VerifyPaymentRequest;
 use App\Models\Bill;
-use App\Models\BillItem;
 use App\Models\Payment;
-use App\Models\PaymentAllocation;
 use App\Support\BillPresenter;
 use App\Support\PaymentFilters;
 use App\Support\PaymentPresenter;
@@ -25,6 +23,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -39,9 +38,11 @@ class PaymentController extends Controller
 
         $filters = PaymentFilters::fromRequest($request);
         $perStatus = $filters->query(withStatus: false)
-            ->selectRaw('status, count(*) as total')
+            ->toBase()
+            ->selectRaw('status, count(*) as total, coalesce(sum(amount), 0) as amount')
             ->groupBy('status')
-            ->pluck('total', 'status');
+            ->get()
+            ->keyBy('status');
 
         $payments = $filters->ordered()
             ->with(['payer', 'allocations.billItem.bill.registrant.person'])
@@ -52,10 +53,15 @@ class PaymentController extends Controller
             'payments' => $payments->through(fn (Payment $payment): array => PaymentPresenter::row($payment)),
             'filters' => $filters->toProps(),
             'counts' => [
-                'all' => (int) $perStatus->sum(),
-                ...collect(PaymentStatus::cases())->mapWithKeys(fn (PaymentStatus $status): array => [$status->value => (int) ($perStatus[$status->value] ?? 0)])->all(),
+                'all' => (int) $perStatus->sum('total'),
+                ...collect(PaymentStatus::cases())->mapWithKeys(fn (PaymentStatus $status): array => [$status->value => (int) ($perStatus->get($status->value)->total ?? 0)])->all(),
             ],
-            'totals' => ['amount' => (int) $filters->query()->sum('amount')],
+            // `amount` is the sum of the current filter; with no status chosen it mixes waiting, verified and rejected
+            // money, so the page shows `by_status` instead.
+            'totals' => [
+                'amount' => (int) $filters->query()->sum('amount'),
+                'by_status' => collect(PaymentStatus::cases())->mapWithKeys(fn (PaymentStatus $status): array => [$status->value => (int) ($perStatus->get($status->value)->amount ?? 0)])->all(),
+            ],
             'summary' => $this->summary(),
             'statuses' => array_map(fn (PaymentStatus $case): array => ['value' => $case->value, 'label' => $case->label()], PaymentStatus::cases()),
             'methods' => array_map(fn (PaymentMethod $method): array => ['value' => $method->value, 'label' => $method->label()], PaymentMethod::cases()),
@@ -64,8 +70,11 @@ class PaymentController extends Controller
     }
 
     /**
-     * The figures above the list, over all payments. "This month" counts by the date the money was paid, which is
-     * the same date the list filters on, so the figure and the list it links to agree.
+     * The figures above the list, over all payments. "This month" counts by the day a payment was verified, which is
+     * when the money was accepted; the date a parent says they paid on is only their claim.
+     *
+     * Per bill item, "outstanding" is what is still asked and "overpaid" is verified money beyond what was asked,
+     * so surplus on one item never hides what another item still owes.
      *
      * @return array<string, mixed>
      */
@@ -74,23 +83,32 @@ class PaymentController extends Controller
         $pending = Payment::query()->where('status', PaymentStatus::Pending)->toBase()->selectRaw('count(*) as total, coalesce(sum(amount), 0) as amount')->first();
         $monthStart = today()->startOfMonth();
         $monthEnd = today()->endOfMonth();
+        $nextMonthStart = $monthStart->copy()->addMonthNoOverflow();
 
-        $billed = (int) BillItem::query()->sum('amount');
-        $received = (int) PaymentAllocation::query()
-            ->whereHas('payment', fn (Builder $payments) => $payments->where('status', PaymentStatus::Verified))
-            ->sum('amount');
+        $received = DB::table('payment_allocations')
+            ->join('payments', 'payments.id', '=', 'payment_allocations.payment_id')
+            ->where('payments.status', PaymentStatus::Verified->value)
+            ->groupBy('payment_allocations.bill_item_id')
+            ->selectRaw('payment_allocations.bill_item_id, sum(payment_allocations.amount) as received');
+
+        $items = DB::table('bill_items')
+            ->leftJoinSub($received, 'received', 'received.bill_item_id', '=', 'bill_items.id')
+            ->selectRaw('coalesce(sum(case when bill_items.amount > coalesce(received.received, 0) then bill_items.amount - coalesce(received.received, 0) else 0 end), 0) as outstanding')
+            ->selectRaw('coalesce(sum(case when coalesce(received.received, 0) > bill_items.amount then received.received - bill_items.amount else 0 end), 0) as overpaid')
+            ->first();
 
         return [
             'pending_count' => (int) $pending->total,
             'pending_amount' => (int) $pending->amount,
             'verified_this_month' => (int) Payment::query()
                 ->where('status', PaymentStatus::Verified)
-                ->whereDate('paid_on', '>=', $monthStart->toDateString())
-                ->whereDate('paid_on', '<=', $monthEnd->toDateString())
+                ->where('verified_at', '>=', $monthStart)
+                ->where('verified_at', '<', $nextMonthStart)
                 ->sum('amount'),
             'month' => ['dari' => $monthStart->toDateString(), 'sampai' => $monthEnd->toDateString()],
             'rejected_count' => Payment::query()->where('status', PaymentStatus::Rejected)->count(),
-            'outstanding' => max($billed - $received, 0),
+            'outstanding' => (int) $items->outstanding,
+            'overpaid' => (int) $items->overpaid,
         ];
     }
 
@@ -158,7 +176,7 @@ class PaymentController extends Controller
         Gate::authorize('viewAny', Payment::class);
 
         $queue = PaymentFilters::fromRequest($request)
-            ->query(withStatus: false)
+            ->ordered(withStatus: false)
             ->where('status', PaymentStatus::Pending)
             ->whereKeyNot($payment->id);
 
@@ -166,30 +184,31 @@ class PaymentController extends Controller
             ...PaymentPresenter::detail($payment),
             'can' => ['verify' => $request->user()->can(Ability::PaymentVerify->value) && $payment->isPending()],
             'queue' => [
-                'next_id' => (clone $queue)->orderBy('paid_on')->orderBy('id')->value('id'),
-                'left' => $queue->count(),
+                'next_id' => (clone $queue)->value('id'),
+                'left' => (clone $queue)->reorder()->count(),
             ],
         ]);
     }
 
     /**
-     * Verify the selected payments as they were submitted. Each one is handled on its own.
+     * Verify the selected payments as they were submitted. Each one is handled on its own; those that were skipped
+     * come back, all of them, in the `bulk` flash so the page can list them.
      */
     public function bulkVerify(BulkVerifyPaymentsRequest $request, BulkVerifyPayments $bulkVerify): RedirectResponse
     {
         /** @var list<int> $ids */
         $ids = array_map(intval(...), $request->validated('ids'));
 
-        $result = $bulkVerify->handle($ids, $request->user());
+        $result = $bulkVerify->handle($ids, $request->user(), $request->boolean('include_without_proof'));
         $skipped = $result['skipped'];
 
         $message = $skipped === []
             ? "{$result['verified']} pembayaran diverifikasi."
-            : "{$result['verified']} diverifikasi, ".count($skipped).' dilewati. Dilewati: '
-                .collect($skipped)->take(3)->map(fn (array $row): string => "{$row['label']} ({$row['reason']})")->implode('; ')
-                .(count($skipped) > 3 ? '; dan '.(count($skipped) - 3).' lainnya.' : '.');
+            : "{$result['verified']} diverifikasi, ".count($skipped).' dilewati. Alasan: '
+                .collect($skipped)->countBy('reason')->map(fn (int $count, string $reason): string => "{$reason} ({$count})")->implode('; ').'.';
 
         Inertia::flash('toast', ['type' => $skipped === [] ? 'success' : 'warning', 'message' => $message]);
+        Inertia::flash('bulk', ['done' => $result['verified'], 'skipped' => $skipped]);
 
         return back();
     }
@@ -257,10 +276,10 @@ class PaymentController extends Controller
 
     public function verify(VerifyPaymentRequest $request, Payment $payment, VerifyPayment $verifyPayment): RedirectResponse
     {
-        /** @var list<array{bill_item_id: int, amount: int}>|null $allocations */
-        $allocations = $request->has('allocations')
-            ? array_values(array_filter($request->validated('allocations'), fn (array $row): bool => $row['amount'] > 0))
-            : null;
+        // Rows given nothing are dropped, but keep the position they had in the form, so an error lands on its own row.
+        /** @var array<int, array{bill_item_id: int, amount: int}>|null $given */
+        $given = $request->validated('allocations');
+        $allocations = $given === null ? null : array_filter($given, fn (array $row): bool => $row['amount'] > 0);
 
         $verifyPayment->handle($payment, $request->user(), $allocations);
 

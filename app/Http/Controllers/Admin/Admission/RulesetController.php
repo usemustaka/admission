@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Admission;
 
+use App\Actions\Admission\FindShadowedRulesets;
 use App\Actions\Admission\ResolveRuleset;
 use App\Actions\Admission\SaveRuleset;
 use App\Contracts\HasLabel;
@@ -24,31 +25,40 @@ use Inertia\Response;
 
 class RulesetController extends Controller
 {
-    public function index(Request $request, ResolveRuleset $resolveRuleset): Response
+    public function index(Request $request, ResolveRuleset $resolveRuleset, FindShadowedRulesets $findShadowedRulesets): Response
     {
         Gate::authorize('viewAny', Ruleset::class);
 
-        $match = null;
+        $matches = collect();
 
         if ($request->boolean('uji')) {
-            $match = $resolveRuleset->handle(
+            $matches = $resolveRuleset->matching(
                 $request->integer('gelombang') ?: null,
                 $request->integer('lembaga') ?: null,
                 $request->enum('gender', Gender::class),
             );
         }
 
+        $match = $matches->first();
+
+        $rulesets = Ruleset::query()
+            ->with(['wave', 'organization'])
+            ->withCount('registrants')
+            ->byPriority()
+            ->get();
+        $shadowed = $findShadowedRulesets->handle($rulesets);
+
         return Inertia::render('admin/rulesets/index', [
-            'rulesets' => Ruleset::query()
-                ->with(['wave', 'organization'])
-                ->withCount('registrants')
-                ->byPriority()
-                ->get()
-                ->map(fn (Ruleset $ruleset): array => $this->summary($ruleset)),
+            'rulesets' => $rulesets->map(fn (Ruleset $ruleset): array => $this->summary($ruleset, $shadowed[$ruleset->id] ?? null)),
             'options' => $this->options(),
             'test' => [
                 'ran' => $request->boolean('uji'),
                 'match' => $match === null ? null : ['id' => $match->id, 'name' => $match->name],
+                'matches' => $matches->map(fn (Ruleset $ruleset): array => [
+                    'id' => $ruleset->id,
+                    'name' => $ruleset->name,
+                    'is_winner' => $ruleset->is($match),
+                ])->values(),
                 'filters' => [
                     'gelombang' => $request->input('gelombang', ''),
                     'lembaga' => $request->input('lembaga', ''),
@@ -78,14 +88,19 @@ class RulesetController extends Controller
         return to_route('admin.rulesets.show', $ruleset);
     }
 
-    public function show(Request $request, Ruleset $ruleset): Response
+    public function show(Request $request, Ruleset $ruleset, FindShadowedRulesets $findShadowedRulesets): Response
     {
         Gate::authorize('view', $ruleset);
 
-        $ruleset->load(['wave', 'organization', 'bills.items', 'examAspects', 'examDays.sessions'])->loadCount('registrants');
+        $ruleset->load([
+            'wave', 'organization', 'bills.items', 'examAspects',
+            'examDays.sessions' => fn ($sessions) => $sessions->withCount('registrants'),
+        ])->loadCount('registrants');
+
+        $shadowed = $findShadowedRulesets->handle(Ruleset::query()->byPriority()->get());
 
         return Inertia::render('admin/rulesets/show', [
-            'ruleset' => $this->summary($ruleset),
+            'ruleset' => $this->summary($ruleset, $shadowed[$ruleset->id] ?? null),
             'bills' => collect(BillType::cases())->mapWithKeys(fn (BillType $type): array => [
                 $type->value => $ruleset->bills->firstWhere('type', $type)?->items->map(fn (RulesetBillItem $item): array => [
                     'id' => $item->id,
@@ -107,6 +122,7 @@ class RulesetController extends Controller
                     'start_time' => substr($session->start_time, 0, 5),
                     'end_time' => substr($session->end_time, 0, 5),
                     'quota' => $session->quota,
+                    'taken' => $session->registrants_count,
                 ])->values(),
             ])->values(),
             'can' => ['update' => $request->user()->can('update', $ruleset), 'delete' => $request->user()->can('delete', $ruleset)],
@@ -135,6 +151,12 @@ class RulesetController extends Controller
     public function destroy(Ruleset $ruleset): RedirectResponse
     {
         Gate::authorize('delete', $ruleset);
+
+        if ($ruleset->registrants()->exists()) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Aturan ini sudah dipakai pendaftar, jadi tidak bisa dihapus. Nonaktifkan saja lewat Ubah syarat supaya tidak dipakai pendaftar baru.']);
+
+            return back();
+        }
 
         $sessionsInUse = Registrant::query()->whereIn('exam_session_id', ExamSession::query()
             ->whereHas('day', fn ($days) => $days->where('ruleset_id', $ruleset->id))
@@ -168,7 +190,7 @@ class RulesetController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function summary(Ruleset $ruleset): array
+    private function summary(Ruleset $ruleset, ?Ruleset $shadowedBy = null): array
     {
         return [
             'id' => $ruleset->id,
@@ -182,6 +204,7 @@ class RulesetController extends Controller
             'organization' => $ruleset->organization?->name,
             'gender' => $ruleset->gender?->label(),
             'registrants_count' => $ruleset->registrants_count ?? 0,
+            'shadowed_by' => $shadowedBy === null ? null : ['id' => $shadowedBy->id, 'name' => $shadowedBy->name],
         ];
     }
 

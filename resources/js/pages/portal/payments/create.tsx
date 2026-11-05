@@ -6,6 +6,7 @@ import { ChoiceCardGroup } from '@/components/choice-card-group';
 import { EmptyState } from '@/components/empty-state';
 import { FormField } from '@/components/form-field';
 import { PageHeader } from '@/components/page-header';
+import { formatLocalDate } from '@/components/payments/payment-format';
 import { selectedRows } from '@/components/payments/payment-items-picker';
 import { BankCard } from '@/components/portal/bank-card';
 import { PortalPaymentItemsPicker } from '@/components/portal/payment-items-picker';
@@ -36,7 +37,7 @@ export default function CreatePayment({
     const [selection, setSelection] = useState<Selection>({});
     const form = useForm({
         items: [] as { bill_item_id: number; amount: number }[],
-        paid_on: new Date().toISOString().slice(0, 10),
+        paid_on: formatLocalDate(),
         method: 'transfer',
         note: '',
         proof: null as File | null,
@@ -129,7 +130,7 @@ export default function CreatePayment({
                             {(control) => (
                                 <Input
                                     type="date"
-                                    max={new Date().toISOString().slice(0, 10)}
+                                    max={formatLocalDate()}
                                     value={form.data.paid_on}
                                     onChange={(e) =>
                                         form.setData('paid_on', e.target.value)

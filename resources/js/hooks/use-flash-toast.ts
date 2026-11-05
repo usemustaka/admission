@@ -17,3 +17,20 @@ export function useFlashToast(): void {
         });
     }, []);
 }
+
+/**
+ * Shows the first validation error of a failed visit as a toast, so an action never fails without a word.
+ * Errors the caller already shows next to a field are left out through `shownInline`.
+ */
+export function toastFirstError(
+    errors: Record<string, string>,
+    shownInline: (key: string) => boolean = () => false,
+): void {
+    const message = Object.entries(errors).find(
+        ([key]) => !shownInline(key),
+    )?.[1];
+
+    if (message) {
+        toast.error(message);
+    }
+}

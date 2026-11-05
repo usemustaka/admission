@@ -10,10 +10,12 @@ use App\Models\Registrant;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Throwable;
 
 class RegistrantBulkController extends Controller
 {
@@ -55,19 +57,12 @@ class RegistrantBulkController extends Controller
                 continue;
             }
 
-            $reason = $this->skipReason($user, $registrant, $requiredStatus);
+            $reason = $this->process($user, $registrant, $action, $requiredStatus, $acceptRegistrant, $announceRegistrant);
 
             if ($reason === null) {
-                try {
-                    $action === 'accept'
-                        ? $acceptRegistrant->handle($registrant, $user)
-                        : $announceRegistrant->handle($registrant, $user);
-                    $done++;
+                $done++;
 
-                    continue;
-                } catch (ValidationException $exception) {
-                    $reason = collect($exception->errors())->flatten()->first() ?? 'Tidak bisa diproses';
-                }
+                continue;
             }
 
             $skipped[] = ['id' => $registrant->id, 'name' => $registrant->person->name, 'reason' => $reason];
@@ -77,6 +72,38 @@ class RegistrantBulkController extends Controller
         Inertia::flash('bulk', ['action' => $action, 'done' => $done, 'skipped' => $skipped]);
 
         return back();
+    }
+
+    /**
+     * Run the step for one registrant in its own transaction, checking its status and NIK flag on the row as it
+     * is stored right now (under a lock), not as it was when the list was loaded. Returns why it was skipped, or
+     * null when it went through. Anything unexpected only skips this registrant.
+     */
+    private function process(User $user, Registrant $registrant, string $action, RegistrantStatus $requiredStatus, AcceptRegistrant $acceptRegistrant, AnnounceRegistrant $announceRegistrant): ?string
+    {
+        try {
+            return DB::transaction(function () use ($user, $registrant, $action, $requiredStatus, $acceptRegistrant, $announceRegistrant): ?string {
+                $fresh = Registrant::query()->lockForUpdate()->findOrFail($registrant->id);
+
+                $reason = $this->skipReason($user, $fresh, $requiredStatus);
+
+                if ($reason !== null) {
+                    return $reason;
+                }
+
+                $action === 'accept'
+                    ? $acceptRegistrant->handle($fresh, $user)
+                    : $announceRegistrant->handle($fresh, $user);
+
+                return null;
+            });
+        } catch (ValidationException $exception) {
+            return collect($exception->errors())->flatten()->first() ?? 'Tidak bisa diproses';
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return 'Gagal, coba lagi';
+        }
     }
 
     private function skipReason(User $user, Registrant $registrant, RegistrantStatus $requiredStatus): ?string

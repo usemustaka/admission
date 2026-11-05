@@ -36,6 +36,19 @@ export function WaveFormDialog({
     function submit(event: FormEvent) {
         event.preventDefault();
 
+        if (
+            form.data.starts_on &&
+            form.data.ends_on &&
+            form.data.ends_on < form.data.starts_on
+        ) {
+            form.setError(
+                'ends_on',
+                'Tanggal selesai tidak boleh sebelum tanggal mulai.',
+            );
+
+            return;
+        }
+
         const options = {
             preserveScroll: true,
             onSuccess: () => {
@@ -107,12 +120,13 @@ export function WaveFormDialog({
                                 <Input
                                     type="date"
                                     value={form.data.starts_on}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
                                         form.setData(
                                             'starts_on',
                                             e.target.value,
-                                        )
-                                    }
+                                        );
+                                        form.clearErrors('ends_on');
+                                    }}
                                     {...control}
                                 />
                             )}
@@ -125,9 +139,11 @@ export function WaveFormDialog({
                                 <Input
                                     type="date"
                                     value={form.data.ends_on}
-                                    onChange={(e) =>
-                                        form.setData('ends_on', e.target.value)
-                                    }
+                                    min={form.data.starts_on || undefined}
+                                    onChange={(e) => {
+                                        form.setData('ends_on', e.target.value);
+                                        form.clearErrors('ends_on');
+                                    }}
                                     {...control}
                                 />
                             )}

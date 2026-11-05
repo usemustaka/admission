@@ -13,13 +13,16 @@ import {
     Wallet,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { BulkBar } from '@/components/bulk-bar';
-import { ConfirmDialog } from '@/components/confirm-dialog';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { FilterPills } from '@/components/filter-pills';
 import { OptionSelect } from '@/components/option-select';
 import { PageHeader } from '@/components/page-header';
+import { BulkVerifyDialog } from '@/components/payments/bulk-verify-dialog';
+import { PaymentBulkSkippedDialog } from '@/components/payments/bulk-skipped-dialog';
+import type { PaymentBulkSkipped } from '@/components/payments/bulk-skipped-dialog';
 import {
     formatRelativeDay,
     summarizeItems,
@@ -53,6 +56,8 @@ import type { Option, Paginated } from '@/types/people';
 
 const SEARCH_DELAY = 300;
 
+type PaymentStatusKey = 'pending' | 'verified' | 'rejected';
+
 export default function PaymentsIndex({
     payments,
     filters,
@@ -71,7 +76,7 @@ export default function PaymentsIndex({
         verified: number;
         rejected: number;
     };
-    totals: { amount: number };
+    totals: { amount: number; by_status: Record<PaymentStatusKey, number> };
     summary: PaymentSummary;
     statuses: Option[];
     methods: Option[];
@@ -82,6 +87,11 @@ export default function PaymentsIndex({
     const [target, setTarget] = useState<QuickViewTarget | null>(null);
     const [confirming, setConfirming] = useState(false);
     const [processing, setProcessing] = useState(false);
+    const [includeWithoutProof, setIncludeWithoutProof] = useState(false);
+    const [bulkResult, setBulkResult] = useState<{
+        done: number;
+        skipped: PaymentBulkSkipped[];
+    } | null>(null);
     const isFirstRender = useRef(true);
 
     /** Re-requests the list with some filters changed; the page goes back to 1 and the selection is dropped. */
@@ -117,6 +127,43 @@ export default function PaymentsIndex({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [term]);
 
+    // A selection never outlives the rows it was made on (another page or order), so the dialog's count and total
+    // always describe what is checked.
+    useEffect(() => {
+        const present = new Set(payments.data.map((row) => String(row.id)));
+
+        setSelected((current) =>
+            [...current].every((id) => present.has(id))
+                ? current
+                : new Set([...current].filter((id) => present.has(id))),
+        );
+    }, [payments.data]);
+
+    useEffect(
+        () =>
+            router.on('flash', (event) => {
+                const result = (event as CustomEvent).detail?.flash?.bulk as
+                    | { done: number; skipped: PaymentBulkSkipped[] }
+                    | undefined;
+
+                if (result && result.skipped.length > 0) {
+                    setBulkResult(result);
+                }
+            }),
+        [],
+    );
+
+    const selectedRows = payments.data.filter((row) =>
+        selected.has(String(row.id)),
+    );
+    const selectedTotal = selectedRows.reduce(
+        (sum, row) => sum + row.amount,
+        0,
+    );
+    const selectedWithoutProof = selectedRows.filter(
+        (row) => row.status === 'pending' && !row.has_proof,
+    ).length;
+
     const hasNarrowing =
         filters.cari !== '' ||
         filters.cara !== '' ||
@@ -137,6 +184,14 @@ export default function PaymentsIndex({
             ),
         [filters.cari, filters.cara, filters.dari, filters.sampai],
     );
+    /** The order of the list, so the quick view's "next" follows the same one. */
+    const order = useMemo(
+        () => ({
+            ...(filters.urut === 'tanggal' ? {} : { urut: filters.urut }),
+            ...(filters.arah === 'desc' ? {} : { arah: filters.arah }),
+        }),
+        [filters.urut, filters.arah],
+    );
     const exportQuery = {
         ...narrowing,
         ...(filters.status ? { status: filters.status } : {}),
@@ -150,7 +205,10 @@ export default function PaymentsIndex({
     function verifySelected() {
         router.post(
             bulkVerify().url,
-            { ids: [...selected].map(Number) },
+            {
+                ids: [...selected].map(Number),
+                ...(includeWithoutProof ? { include_without_proof: 1 } : {}),
+            },
             {
                 preserveScroll: true,
                 preserveState: true,
@@ -158,8 +216,11 @@ export default function PaymentsIndex({
                 onFinish: () => {
                     setProcessing(false);
                     setConfirming(false);
+                    setIncludeWithoutProof(false);
                 },
                 onSuccess: () => setSelected(new Set()),
+                onError: () =>
+                    toast.error('Verifikasi massal gagal. Coba lagi.'),
             },
         );
     }
@@ -358,15 +419,9 @@ export default function PaymentsIndex({
                     <StatCard
                         label="Terverifikasi bulan ini"
                         value={formatRupiah(summary.verified_this_month)}
-                        hint="Menurut tanggal bayar"
+                        hint="Menurut tanggal verifikasi"
                         icon={CircleCheck}
-                        href={index({
-                            query: {
-                                status: 'verified',
-                                dari: summary.month.dari,
-                                sampai: summary.month.sampai,
-                            },
-                        })}
+                        href={index({ query: { status: 'verified' } })}
                     />
                     <StatCard
                         label="Ditolak"
@@ -382,7 +437,12 @@ export default function PaymentsIndex({
                     <StatCard
                         label="Belum tertagih"
                         value={formatRupiah(summary.outstanding)}
-                        hint="Sisa dari semua tagihan"
+                        hint={
+                            summary.overpaid > 0
+                                ? `Kelebihan bayar ${formatRupiah(summary.overpaid)} di tagihan lain`
+                                : 'Sisa dari semua tagihan'
+                        }
+                        tone={summary.overpaid > 0 ? 'warning' : 'default'}
                         icon={Landmark}
                     />
                 </section>
@@ -531,15 +591,32 @@ export default function PaymentsIndex({
                                 target === null ? null : String(target.id)
                             }
                         />
-                        <p className="flex flex-wrap justify-between gap-x-4 gap-y-1 px-1 text-sm text-muted-foreground tabular-nums">
+                        <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 px-1 text-sm text-muted-foreground tabular-nums">
                             <span>{payments.total} pembayaran</span>
-                            <span>
-                                Total nominal{hasFilter ? ' sesuai filter' : ''}{' '}
-                                <strong className="font-semibold text-foreground">
-                                    {formatRupiah(totals.amount)}
-                                </strong>
-                            </span>
-                        </p>
+                            <ul
+                                aria-label={`Total nominal${hasFilter ? ' sesuai filter' : ''}`}
+                                className="flex flex-wrap gap-x-4 gap-y-1"
+                            >
+                                {statuses
+                                    .filter(
+                                        (status) =>
+                                            filters.status === '' ||
+                                            filters.status === status.value,
+                                    )
+                                    .map((status) => (
+                                        <li key={status.value}>
+                                            {status.label}{' '}
+                                            <strong className="font-semibold text-foreground">
+                                                {formatRupiah(
+                                                    totals.by_status[
+                                                        status.value as PaymentStatusKey
+                                                    ],
+                                                )}
+                                            </strong>
+                                        </li>
+                                    ))}
+                            </ul>
+                        </div>
                     </div>
                 )}
 
@@ -548,7 +625,7 @@ export default function PaymentsIndex({
 
             <PaymentQuickView
                 target={target}
-                narrowing={narrowing}
+                narrowing={{ ...narrowing, ...order }}
                 onNavigate={(id) => setTarget({ id })}
                 onClose={() => setTarget(null)}
             />
@@ -579,14 +656,22 @@ export default function PaymentsIndex({
                 </Button>
             </BulkBar>
 
-            <ConfirmDialog
+            <BulkVerifyDialog
                 open={confirming}
                 onOpenChange={setConfirming}
-                title={`Verifikasi ${selected.size} pembayaran?`}
-                description="Tiap pembayaran dicatat sesuai rincian yang dikirim. Yang sudah diproses atau yang rinciannya sudah tidak muat akan dilewati, dan alasannya kami tampilkan."
-                confirmLabel="Verifikasi"
+                count={selected.size}
+                total={selectedTotal}
+                withoutProof={selectedWithoutProof}
+                includeWithoutProof={includeWithoutProof}
+                onIncludeWithoutProofChange={setIncludeWithoutProof}
                 processing={processing}
                 onConfirm={verifySelected}
+            />
+
+            <PaymentBulkSkippedDialog
+                skipped={bulkResult?.skipped ?? null}
+                done={bulkResult?.done ?? 0}
+                onClose={() => setBulkResult(null)}
             />
         </>
     );

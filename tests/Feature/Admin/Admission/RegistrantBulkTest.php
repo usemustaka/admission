@@ -4,7 +4,10 @@ use App\Enums\BillType;
 use App\Enums\DefaultRole;
 use App\Enums\RegistrantStatus;
 use App\Models\Registrant;
+use App\Models\RegistrantStatusChange;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 
 /**
  * @return array<string, mixed>
@@ -92,4 +95,47 @@ test('a bulk request needs a known action and a sensible list of ids', function 
     $this->post(route('admin.registrants.bulk'), ['action' => 'accept'])->assertSessionHasErrors('ids');
 
     expect(Registrant::query()->where('status', RegistrantStatus::Validated)->exists())->toBeFalse();
+});
+
+test('an unexpected failure on one registrant skips only that one, with a reason, and is reported', function () {
+    Exceptions::fake();
+    $broken = admissionRegistrant();
+    $fine = admissionRegistrant();
+    RegistrantStatusChange::creating(function (RegistrantStatusChange $change) use ($broken) {
+        if ($change->registrant_id === $broken->id) {
+            throw new RuntimeException('Disk penuh');
+        }
+    });
+
+    $this->post(route('admin.registrants.bulk'), ['action' => 'accept', 'ids' => [$broken->id, $fine->id]])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($fine->refresh()->status)->toBe(RegistrantStatus::Validated)
+        ->and($broken->refresh()->status)->toBe(RegistrantStatus::Review)
+        ->and($broken->bills)->toBeEmpty()
+        ->and(bulkFlash('toast')['type'])->toBe('warning')
+        ->and(bulkFlash('toast')['message'])->toBe('1 berhasil, 1 dilewati: Gagal, coba lagi (1).')
+        ->and(bulkFlash('bulk')['skipped'])->toBe([['id' => $broken->id, 'name' => $broken->person->name, 'reason' => 'Gagal, coba lagi']]);
+
+    Exceptions::assertReported(fn (RuntimeException $exception) => $exception->getMessage() === 'Disk penuh');
+});
+
+test('a registrant that moved on after the list was loaded is skipped by its stored status', function () {
+    $moved = admissionRegistrant();
+    $waiting = admissionRegistrant();
+    $moveOnce = true;
+    Registrant::retrieved(function (Registrant $registrant) use ($moved, &$moveOnce) {
+        if ($moveOnce && $registrant->is($moved)) {
+            $moveOnce = false;
+            DB::table('registrants')->where('id', $moved->id)->update(['status' => RegistrantStatus::Validated->value]);
+        }
+    });
+
+    $this->post(route('admin.registrants.bulk'), ['action' => 'accept', 'ids' => [$moved->id, $waiting->id]])->assertRedirect();
+
+    expect($waiting->refresh()->status)->toBe(RegistrantStatus::Validated)
+        ->and($moved->statusChanges()->count())->toBe(0)
+        ->and($moved->bills)->toBeEmpty()
+        ->and(collect(bulkFlash('bulk')['skipped'])->pluck('reason')->all())->toBe(['Statusnya Data valid, bukan Sedang diperiksa']);
 });

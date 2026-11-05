@@ -5,6 +5,7 @@ use App\Enums\DefaultRole;
 use App\Models\ExamAspect;
 use App\Models\ExamDay;
 use App\Models\ExamSession;
+use App\Models\Registrant;
 use App\Models\Ruleset;
 use App\Models\RulesetBill;
 use App\Models\RulesetBillItem;
@@ -155,6 +156,122 @@ describe('exam schedule', function () {
             ['date' => '2026-11-04', 'sessions' => []],
             ['date' => '2026-11-04', 'sessions' => []],
         ]])->assertSessionHasErrors('days.0.date');
+    });
+
+    test('a quota above what the database can hold is a validation error', function () {
+        $this->put(route('admin.rulesets.exam-schedule', $this->ruleset), ['days' => [[
+            'date' => '2026-11-04',
+            'sessions' => [['label' => 'Sesi 1', 'start_time' => '08:00', 'end_time' => '10:00', 'quota' => 70000]],
+        ]]])->assertSessionHasErrors('days.0.sessions.0.quota');
+
+        expect(ExamSession::count())->toBe(0);
+    });
+
+    test('a quota can be as high as 65535', function () {
+        $this->put(route('admin.rulesets.exam-schedule', $this->ruleset), ['days' => [[
+            'date' => '2026-11-04',
+            'sessions' => [['label' => 'Sesi 1', 'start_time' => '08:00', 'end_time' => '10:00', 'quota' => 65535]],
+        ]]])->assertSessionHasNoErrors();
+
+        expect(ExamSession::firstOrFail()->quota)->toBe(65535);
+    });
+
+    test('a session cannot get a quota below the number of registrants who picked it', function () {
+        $day = ExamDay::factory()->create(['ruleset_id' => $this->ruleset->id, 'date' => '2026-11-04']);
+        $session = ExamSession::factory()->create(['exam_day_id' => $day->id, 'quota' => 10]);
+        Registrant::factory()->count(3)->create(['ruleset_id' => $this->ruleset->id, 'exam_session_id' => $session->id]);
+
+        $payload = fn (int $quota) => ['days' => [[
+            'id' => $day->id,
+            'date' => '2026-11-04',
+            'sessions' => [['id' => $session->id, 'label' => 'Sesi 1', 'start_time' => '08:00', 'end_time' => '10:00', 'quota' => $quota]],
+        ]]];
+
+        $this->put(route('admin.rulesets.exam-schedule', $this->ruleset), $payload(2))
+            ->assertSessionHasErrors(['days.0.sessions.0.quota' => 'Kuota tidak boleh di bawah 3, jumlah pendaftar yang sudah memilih sesi ini.']);
+        expect($session->refresh()->quota)->toBe(10);
+
+        $this->put(route('admin.rulesets.exam-schedule', $this->ruleset), $payload(3))->assertSessionHasNoErrors();
+        expect($session->refresh()->quota)->toBe(3);
+    });
+
+    test('a session that registrants picked cannot be deleted, and the error is reported on days', function () {
+        $day = ExamDay::factory()->create(['ruleset_id' => $this->ruleset->id, 'date' => '2026-11-04']);
+        $busy = ExamSession::factory()->create(['exam_day_id' => $day->id, 'label' => 'Sesi ramai']);
+        Registrant::factory()->create(['ruleset_id' => $this->ruleset->id, 'exam_session_id' => $busy->id]);
+
+        $this->put(route('admin.rulesets.exam-schedule', $this->ruleset), ['days' => [['id' => $day->id, 'date' => '2026-11-04', 'sessions' => []]]])
+            ->assertSessionHasErrors('days');
+        $this->put(route('admin.rulesets.exam-schedule', $this->ruleset), ['days' => []])
+            ->assertSessionHasErrors('days');
+
+        expect(ExamSession::find($busy->id))->not->toBeNull()->and(ExamDay::find($day->id))->not->toBeNull();
+    });
+
+    test('a picked session cannot be slipped under another day to escape the check', function () {
+        $dayA = ExamDay::factory()->create(['ruleset_id' => $this->ruleset->id, 'date' => '2026-11-04']);
+        $dayB = ExamDay::factory()->create(['ruleset_id' => $this->ruleset->id, 'date' => '2026-11-05']);
+        $busy = ExamSession::factory()->create(['exam_day_id' => $dayA->id]);
+        Registrant::factory()->create(['ruleset_id' => $this->ruleset->id, 'exam_session_id' => $busy->id]);
+
+        $session = ['id' => $busy->id, 'label' => 'Sesi 1', 'start_time' => '08:00', 'end_time' => '10:00', 'quota' => 30];
+
+        $this->put(route('admin.rulesets.exam-schedule', $this->ruleset), ['days' => [
+            ['id' => $dayA->id, 'date' => '2026-11-04', 'sessions' => []],
+            ['id' => $dayB->id, 'date' => '2026-11-05', 'sessions' => [$session]],
+        ]])->assertSessionHasErrors('days');
+
+        expect($busy->refresh()->exam_day_id)->toBe($dayA->id);
+    });
+
+    test('the detail page tells how many registrants took each session', function () {
+        $day = ExamDay::factory()->create(['ruleset_id' => $this->ruleset->id]);
+        $session = ExamSession::factory()->create(['exam_day_id' => $day->id]);
+        Registrant::factory()->count(2)->create(['ruleset_id' => $this->ruleset->id, 'exam_session_id' => $session->id]);
+
+        $this->get(route('admin.rulesets.show', $this->ruleset))
+            ->assertInertia(fn ($page) => $page->where('days.0.sessions.0.taken', 2));
+    });
+
+    test('two days can swap their dates', function () {
+        $first = ExamDay::factory()->create(['ruleset_id' => $this->ruleset->id, 'date' => '2026-11-04']);
+        $second = ExamDay::factory()->create(['ruleset_id' => $this->ruleset->id, 'date' => '2026-11-05']);
+        $session = ExamSession::factory()->create(['exam_day_id' => $first->id]);
+
+        $this->put(route('admin.rulesets.exam-schedule', $this->ruleset), ['days' => [
+            ['id' => $first->id, 'date' => '2026-11-05', 'sessions' => [['id' => $session->id, 'label' => 'Sesi 1', 'start_time' => '08:00', 'end_time' => '10:00', 'quota' => 30]]],
+            ['id' => $second->id, 'date' => '2026-11-04', 'sessions' => []],
+        ]])->assertSessionHasNoErrors()->assertRedirect();
+
+        expect($first->refresh()->date->toDateString())->toBe('2026-11-05')
+            ->and($second->refresh()->date->toDateString())->toBe('2026-11-04')
+            ->and($session->refresh()->exam_day_id)->toBe($first->id);
+    });
+
+    test('days can shift onto the next days dates and a new day can take a freed date', function () {
+        $first = ExamDay::factory()->create(['ruleset_id' => $this->ruleset->id, 'date' => '2026-11-04']);
+        $second = ExamDay::factory()->create(['ruleset_id' => $this->ruleset->id, 'date' => '2026-11-05']);
+
+        $this->put(route('admin.rulesets.exam-schedule', $this->ruleset), ['days' => [
+            ['id' => $first->id, 'date' => '2026-11-05', 'sessions' => []],
+            ['id' => $second->id, 'date' => '2026-11-06', 'sessions' => []],
+            ['date' => '2026-11-04', 'sessions' => []],
+        ]])->assertSessionHasNoErrors();
+
+        expect($this->ruleset->examDays()->pluck('date')->map->toDateString()->all())->toBe(['2026-11-04', '2026-11-05', '2026-11-06'])
+            ->and($first->refresh()->date->toDateString())->toBe('2026-11-05')
+            ->and($second->refresh()->date->toDateString())->toBe('2026-11-06');
+    });
+
+    test('a new day on a date an existing day keeps is a validation error, not a crash', function () {
+        $existing = ExamDay::factory()->create(['ruleset_id' => $this->ruleset->id, 'date' => '2026-11-04']);
+
+        $this->put(route('admin.rulesets.exam-schedule', $this->ruleset), ['days' => [
+            ['id' => $existing->id, 'date' => '2026-11-04', 'sessions' => []],
+            ['date' => '2026-11-04', 'sessions' => []],
+        ]])->assertSessionHasErrors('days.0.date');
+
+        expect(ExamDay::count())->toBe(1);
     });
 });
 

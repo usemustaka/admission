@@ -56,10 +56,10 @@ enum SettingGroup: string implements HasLabel
             ],
             self::Contact => [
                 'contact.phone' => ['nullable', 'string', 'max:30'],
-                'contact.whatsapp' => ['nullable', 'string', 'max:30'],
+                'contact.whatsapp' => ['nullable', 'string', 'max:30', 'regex:/^\+?\d{8,20}$/'],
                 'contact.email' => ['nullable', 'email', 'max:120'],
                 'contact.address' => ['nullable', 'string', 'max:300'],
-                'contact.website' => ['nullable', 'url', 'max:200'],
+                'contact.website' => ['nullable', 'url:http,https', 'max:200'],
             ],
             self::Payment => [
                 'payment.bank_name' => ['nullable', 'string', 'max:60'],

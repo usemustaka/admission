@@ -9,6 +9,9 @@ export function PhotoUpload({
     label = 'Foto',
     hint = 'Format JPG atau PNG, maksimal 2 MB.',
     maxSizeMb = 2,
+    accept = 'image/jpeg,image/png',
+    fit = 'cover',
+    previewClassName,
     className,
 }: {
     /** URL of an already uploaded photo, if any. */
@@ -17,6 +20,12 @@ export function PhotoUpload({
     label?: string;
     hint?: string;
     maxSizeMb?: number;
+    /** File types the picker offers, as for the `accept` attribute of a file input. */
+    accept?: string;
+    /** `contain` shows the whole image (logos); `cover` fills and crops the box (photos of people). */
+    fit?: 'cover' | 'contain';
+    /** Overrides the size of the preview box. */
+    previewClassName?: string;
     className?: string;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -69,6 +78,10 @@ export function PhotoUpload({
                 className={cn(
                     'relative flex h-28 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-neutral-300 bg-neutral-50 text-lime-700 transition-colors hover:border-primary hover:bg-lime-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring dark:border-border dark:bg-card dark:text-primary',
                     shownUrl && 'border-solid border-transparent',
+                    fit === 'contain' &&
+                        shownUrl &&
+                        'border-border bg-card p-2',
+                    previewClassName,
                 )}
                 aria-label={shownUrl ? `Ganti ${label}` : `Pilih ${label}`}
             >
@@ -76,7 +89,12 @@ export function PhotoUpload({
                     <img
                         src={shownUrl}
                         alt={label}
-                        className="size-full object-cover"
+                        className={cn(
+                            'size-full',
+                            fit === 'contain'
+                                ? 'object-contain'
+                                : 'object-cover',
+                        )}
                     />
                 ) : (
                     <Camera className="size-7" />
@@ -118,7 +136,7 @@ export function PhotoUpload({
             <input
                 ref={inputRef}
                 type="file"
-                accept="image/jpeg,image/png"
+                accept={accept}
                 className="sr-only"
                 tabIndex={-1}
                 onChange={(event) => handleFile(event.target.files?.[0])}

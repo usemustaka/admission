@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import type { ColumnDef, SortingState } from '@tanstack/react-table';
 import { CalendarRange, Pencil, Plus, SearchX } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { WaveFormDialog } from '@/components/admission/wave-form-dialog';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
@@ -75,8 +76,16 @@ export default function WavesIndex({
     can: { manage: boolean };
 }) {
     const [stateFilter, setStateFilter] = useState<StateFilter>('semua');
+    const [togglingId, setTogglingId] = useState<number | null>(null);
 
     function toggle(wave: Wave, isOpen: boolean) {
+        const failed = (message?: string): void => {
+            toast.error(
+                message ??
+                    `Status ${wave.name} belum bisa diubah. Coba lagi ya.`,
+            );
+        };
+
         router.put(
             update(wave.id).url,
             {
@@ -85,7 +94,14 @@ export default function WavesIndex({
                 ends_on: wave.ends_on ?? '',
                 is_open: isOpen,
             },
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onStart: () => setTogglingId(wave.id),
+                onFinish: () => setTogglingId(null),
+                onError: (errors) => failed(Object.values(errors)[0]),
+                onHttpException: () => failed(),
+                onNetworkError: () => failed(),
+            },
         );
     }
 
@@ -201,6 +217,7 @@ export default function WavesIndex({
                           cell: ({ row }) => (
                               <Switch
                                   checked={row.original.is_open}
+                                  disabled={togglingId === row.original.id}
                                   onCheckedChange={(checked) =>
                                       toggle(row.original, checked)
                                   }
@@ -233,7 +250,7 @@ export default function WavesIndex({
                 : []),
         ],
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [can.manage],
+        [can.manage, togglingId],
     );
 
     const countOf = (state: WaveState) =>

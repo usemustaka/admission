@@ -30,12 +30,29 @@ class SaveSettingsRequest extends FormRequest
             $rules += [
                 'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:1024'],
                 'remove_logo' => ['boolean'],
-                'favicon' => ['nullable', 'image', 'mimes:png,ico,jpg,jpeg,webp', 'max:512'],
+                // No `image` rule: Laravel's image check rejects .ico. The extension and content type lists still keep SVG out.
+                'favicon' => ['nullable', 'file', 'mimes:png,ico,jpg,jpeg,webp', 'mimetypes:image/png,image/x-icon,image/vnd.microsoft.icon,image/jpeg,image/webp', 'max:512'],
                 'remove_favicon' => ['boolean'],
             ];
         }
 
         return $rules;
+    }
+
+    /**
+     * People type phone numbers with spaces, dashes, and brackets; store the WhatsApp number as bare digits with an
+     * optional leading +.
+     */
+    protected function prepareForValidation(): void
+    {
+        $whatsapp = $this->input('contact.whatsapp');
+
+        if ($this->group() === SettingGroup::Contact && is_string($whatsapp)) {
+            $this->merge(['contact' => [
+                ...(array) $this->input('contact'),
+                'whatsapp' => preg_replace('/[\s\-().]+/', '', $whatsapp),
+            ]]);
+        }
     }
 
     /**
@@ -53,6 +70,8 @@ class SaveSettingsRequest extends FormRequest
     {
         return [
             'brand.accent_color.regex' => 'Warna utama harus berupa kode warna seperti #a3e635.',
+            'contact.whatsapp.regex' => 'WhatsApp hanya boleh berisi angka, boleh diawali +, misalnya 0812 3456 7890.',
+            'contact.website.url' => 'Situs web harus berupa alamat yang diawali http:// atau https://.',
         ];
     }
 }

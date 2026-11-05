@@ -86,6 +86,12 @@ export type RegistrantQueue = {
     next_id: number | null;
 };
 
+/** The list filters the detail page was opened with, passed on to the queue links, and how the queue is ordered. */
+export type RegistrantQueueContext = {
+    query: Record<string, string>;
+    order: string;
+};
+
 export type StatusCounts = Record<string, number> & { all: number };
 
 export type BulkSkipped = { id: number; name: string; reason: string };
