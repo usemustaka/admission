@@ -346,8 +346,9 @@ export default function Komponen() {
                             createdAt="Hari ini, 09:14"
                             body="Berkas KK belum terbaca jelas, minta ortu unggah ulang."
                             urgency="high"
-                            visibility="shared"
-                            sharedCount={3}
+                            visibility="private"
+                            sharedWith={['Nur Hidayah', 'operator']}
+                            sharedWithFamily
                         />
                         <NoteCard
                             authorName="Nur Hidayah"

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Ability;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -39,9 +40,29 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user()?->loadMissing('person'),
+                'abilities' => $this->abilities($request),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
+    }
+
+    /**
+     * Permissions of the signed-in user, so the UI only shows what they may use.
+     *
+     * @return list<string>
+     */
+    private function abilities(Request $request): array
+    {
+        $user = $request->user();
+
+        if ($user === null) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn (Ability $ability): string => $ability->value,
+            array_filter(Ability::cases(), fn (Ability $ability): bool => $user->can($ability->value)),
+        ));
     }
 }

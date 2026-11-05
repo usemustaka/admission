@@ -11,4 +11,6 @@ export type NavItem = {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon | null;
     isActive?: boolean;
+    /** Permission needed to see this item, e.g. `core::person.view`. */
+    ability?: string;
 };

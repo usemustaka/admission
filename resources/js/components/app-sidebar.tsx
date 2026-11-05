@@ -1,7 +1,6 @@
-import { Link } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { LayoutGrid, Users } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -14,30 +13,44 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as people } from '@/routes/admin/people';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-];
+type NavGroup = {
+    label: string;
+    items: NavItem[];
+};
 
-const footerNavItems: NavItem[] = [
+const navGroups: NavGroup[] = [
     {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: FolderGit2,
+        label: 'Menu',
+        items: [{ title: 'Beranda', href: dashboard(), icon: LayoutGrid }],
     },
     {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
+        label: 'Data',
+        items: [
+            {
+                title: 'Orang',
+                href: people(),
+                icon: Users,
+                ability: 'core::person.view',
+            },
+        ],
     },
 ];
 
 export function AppSidebar() {
+    const { abilities } = usePage().props.auth;
+
+    const visibleGroups = navGroups
+        .map((group) => ({
+            ...group,
+            items: group.items.filter(
+                (item) => !item.ability || abilities.includes(item.ability),
+            ),
+        }))
+        .filter((group) => group.items.length > 0);
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -53,11 +66,16 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                {visibleGroups.map((group) => (
+                    <NavMain
+                        key={group.label}
+                        label={group.label}
+                        items={group.items}
+                    />
+                ))}
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

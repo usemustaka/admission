@@ -1,10 +1,11 @@
 import { Globe, Lock, Users } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import type { ReactNode } from 'react';
 import { PersonAvatar } from '@/components/person-avatar';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 export type NoteUrgency = 'low' | 'normal' | 'high' | 'critical';
-export type NoteVisibility = 'public' | 'private' | 'shared';
+export type NoteVisibility = 'public' | 'private';
 
 const urgencyMeta = {
     low: { label: 'Santai', variant: 'muted', border: 'border-l-border' },
@@ -18,9 +19,8 @@ const urgencyMeta = {
 } as const;
 
 const visibilityMeta = {
-    public: { label: 'Terlihat semua', icon: Globe },
+    public: { label: 'Semua panitia', icon: Globe },
     private: { label: 'Hanya saya', icon: Lock },
-    shared: { label: 'Dibagikan', icon: Users },
 } as const;
 
 export function NoteUrgencyBadge({ urgency }: { urgency: NoteUrgency }) {
@@ -36,7 +36,9 @@ export function NoteCard({
     body,
     urgency,
     visibility,
-    sharedCount,
+    sharedWith = [],
+    sharedWithFamily = false,
+    actions,
     className,
 }: {
     authorName: string;
@@ -45,8 +47,11 @@ export function NoteCard({
     body: string;
     urgency: NoteUrgency;
     visibility: NoteVisibility;
-    /** Number of people the note is shared with, when visibility is "shared". */
-    sharedCount?: number;
+    /** Names of the people or roles this note is shared with, besides everyone. */
+    sharedWith?: string[];
+    /** Whether the parents of the child can read this note. */
+    sharedWithFamily?: boolean;
+    actions?: ReactNode;
     className?: string;
 }) {
     const VisibilityIcon = visibilityMeta[visibility].icon;
@@ -74,12 +79,23 @@ export function NoteCard({
                 {body}
             </p>
 
-            <footer className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <VisibilityIcon className="size-3.5" />
-                {visibilityMeta[visibility].label}
-                {visibility === 'shared' &&
-                    sharedCount !== undefined &&
-                    ` · ${sharedCount} orang`}
+            <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                        <VisibilityIcon className="size-3.5" />
+                        {visibilityMeta[visibility].label}
+                    </span>
+                    {sharedWith.length > 0 && (
+                        <span className="inline-flex items-center gap-1.5">
+                            <Users className="size-3.5" />
+                            Dibagikan ke {sharedWith.join(', ')}
+                        </span>
+                    )}
+                    {sharedWithFamily && (
+                        <Badge variant="success">Terlihat oleh keluarga</Badge>
+                    )}
+                </div>
+                {actions && <div className="flex gap-1">{actions}</div>}
             </footer>
         </article>
     );
