@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Academic\DeleteOrganization;
 use App\Actions\Academic\MoveOrganization;
 use App\Enums\Ability;
+use App\Enums\OrganizationCategory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SaveOrganizationRequest;
 use App\Models\Organization;
@@ -32,7 +33,8 @@ class OrganizationController extends Controller
                     'id' => $organization->id,
                     'name' => $organization->name,
                     'code' => $organization->code,
-                    'category' => $organization->category,
+                    'category' => $organization->category?->value,
+                    'category_label' => $organization->category?->label(),
                     'is_active' => $organization->is_active,
                     'rulesets_count' => $organization->rulesets_count,
                     'registrants_count' => $organization->registrants_count,
@@ -40,6 +42,7 @@ class OrganizationController extends Controller
                     'in_use' => $organization->rulesets_count + $organization->registrants_count + $organization->students_count + $organization->employees_count > 0,
                 ])
                 ->values(),
+            'categories' => OrganizationCategory::options(),
         ]);
     }
 

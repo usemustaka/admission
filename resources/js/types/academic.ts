@@ -32,6 +32,7 @@ export type OrganizationRow = {
     name: string;
     code: string;
     category: string | null;
+    category_label: string | null;
     is_active: boolean;
     rulesets_count: number;
     registrants_count: number;
@@ -52,4 +53,10 @@ export type StudentRow = {
     year: string | null;
     year_id: number | null;
     placed_at: string | null;
+};
+
+/** A kind of lembaga to choose from: Sekolah, Madrasah, Pesantren, Bootcamp. */
+export type CategoryOption = {
+    value: string;
+    label: string;
 };

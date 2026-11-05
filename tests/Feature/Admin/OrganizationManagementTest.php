@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\DefaultRole;
+use App\Enums\OrganizationCategory;
 use App\Models\Employee;
 use App\Models\ExamDay;
 use App\Models\Organization;
@@ -18,7 +19,7 @@ beforeEach(fn () => $this->withoutVite());
  */
 function organizationPayload(array $overrides = []): array
 {
-    return ['name' => 'SD Mustaka', 'code' => 'sd-mustaka', 'category' => 'sd', 'is_active' => true, ...$overrides];
+    return ['name' => 'SD Mustaka', 'code' => 'sd-mustaka', 'category' => 'sekolah', 'is_active' => true, ...$overrides];
 }
 
 test('organization screens are closed to parents and to staff without the organization ability', function () {
@@ -209,4 +210,45 @@ test('an inactive lembaga is not offered for new rulesets, except to the ruleset
     $this->put(route('admin.rulesets.update', $other), ['name' => 'Ubah', 'organization_id' => $inactive->id, 'is_active' => true])->assertSessionHasErrors('organization_id');
     $this->put(route('admin.rulesets.update', $legacy), ['name' => 'Tetap', 'organization_id' => $inactive->id, 'is_active' => true])->assertSessionHasNoErrors();
     $this->post(route('admin.rulesets.store'), ['name' => 'Baru', 'organization_id' => $active->id, 'is_active' => true])->assertSessionHasNoErrors();
+});
+
+test('a lembaga takes one of the fixed categories, or none', function () {
+    $this->actingAs(userWithRole(DefaultRole::Admin));
+
+    foreach (['sekolah', 'madrasah', 'pesantren', 'bootcamp'] as $category) {
+        $this->post(route('admin.organizations.store'), organizationPayload(['code' => "lembaga-{$category}", 'category' => $category]))
+            ->assertSessionHasNoErrors();
+
+        expect(Organization::query()->where('code', "lembaga-{$category}")->firstOrFail()->category->value)->toBe($category);
+    }
+
+    $this->post(route('admin.organizations.store'), organizationPayload(['code' => 'tanpa-kategori', 'category' => '']))->assertSessionHasNoErrors();
+
+    expect(Organization::query()->where('code', 'tanpa-kategori')->firstOrFail()->category)->toBeNull();
+});
+
+test('a category outside the fixed set is refused', function () {
+    $this->actingAs(userWithRole(DefaultRole::Admin));
+
+    $this->post(route('admin.organizations.store'), organizationPayload(['category' => 'smp']))->assertSessionHasErrors('category');
+
+    $organization = Organization::factory()->create();
+
+    $this->put(route('admin.organizations.update', $organization), organizationPayload(['code' => $organization->code, 'category' => 'lainnya']))->assertSessionHasErrors('category');
+});
+
+test('the list shows the label of each category and offers the choices', function () {
+    $this->actingAs(userWithRole(DefaultRole::Admin));
+
+    Organization::factory()->create(['category' => OrganizationCategory::Madrasah]);
+
+    $this->get(route('admin.organizations.index'))->assertInertia(fn ($page) => $page
+        ->where('organizations.0.category', 'madrasah')
+        ->where('organizations.0.category_label', 'Madrasah')
+        ->where('categories', [
+            ['value' => 'sekolah', 'label' => 'Sekolah'],
+            ['value' => 'madrasah', 'label' => 'Madrasah'],
+            ['value' => 'pesantren', 'label' => 'Pesantren'],
+            ['value' => 'bootcamp', 'label' => 'Bootcamp'],
+        ]));
 });

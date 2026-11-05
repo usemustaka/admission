@@ -102,3 +102,17 @@ export function accentVariables(hex: string): Record<string, string> {
 
     return variables;
 }
+
+/** Preset accent colours offered next to the free colour picker. */
+export const accentSwatches = [
+    { name: 'Lime', value: '#a3e635' },
+    { name: 'Hijau', value: '#34d399' },
+    { name: 'Teal', value: '#2dd4bf' },
+    { name: 'Langit', value: '#38bdf8' },
+    { name: 'Biru', value: '#60a5fa' },
+    { name: 'Ungu', value: '#a78bfa' },
+    { name: 'Merah muda', value: '#f472b6' },
+    { name: 'Merah', value: '#fb7185' },
+    { name: 'Jingga', value: '#fb923c' },
+    { name: 'Kuning', value: '#fbbf24' },
+];

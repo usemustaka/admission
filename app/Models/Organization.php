@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OrganizationCategory;
 use Database\Factories\OrganizationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $id
  * @property string $name
  * @property string $code
- * @property string|null $category
+ * @property OrganizationCategory|null $category
  * @property array<string, mixed>|null $metadata
  * @property bool $is_active
  * @property int $sort_order
@@ -33,6 +34,7 @@ class Organization extends Model
     protected function casts(): array
     {
         return [
+            'category' => OrganizationCategory::class,
             'metadata' => 'array',
             'is_active' => 'boolean',
         ];

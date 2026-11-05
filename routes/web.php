@@ -41,10 +41,14 @@ use App\Http\Controllers\Portal\ChildExamController;
 use App\Http\Controllers\Portal\ChildSubmissionController;
 use App\Http\Controllers\Portal\PaymentController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\SetupController;
 use App\Http\Middleware\RequireStaffTwoFactor;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
+
+Route::get('setup', [SetupController::class, 'show'])->name('setup.show');
+Route::post('setup', [SetupController::class, 'store'])->middleware('throttle:10,1')->name('setup.store');
 
 if (app()->isLocal()) {
     Route::inertia('komponen', 'komponen')->name('komponen');

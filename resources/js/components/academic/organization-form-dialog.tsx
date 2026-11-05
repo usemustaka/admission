@@ -10,11 +10,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { OptionSelect } from '@/components/option-select';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
 import { store, update } from '@/routes/admin/organizations';
-import type { OrganizationRow } from '@/types/academic';
+import type { CategoryOption, OrganizationRow } from '@/types/academic';
 
 /**
  * Create or edit a lembaga. The code is how the lembaga is told apart elsewhere, so it is only editable while
@@ -22,9 +23,11 @@ import type { OrganizationRow } from '@/types/academic';
  */
 export function OrganizationFormDialog({
     organization,
+    categories,
     onClose,
 }: {
     organization?: OrganizationRow;
+    categories: CategoryOption[];
     onClose: () => void;
 }) {
     const form = useForm({
@@ -112,13 +115,15 @@ export function OrganizationFormDialog({
                         error={errors.category}
                     >
                         {(control) => (
-                            <Input
-                                placeholder="Contoh: smp, sma, pesantren"
-                                value={form.data.category}
-                                onChange={(e) =>
-                                    form.setData('category', e.target.value)
-                                }
+                            <OptionSelect
                                 {...control}
+                                placeholder="Pilih kategori"
+                                anyLabel="Belum dipilih"
+                                options={categories}
+                                value={form.data.category}
+                                onValueChange={(category) =>
+                                    form.setData('category', category)
+                                }
                             />
                         )}
                     </FormField>

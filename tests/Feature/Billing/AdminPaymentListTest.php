@@ -279,6 +279,7 @@ describe('the CSV export', function () {
     });
 
     test('respects the method, search and date filters', function () {
+        $this->parentA->person->update(['name' => 'Siti Aminah']);
         $this->parentB->person->update(['name' => 'Rahmat Hidayat']);
         listedPayment($this->parentA, $this->itemA1, 111000, ['method' => PaymentMethod::Cash, 'paid_on' => '2026-11-02']);
         listedPayment($this->parentB, $this->itemB1, 222000, ['method' => PaymentMethod::Cash, 'paid_on' => '2026-11-02']);

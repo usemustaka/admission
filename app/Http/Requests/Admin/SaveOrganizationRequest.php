@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Enums\Ability;
+use App\Enums\OrganizationCategory;
 use App\Models\Organization;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -39,7 +40,7 @@ class SaveOrganizationRequest extends FormRequest
                 'required', 'string', 'max:50', 'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/',
                 Rule::unique(Organization::class, 'code')->ignore($organization instanceof Organization ? $organization->id : null),
             ],
-            'category' => ['nullable', 'string', 'max:100'],
+            'category' => ['nullable', Rule::enum(OrganizationCategory::class)],
             'is_active' => ['boolean'],
         ];
     }

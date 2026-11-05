@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { dashboard } from '@/routes';
 import { destroy, index, move, update } from '@/routes/admin/organizations';
-import type { OrganizationRow } from '@/types/academic';
+import type { CategoryOption, OrganizationRow } from '@/types/academic';
 
 const noSorting: SortingState = [];
 
@@ -21,8 +21,10 @@ type FormTarget = { organization?: OrganizationRow };
 
 export default function OrganizationsIndex({
     organizations,
+    categories,
 }: {
     organizations: OrganizationRow[];
+    categories: CategoryOption[];
 }) {
     const [form, setForm] = useState<FormTarget | null>(null);
     const [deleting, setDeleting] = useState<OrganizationRow | null>(null);
@@ -138,8 +140,8 @@ export default function OrganizationsIndex({
                         </span>
                         <span className="text-xs text-muted-foreground">
                             {row.original.code}
-                            {row.original.category
-                                ? ` · ${row.original.category}`
+                            {row.original.category_label
+                                ? ` · ${row.original.category_label}`
                                 : ''}
                         </span>
                     </span>
@@ -260,6 +262,7 @@ export default function OrganizationsIndex({
             {form && (
                 <OrganizationFormDialog
                     organization={form.organization}
+                    categories={categories}
                     onClose={() => setForm(null)}
                 />
             )}

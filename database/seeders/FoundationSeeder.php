@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\OrganizationCategory;
 use App\Models\Organization;
 use App\Models\Setting;
 use App\Models\Year;
@@ -13,10 +14,10 @@ class FoundationSeeder extends Seeder
     {
         Setting::query()->firstOrCreate(['key' => 'foundation.name'], ['value' => 'Yayasan Pendidikan']);
 
-        foreach ([['SMP', 'smp'], ['SMA', 'sma'], ['Pesantren', 'pesantren']] as $order => [$name, $code]) {
+        foreach ([['SMP', 'smp', OrganizationCategory::School], ['SMA', 'sma', OrganizationCategory::School], ['Pesantren', 'pesantren', OrganizationCategory::Pesantren]] as $order => [$name, $code, $category]) {
             Organization::query()->firstOrCreate(
                 ['code' => $code],
-                ['name' => $name, 'category' => $code, 'sort_order' => $order + 1],
+                ['name' => $name, 'category' => $category, 'sort_order' => $order + 1],
             );
         }
 
