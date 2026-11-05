@@ -41,6 +41,7 @@ class RulesetController extends Controller
         return Inertia::render('admin/rulesets/index', [
             'rulesets' => Ruleset::query()
                 ->with(['wave', 'organization'])
+                ->withCount('registrants')
                 ->byPriority()
                 ->get()
                 ->map(fn (Ruleset $ruleset): array => $this->summary($ruleset)),
@@ -81,7 +82,7 @@ class RulesetController extends Controller
     {
         Gate::authorize('view', $ruleset);
 
-        $ruleset->load(['wave', 'organization', 'bills.items', 'examAspects', 'examDays.sessions']);
+        $ruleset->load(['wave', 'organization', 'bills.items', 'examAspects', 'examDays.sessions'])->loadCount('registrants');
 
         return Inertia::render('admin/rulesets/show', [
             'ruleset' => $this->summary($ruleset),
@@ -180,6 +181,7 @@ class RulesetController extends Controller
             'wave' => $ruleset->wave?->name,
             'organization' => $ruleset->organization?->name,
             'gender' => $ruleset->gender?->label(),
+            'registrants_count' => $ruleset->registrants_count ?? 0,
         ];
     }
 

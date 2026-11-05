@@ -18,6 +18,8 @@ use App\Support\Announcement;
 use App\Support\BillPresenter;
 use App\Support\ExamResult;
 use App\Support\ExamSchedulePresenter;
+use App\Support\RegistrantBillSummary;
+use App\Support\RegistrantListFilters;
 use App\Support\RegistrantPresenter;
 use App\Support\RegistrantReadiness;
 use Illuminate\Database\Eloquent\Builder;
@@ -33,32 +35,31 @@ class RegistrantController extends Controller
     {
         Gate::authorize('viewAny', Registrant::class);
 
-        $term = $request->string('cari')->toString();
-        $status = $request->enum('status', RegistrantStatus::class);
-        $sort = $request->string('urut')->toString() === 'nama' ? 'nama' : 'terbaru';
-        $direction = match ($request->string('arah')->toString()) {
-            'asc' => 'asc',
-            'desc' => 'desc',
-            default => $sort === 'nama' ? 'asc' : 'desc',
-        };
+        $filters = RegistrantListFilters::fromRequest($request);
+        $user = $request->user();
 
-        $registrants = Registrant::query()
-            ->select('registrants.*')
-            ->with(['person', 'organization', 'wave', 'examSession.day'])
-            ->when($term !== '', fn (Builder $query) => $query->whereHas('person', fn (Builder $people) => $people->search($term)))
-            ->when($status, fn (Builder $query) => $query->where('registrants.status', $status))
-            ->when($request->integer('lembaga') > 0, fn (Builder $query) => $query->where('registrants.organization_id', $request->integer('lembaga')))
-            ->when($request->integer('gelombang') > 0, fn (Builder $query) => $query->where('registrants.wave_id', $request->integer('gelombang')))
-            ->when($request->boolean('perlu_dicek'), fn (Builder $query) => $query->where('registrants.needs_identity_review', true));
+        $registrants = $filters->applySort($filters->apply(
+            Registrant::query()
+                ->select('registrants.*')
+                ->with([
+                    'person.parentships.relatedPerson',
+                    'registeredBy',
+                    'organization',
+                    'wave',
+                    'examSession.day',
+                    'bills.items' => fn ($items) => $items->withPaymentTotals(),
+                ]),
+        ));
 
-        if ($sort === 'nama') {
-            $registrants->join('people', 'people.id', '=', 'registrants.person_id')->orderBy('people.name', $direction);
-        } else {
-            $registrants->orderBy('registrants.created_at', $direction)->orderBy('registrants.id', $direction);
-        }
+        $statusCounts = $filters->apply(Registrant::query(), includeStatus: false)
+            ->selectRaw('registrants.status, count(*) as total')
+            ->groupBy('registrants.status')
+            ->pluck('total', 'status');
+
+        $overall = Registrant::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
 
         return Inertia::render('admin/registrants/index', [
-            'registrants' => $registrants->paginate(15)->withQueryString()->through(fn (Registrant $registrant): array => [
+            'registrants' => $registrants->paginate(25)->withQueryString()->through(fn (Registrant $registrant): array => [
                 'id' => $registrant->id,
                 'child' => [
                     'name' => $registrant->person->name,
@@ -73,17 +74,12 @@ class RegistrantController extends Controller
                 'exam_session' => $registrant->examSession === null ? null : ExamSchedulePresenter::label($registrant->examSession),
                 'exam_date' => $registrant->examSession?->day->date->toDateString(),
                 'passed' => ExamResult::for($registrant)['passed'],
-                'registered_at' => $registrant->created_at?->toDateString(),
+                'payment' => RegistrantBillSummary::status($registrant->bills),
+                'contact' => RegistrantPresenter::contact($registrant),
+                'registered_at' => $registrant->created_at?->toIso8601String(),
+                'can' => RegistrantPresenter::abilities($registrant, $user),
             ]),
-            'filters' => [
-                'cari' => $term,
-                'status' => $request->string('status')->toString(),
-                'lembaga' => $request->integer('lembaga') ?: '',
-                'gelombang' => $request->integer('gelombang') ?: '',
-                'perlu_dicek' => $request->boolean('perlu_dicek'),
-                'urut' => $sort,
-                'arah' => $direction,
-            ],
+            'filters' => $filters->toArray(),
             'options' => [
                 'statuses' => array_map(fn (RegistrantStatus $case): array => ['value' => $case->value, 'label' => $case->label()], RegistrantStatus::cases()),
                 'organizations' => Organization::query()->orderBy('sort_order')->orderBy('name')->get()->map(fn (Organization $organization): array => ['value' => $organization->id, 'label' => $organization->name])->values(),
@@ -91,8 +87,15 @@ class RegistrantController extends Controller
             ],
             'counts' => [
                 'needs_review' => Registrant::query()->where('needs_identity_review', true)->count(),
-                'in_review' => Registrant::query()->where('status', RegistrantStatus::Review)->count(),
+                'in_review' => (int) ($overall[RegistrantStatus::Review->value] ?? 0),
+                'validated' => (int) ($overall[RegistrantStatus::Validated->value] ?? 0),
+                'announced' => (int) ($overall[RegistrantStatus::Announced->value] ?? 0),
             ],
+            'statusCounts' => [
+                'all' => (int) $statusCounts->sum(),
+                ...collect(RegistrantStatus::cases())->mapWithKeys(fn (RegistrantStatus $case): array => [$case->value => (int) ($statusCounts[$case->value] ?? 0)])->all(),
+            ],
+            'canManage' => $user->can(Ability::RegistrantManage->value),
         ]);
     }
 
@@ -103,7 +106,8 @@ class RegistrantController extends Controller
         $registrant->load(['person.parentships.relatedPerson', 'organization', 'wave', 'registeredBy', 'student.year']);
         $person = $registrant->person;
         $status = $registrant->status;
-        $canManage = $request->user()->can(Ability::RegistrantManage->value);
+        $can = RegistrantPresenter::abilities($registrant, $request->user());
+        $canManage = $can['manage'];
 
         $bills = $registrant->bills()->with(['items' => fn ($items) => $items->withPaymentTotals()])->get();
         $hasSettlement = $registrant->hasBill(BillType::Settlement);
@@ -122,7 +126,6 @@ class RegistrantController extends Controller
                 'wave' => $registrant->wave->name,
                 'registered_at' => $registrant->created_at?->toDateString(),
                 'submitted_at' => $registrant->submitted_at?->toDateString(),
-                'formal_photo_url' => $registrant->formal_photo_url,
                 'child' => [
                     'id' => $person->id,
                     'name' => $person->name,
@@ -166,15 +169,33 @@ class RegistrantController extends Controller
                 ->map(fn (RegistrantStatus $case): array => ['value' => $case->value, 'label' => $case->label()])
                 ->values(),
             'settlement' => ['has_bill' => $hasSettlement, 'paid' => $settlementPaid],
-            'can' => [
-                'manage' => $canManage,
-                'accept' => $canManage && $status === RegistrantStatus::Review && ! $registrant->needs_identity_review,
-                'revise' => $canManage && $status === RegistrantStatus::Review,
-                'announce' => $canManage && $status === RegistrantStatus::Validated && ! $registrant->needs_identity_review,
-                'place' => $canManage && $status === RegistrantStatus::Announced && ! $registrant->needs_identity_review,
-                'bypass' => $canManage && $status !== RegistrantStatus::Placed,
-            ],
+            'can' => $can,
+            'queue' => $this->queue($registrant),
         ]);
+    }
+
+    /**
+     * Where a registration sits among the others with the same status, oldest registration first, so the
+     * committee can work through a status one after the other.
+     *
+     * @return array{position: int, total: int, previous_id: int|null, next_id: int|null}
+     */
+    private function queue(Registrant $registrant): array
+    {
+        $sameStatus = fn (): Builder => Registrant::query()->where('status', $registrant->status);
+        $before = fn (Builder $query): Builder => $query->where(fn (Builder $query) => $query
+            ->where('created_at', '<', $registrant->created_at)
+            ->orWhere(fn (Builder $query) => $query->where('created_at', $registrant->created_at)->where('id', '<', $registrant->id)));
+        $after = fn (Builder $query): Builder => $query->where(fn (Builder $query) => $query
+            ->where('created_at', '>', $registrant->created_at)
+            ->orWhere(fn (Builder $query) => $query->where('created_at', $registrant->created_at)->where('id', '>', $registrant->id)));
+
+        return [
+            'position' => $before($sameStatus())->count() + 1,
+            'total' => $sameStatus()->count(),
+            'previous_id' => $before($sameStatus())->orderByDesc('created_at')->orderByDesc('id')->value('id'),
+            'next_id' => $after($sameStatus())->orderBy('created_at')->orderBy('id')->value('id'),
+        ];
     }
 
     public function edit(Registrant $registrant): Response
@@ -200,8 +221,6 @@ class RegistrantController extends Controller
             $parents,
             $request->file('photo'),
             $request->boolean('remove_photo'),
-            $request->file('formal_photo'),
-            $request->boolean('remove_formal_photo'),
         );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Data pendaftar sudah disimpan.']);

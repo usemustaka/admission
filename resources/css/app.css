@@ -7,27 +7,28 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Sistem desain mengikuti prototipe Mustaka: Figtree, netral hangat (ink
+ * #222), satu aksen lime, sudut besar, garis tipis sebagai pemisah. Token
+ * semantik shadcn tetap dipakai komponen; yang berubah hanya nilainya.
+ */
 @theme {
     --font-sans:
-        'Figtree', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
-        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+        'Figtree', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+        sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 4px);
     --radius-sm: calc(var(--radius) - 8px);
     --radius-xl: calc(var(--radius) + 4px);
     --radius-2xl: calc(var(--radius) + 8px);
+    --radius-3xl: calc(var(--radius) + 12px);
 
-    --color-sage-50: oklch(0.975 0.01 145);
-    --color-sage-100: oklch(0.95 0.02 145);
-    --color-sage-200: oklch(0.9 0.03 148);
-    --color-sage-300: oklch(0.82 0.05 150);
-    --color-sage-400: oklch(0.72 0.07 150);
-    --color-sage-500: oklch(0.6 0.08 150);
-    --color-sage-600: oklch(0.5 0.075 150);
-    --color-sage-700: oklch(0.42 0.065 152);
-    --color-sage-800: oklch(0.34 0.05 152);
-    --color-sage-900: oklch(0.27 0.035 152);
+    --color-ink: var(--ink);
+    --color-mute: var(--mute);
+    --color-line: var(--line);
+    --color-wash: var(--wash);
 
     --color-success: var(--success);
     --color-success-foreground: var(--success-foreground);
@@ -36,12 +37,9 @@
     --color-info: var(--info);
     --color-info-foreground: var(--info-foreground);
 
-    --shadow-card:
-        0 1px 2px oklch(0.25 0.02 150 / 0.04),
-        0 6px 20px oklch(0.25 0.02 150 / 0.06);
-    --shadow-lift:
-        0 2px 4px oklch(0.25 0.02 150 / 0.06),
-        0 12px 32px oklch(0.25 0.02 150 / 0.12);
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px rgb(0 0 0 / 0.04);
+    --shadow-float: 0 6px 20px rgb(0 0 0 / 0.14);
+    --shadow-pop: 0 8px 32px rgb(0 0 0 / 0.18);
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -88,94 +86,281 @@
 }
 
 :root {
-    --background: oklch(0.99 0.004 140);
-    --foreground: oklch(0.24 0.02 150);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.24 0.02 150);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.24 0.02 150);
-    --primary: var(--color-sage-600);
-    --primary-foreground: oklch(0.99 0.005 140);
-    --secondary: var(--color-sage-100);
-    --secondary-foreground: var(--color-sage-800);
-    --muted: oklch(0.965 0.008 140);
-    --muted-foreground: oklch(0.49 0.02 150);
-    --accent: var(--color-sage-100);
-    --accent-foreground: var(--color-sage-800);
-    --destructive: oklch(0.55 0.2 25);
-    --destructive-foreground: oklch(0.5 0.2 25);
-    --success: oklch(0.46 0.12 155);
-    --success-foreground: oklch(0.99 0.005 140);
-    --warning: oklch(0.52 0.12 70);
-    --warning-foreground: oklch(0.99 0.005 140);
-    --info: oklch(0.5 0.12 245);
-    --info-foreground: oklch(0.99 0.005 140);
-    --border: oklch(0.915 0.01 140);
-    --input: oklch(0.83 0.012 140);
-    --ring: oklch(0.62 0.08 150);
-    --chart-1: var(--color-sage-600);
-    --chart-2: oklch(0.7 0.1 80);
-    --chart-3: oklch(0.58 0.09 235);
-    --chart-4: oklch(0.65 0.13 35);
-    --chart-5: oklch(0.45 0.05 152);
+    --ink: #222222;
+    --mute: #6a6a6a;
+    --line: #ebebeb;
+    --wash: #f7f7f7;
+
+    --background: #ffffff;
+    --foreground: var(--ink);
+    --card: #ffffff;
+    --card-foreground: var(--ink);
+    --popover: #ffffff;
+    --popover-foreground: var(--ink);
+    --primary: var(--color-lime-400);
+    --primary-foreground: var(--color-neutral-900);
+    --secondary: var(--color-neutral-100);
+    --secondary-foreground: var(--ink);
+    --muted: var(--wash);
+    --muted-foreground: var(--mute);
+    --accent: var(--color-neutral-100);
+    --accent-foreground: var(--ink);
+    --destructive: var(--color-red-600);
+    --destructive-foreground: var(--color-red-700);
+    --success: var(--color-emerald-700);
+    --success-foreground: var(--color-neutral-50);
+    --warning: var(--color-amber-700);
+    --warning-foreground: var(--color-neutral-50);
+    --info: var(--color-sky-700);
+    --info-foreground: var(--color-neutral-50);
+    --border: var(--line);
+    --input: var(--color-neutral-300);
+    --ring: var(--color-neutral-900);
+    --chart-1: var(--color-lime-500);
+    --chart-2: var(--color-amber-500);
+    --chart-3: var(--color-sky-400);
+    --chart-4: var(--color-red-400);
+    --chart-5: var(--color-neutral-400);
     --radius: 0.75rem;
-    --sidebar: var(--color-sage-50);
-    --sidebar-foreground: oklch(0.24 0.02 150);
-    --sidebar-primary: var(--color-sage-600);
-    --sidebar-primary-foreground: oklch(0.99 0.005 140);
-    --sidebar-accent: var(--color-sage-100);
-    --sidebar-accent-foreground: var(--color-sage-800);
-    --sidebar-border: var(--color-sage-200);
-    --sidebar-ring: oklch(0.62 0.08 150);
+    --sidebar: #ffffff;
+    --sidebar-foreground: var(--ink);
+    --sidebar-primary: var(--color-lime-400);
+    --sidebar-primary-foreground: var(--color-neutral-900);
+    --sidebar-accent: var(--color-neutral-100);
+    --sidebar-accent-foreground: var(--ink);
+    --sidebar-border: var(--line);
+    --sidebar-ring: var(--color-neutral-900);
 }
 
 .dark {
-    --background: oklch(0.19 0.01 150);
-    --foreground: oklch(0.96 0.008 140);
-    --card: oklch(0.23 0.012 150);
-    --card-foreground: oklch(0.96 0.008 140);
-    --popover: oklch(0.23 0.012 150);
-    --popover-foreground: oklch(0.96 0.008 140);
-    --primary: var(--color-sage-400);
-    --primary-foreground: oklch(0.2 0.02 150);
-    --secondary: oklch(0.3 0.02 150);
-    --secondary-foreground: oklch(0.94 0.01 140);
-    --muted: oklch(0.27 0.012 150);
-    --muted-foreground: oklch(0.72 0.02 145);
-    --accent: oklch(0.3 0.02 150);
-    --accent-foreground: oklch(0.94 0.01 140);
-    --destructive: oklch(0.6 0.19 25);
-    --destructive-foreground: oklch(0.72 0.16 25);
-    --success: oklch(0.74 0.13 155);
-    --success-foreground: oklch(0.2 0.02 150);
-    --warning: oklch(0.78 0.12 80);
-    --warning-foreground: oklch(0.2 0.02 150);
-    --info: oklch(0.74 0.1 240);
-    --info-foreground: oklch(0.2 0.02 150);
-    --border: oklch(0.3 0.012 150);
-    --input: oklch(0.38 0.015 150);
-    --ring: oklch(0.6 0.08 150);
-    --chart-1: var(--color-sage-400);
-    --chart-2: oklch(0.78 0.11 80);
-    --chart-3: oklch(0.7 0.09 235);
-    --chart-4: oklch(0.72 0.13 35);
-    --chart-5: oklch(0.65 0.06 152);
-    --sidebar: oklch(0.21 0.012 150);
-    --sidebar-foreground: oklch(0.96 0.008 140);
-    --sidebar-primary: var(--color-sage-400);
-    --sidebar-primary-foreground: oklch(0.2 0.02 150);
-    --sidebar-accent: oklch(0.3 0.02 150);
-    --sidebar-accent-foreground: oklch(0.94 0.01 140);
-    --sidebar-border: oklch(0.3 0.012 150);
-    --sidebar-ring: oklch(0.6 0.08 150);
+    --ink: #f2f2f0;
+    --mute: #a3a3a3;
+    --line: oklch(0.3 0 0);
+    --wash: oklch(0.22 0 0);
+
+    --background: oklch(0.175 0 0);
+    --foreground: var(--ink);
+    --card: oklch(0.215 0 0);
+    --card-foreground: var(--ink);
+    --popover: oklch(0.235 0 0);
+    --popover-foreground: var(--ink);
+    --primary: var(--color-lime-400);
+    --primary-foreground: var(--color-neutral-900);
+    --secondary: oklch(0.29 0 0);
+    --secondary-foreground: var(--ink);
+    --muted: oklch(0.26 0 0);
+    --muted-foreground: var(--mute);
+    --accent: oklch(0.29 0 0);
+    --accent-foreground: var(--ink);
+    --destructive: var(--color-red-500);
+    --destructive-foreground: var(--color-red-300);
+    --success: var(--color-emerald-400);
+    --success-foreground: var(--color-neutral-900);
+    --warning: var(--color-amber-400);
+    --warning-foreground: var(--color-neutral-900);
+    --info: var(--color-sky-300);
+    --info-foreground: var(--color-neutral-900);
+    --border: var(--line);
+    --input: oklch(0.4 0 0);
+    --ring: var(--color-neutral-200);
+    --chart-1: var(--color-lime-400);
+    --chart-2: var(--color-amber-400);
+    --chart-3: var(--color-sky-400);
+    --chart-4: var(--color-red-400);
+    --chart-5: var(--color-neutral-400);
+    --sidebar: oklch(0.195 0 0);
+    --sidebar-foreground: var(--ink);
+    --sidebar-primary: var(--color-lime-400);
+    --sidebar-primary-foreground: var(--color-neutral-900);
+    --sidebar-accent: oklch(0.29 0 0);
+    --sidebar-accent-foreground: var(--ink);
+    --sidebar-border: var(--line);
+    --sidebar-ring: var(--color-neutral-200);
 }
 
 @layer base {
     * {
         @apply border-border;
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-neutral-300) transparent;
+    }
+
+    html,
+    body {
+        min-height: 100%;
     }
 
     body {
         @apply bg-background text-foreground;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    button:not(:disabled),
+    [role='button']:not(:disabled) {
+        cursor: pointer;
+    }
+
+    h1,
+    h2,
+    h3 {
+        text-wrap: balance;
+    }
+
+    table,
+    .tabular {
+        font-variant-numeric: tabular-nums;
+    }
+
+    /*
+     * A bare `grid` is one column that may shrink. Without this the implicit
+     * column grows to its widest unbroken child and pushes the page sideways
+     * on a phone. Any `grid-cols-*` utility still wins (utilities layer).
+     */
+    .grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    ::selection {
+        color: #1a2e05;
+        background: #d9f99d;
+    }
+
+    input,
+    textarea,
+    select {
+        caret-color: var(--color-lime-600);
+        accent-color: var(--color-lime-600);
+    }
+
+    /* Fokus keyboard seragam untuk elemen tanpa gaya fokus sendiri. */
+    :where(
+        a,
+        [role='button'],
+        [role='switch'],
+        [role='tab'],
+        summary,
+        [tabindex='0']
+    ):focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+    }
+
+    /* Hindari zoom otomatis iOS saat memfokus kolom isian. */
+    @media (max-width: 639px) {
+        input,
+        select,
+        textarea {
+            font-size: 16px !important;
+        }
+    }
+}
+
+@layer utilities {
+    .no-scrollbar {
+        scrollbar-width: none !important;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .anim-pop {
+        animation: pop-in 0.16s ease-out;
+    }
+
+    .anim-fade {
+        animation: fade-in 0.16s ease-out;
+    }
+
+    .anim-up {
+        animation: slide-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .anim-slide {
+        animation: slide-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .anim-page {
+        animation: page-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+}
+
+@keyframes pop-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes page-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slide-in {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: none;
+    }
+}
+
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/*
+ * Compact rhythm on narrow containers (phones, and the parent portal at any
+ * window size): the big gaps used on desktop shrink one step.
+ */
+@container (max-width: 42rem) {
+    .gap-6 {
+        gap: calc(var(--spacing) * 4);
+    }
+
+    .gap-8 {
+        gap: calc(var(--spacing) * 5);
+    }
+
+    .gap-5 {
+        gap: calc(var(--spacing) * 4);
     }
 }

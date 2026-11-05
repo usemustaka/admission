@@ -33,7 +33,7 @@ export function FormField({
 
     return (
         <div className={cn('grid content-start gap-2', className)}>
-            <Label htmlFor={id}>
+            <Label htmlFor={id} className="text-[15px]">
                 {label}
                 {required && (
                     <span className="text-destructive" aria-hidden="true">
@@ -52,7 +52,7 @@ export function FormField({
                 <p
                     id={messageId}
                     className={cn(
-                        'text-sm',
+                        'text-[15px]',
                         error
                             ? 'font-medium text-destructive-foreground'
                             : 'text-muted-foreground',

@@ -8,6 +8,7 @@ namespace App\Enums;
 enum Ability: string
 {
     case AdminAccess = 'core::admin.access';
+    case SettingManage = 'core::setting.manage';
     case PersonView = 'core::person.view';
     case PersonCreate = 'core::person.create';
     case PersonUpdate = 'core::person.update';
@@ -28,6 +29,7 @@ enum Ability: string
     {
         return match ($this) {
             self::AdminAccess => 'Masuk ke panel admin',
+            self::SettingManage => 'Mengatur identitas, tampilan, dan kontak aplikasi',
             self::PersonView => 'Melihat data orang',
             self::PersonCreate => 'Menambah orang',
             self::PersonUpdate => 'Mengubah data orang',

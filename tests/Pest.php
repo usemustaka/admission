@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Ability;
 use App\Enums\BillType;
 use App\Enums\DefaultRole;
 use App\Enums\PaymentStatus;
@@ -67,6 +68,16 @@ function userWithRole(DefaultRole $role): User
 }
 
 /**
+ * Committee staff who may look at registrants but not process them.
+ */
+function registrantViewer(): User
+{
+    test()->seed(RolesAndPermissionsSeeder::class);
+
+    return tap(User::factory()->create())->givePermissionTo([Ability::AdminAccess->value, Ability::RegistrantView->value]);
+}
+
+/**
  * A parent with a registered child who has a bill of the given item amounts.
  *
  * @param  list<int>  $amounts
@@ -112,7 +123,6 @@ function admissionRegistrant(RegistrantStatus $status = RegistrantStatus::Review
             'bills' => [['type' => 'settlement', 'items' => [['name' => 'Uang pangkal', 'amount' => 1000000], ['name' => 'Seragam', 'amount' => 500000]]]],
             'exam_aspects' => [['name' => 'Tes tulis', 'passing_score' => 70], ['name' => 'Wawancara', 'passing_score' => 60]],
         ],
-        'formal_photo_path' => 'registrants/formal-photos/pas.jpg',
         ...$attributes,
     ]);
 

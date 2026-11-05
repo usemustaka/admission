@@ -62,12 +62,12 @@ export function PhotoUpload({
     }
 
     return (
-        <div className={cn('flex items-center gap-5', className)}>
+        <div className={cn('flex items-center gap-4', className)}>
             <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 className={cn(
-                    'relative flex h-36 w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-sage-300 bg-sage-50 text-sage-600 transition-colors hover:border-primary hover:bg-sage-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none dark:border-border dark:bg-card dark:text-primary',
+                    'relative flex h-28 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-neutral-300 bg-neutral-50 text-lime-700 transition-colors hover:border-primary hover:bg-lime-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring dark:border-border dark:bg-card dark:text-primary',
                     shownUrl && 'border-solid border-transparent',
                 )}
                 aria-label={shownUrl ? `Ganti ${label}` : `Pilih ${label}`}
@@ -83,8 +83,8 @@ export function PhotoUpload({
                 )}
             </button>
 
-            <div className="grid gap-2">
-                <p className="text-sm font-semibold">{label}</p>
+            <div className="grid min-w-0 gap-2">
+                <p className="text-[15px] font-semibold">{label}</p>
                 <p className="text-sm text-muted-foreground">{hint}</p>
                 {error && (
                     <p className="text-sm font-medium text-destructive-foreground">
@@ -95,7 +95,7 @@ export function PhotoUpload({
                     <Button
                         type="button"
                         variant="outline"
-                        size="sm"
+                        className="h-11 px-4"
                         onClick={() => inputRef.current?.click()}
                     >
                         <Camera />
@@ -105,7 +105,7 @@ export function PhotoUpload({
                         <Button
                             type="button"
                             variant="ghost"
-                            size="sm"
+                            className="h-11 px-4"
                             onClick={handleRemove}
                         >
                             <Trash2 />

@@ -1,5 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Megaphone } from 'lucide-react';
+import { useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { FormField } from '@/components/form-field';
 import { PageHeader } from '@/components/page-header';
@@ -12,6 +13,13 @@ import { dashboard } from '@/routes';
 import { update } from '@/routes/admin/admission-settings';
 import { index } from '@/routes/admin/registrants';
 
+const sampleValues: Record<string, string> = {
+    '{nama}': 'Ahmad Fauzi',
+    '{lembaga}': 'SMP Mustaka',
+    '{gelombang}': 'Gelombang 1',
+    '{hasil}': 'tuntas',
+};
+
 export default function AdmissionSettings({
     template,
     defaultTemplate,
@@ -22,6 +30,14 @@ export default function AdmissionSettings({
     placeholders: { token: string; description: string }[];
 }) {
     const form = useForm({ template });
+    const preview = useMemo(
+        () =>
+            Object.entries(sampleValues).reduce(
+                (text, [token, value]) => text.replaceAll(token, value),
+                form.data.template,
+            ),
+        [form.data.template],
+    );
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -33,7 +49,7 @@ export default function AdmissionSettings({
             <Head title="Templat pengumuman" />
             <form
                 onSubmit={submit}
-                className="mx-auto grid w-full max-w-3xl gap-6 p-4 md:p-6"
+                className="mx-auto grid w-full max-w-3xl gap-6"
             >
                 <PageHeader
                     icon={Megaphone}
@@ -64,7 +80,7 @@ export default function AdmissionSettings({
                         </FormField>
 
                         <div className="grid gap-2">
-                            <p className="text-sm font-medium">
+                            <p className="text-sm font-semibold">
                                 Kata yang otomatis diganti
                             </p>
                             <ul className="grid gap-2">
@@ -89,7 +105,19 @@ export default function AdmissionSettings({
                     </div>
                 </SectionCard>
 
-                <div className="flex flex-wrap justify-end gap-3">
+                <SectionCard
+                    title="Contoh hasilnya"
+                    description="Begini kira-kira pesan yang diterima wali, dengan data contoh."
+                >
+                    <p
+                        className="rounded-2xl border border-line bg-neutral-50 p-4 text-sm leading-relaxed whitespace-pre-wrap dark:bg-card"
+                        aria-live="polite"
+                    >
+                        {preview}
+                    </p>
+                </SectionCard>
+
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                     <Button
                         type="button"
                         variant="outline"
@@ -101,7 +129,7 @@ export default function AdmissionSettings({
                     </Button>
                     <Button type="submit" disabled={form.processing}>
                         {form.processing && <Spinner />}
-                        Simpan
+                        Simpan templat
                     </Button>
                 </div>
             </form>

@@ -6,7 +6,10 @@ import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName =
+    document.querySelector<HTMLMetaElement>('meta[name="app-name"]')?.content ||
+    import.meta.env.VITE_APP_NAME ||
+    'Laravel';
 
 void createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
@@ -33,7 +36,7 @@ void createInertiaApp({
         );
     },
     progress: {
-        color: '#5b8a69',
+        color: '#84cc16',
     },
 });
 

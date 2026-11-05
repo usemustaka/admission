@@ -1,6 +1,9 @@
 {
     "$schema": "https://www.schemastore.org/package.json",
     "private": true,
+    "workspaces": [
+        "."
+    ],
     "type": "module",
     "scripts": {
         "build": "vp build",
@@ -64,6 +67,5 @@
     },
     "overrides": {
         "vite": "npm:@voidzero-dev/vite-plus-core@1.4.0"
-    },
-    "workspaces": ["."]
+    }
 }

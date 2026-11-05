@@ -44,8 +44,6 @@ class ChildDataController extends Controller
             $parents,
             $request->file('photo'),
             $request->boolean('remove_photo'),
-            $request->file('formal_photo'),
-            $request->boolean('remove_formal_photo'),
         );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Datanya sudah disimpan sebagai draf.']);

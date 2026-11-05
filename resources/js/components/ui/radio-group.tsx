@@ -68,8 +68,8 @@ function RadioGroupItem({
       disabled={group.disabled || props.disabled}
       onChange={() => group.onValueChange?.(value)}
       className={cn(
-        "border-input bg-card checked:border-primary checked:bg-primary focus-visible:ring-ring/50 relative size-5 shrink-0 cursor-pointer appearance-none rounded-full border shadow-xs transition-colors outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
-        "checked:after:absolute checked:after:top-1/2 checked:after:left-1/2 checked:after:size-2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:rounded-full checked:after:bg-primary-foreground checked:after:content-['']",
+        "border-neutral-400 bg-card checked:border-neutral-900 checked:bg-neutral-900 dark:checked:border-lime-400 dark:checked:bg-lime-400 hover:border-foreground focus-visible:ring-ring relative size-5 shrink-0 cursor-pointer appearance-none rounded-full border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
+        "checked:after:absolute checked:after:top-1/2 checked:after:left-1/2 checked:after:size-2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:rounded-full checked:after:bg-white dark:checked:after:bg-neutral-900 checked:after:content-['']",
         className
       )}
       {...props}

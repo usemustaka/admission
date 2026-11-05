@@ -86,6 +86,6 @@ test('the child page shows how complete the draft is', function () {
     $this->actingAs($parent)->get(route('portal.children.show', $registrant))->assertInertia(fn ($page) => $page
         ->component('portal/children/show')
         ->where('completeness.filled', 7)
-        ->where('completeness.total', 9)
+        ->where('completeness.total', 8)
         ->has('family', 1));
 });

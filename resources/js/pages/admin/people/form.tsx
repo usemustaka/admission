@@ -75,7 +75,7 @@ export default function PersonForm({
             <Head title={title} />
             <form
                 onSubmit={submit}
-                className="mx-auto grid w-full max-w-3xl gap-6 p-4 md:p-6"
+                className="mx-auto grid w-full max-w-3xl gap-6"
             >
                 <PageHeader
                     title={title}
@@ -220,7 +220,7 @@ export default function PersonForm({
                             )}
                         </FormField>
 
-                        <label className="flex items-center gap-3 text-sm font-medium sm:col-span-2">
+                        <label className="flex min-h-10 items-center gap-3 text-sm font-medium sm:col-span-2">
                             <Switch
                                 checked={form.data.is_alive}
                                 onCheckedChange={(checked) =>
@@ -232,7 +232,10 @@ export default function PersonForm({
                     </div>
                 </SectionCard>
 
-                <SectionCard title="Foto profil">
+                <SectionCard
+                    title="Foto profil"
+                    description="Opsional. Dipakai sebagai avatar di daftar dan halaman detail."
+                >
                     <PhotoUpload
                         value={
                             form.data.remove_photo
@@ -255,7 +258,7 @@ export default function PersonForm({
                     )}
                 </SectionCard>
 
-                <div className="flex justify-end gap-3">
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                     <Button variant="outline" asChild>
                         <Link href={isEditing ? show(person.id) : index()}>
                             Batal
@@ -263,7 +266,7 @@ export default function PersonForm({
                     </Button>
                     <Button type="submit" disabled={form.processing}>
                         {form.processing && <Spinner />}
-                        Simpan
+                        {isEditing ? 'Simpan perubahan' : 'Tambah orang'}
                     </Button>
                 </div>
             </form>

@@ -12,7 +12,9 @@ export type ChoiceOption = {
 
 /**
  * Big tappable cards for picking one option, e.g. "Saya mendaftarkan sebagai
- * Ayah / Ibu / Wali".
+ * Ayah / Ibu / Wali". Columns stay fixed (also on a phone) because the
+ * options are short; it also works inside dialogs, which sit outside any
+ * container.
  */
 export function ChoiceCardGroup({
     options,
@@ -34,8 +36,8 @@ export function ChoiceCardGroup({
             className={cn(
                 'gap-3',
                 columns === 1 && 'grid-cols-1',
-                columns === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columns === 3 && 'grid-cols-1 sm:grid-cols-3',
+                columns === 2 && 'grid-cols-2',
+                columns === 3 && 'grid-cols-3',
                 className,
             )}
         >
@@ -50,19 +52,23 @@ export function ChoiceCardGroup({
                     <label
                         key={optionValue}
                         className={cn(
-                            'flex cursor-pointer items-start gap-3 rounded-2xl border bg-card p-4 shadow-xs transition-[border-color,background-color,box-shadow]',
-                            'hover:border-sage-400 has-[:checked]:border-primary has-[:checked]:bg-sage-50 has-[:checked]:ring-1 has-[:checked]:ring-primary has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50 dark:has-[:checked]:bg-secondary/40',
+                            'flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-input bg-card p-3.5 transition-[border-color,background-color]',
+                            'hover:border-neutral-500 has-[:checked]:border-neutral-900 has-[:checked]:bg-lime-50 has-[:checked]:ring-1 has-[:checked]:ring-neutral-900 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring dark:has-[:checked]:border-lime-400 dark:has-[:checked]:bg-lime-400/10 dark:has-[:checked]:ring-lime-400',
                             disabled &&
-                                'cursor-not-allowed opacity-50 hover:border-border',
+                                'cursor-not-allowed opacity-50 hover:border-input',
                         )}
                     >
+                        <RadioGroupItem
+                            value={optionValue}
+                            disabled={disabled}
+                        />
                         {Icon && (
-                            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sage-100 text-sage-700 dark:bg-secondary dark:text-primary">
+                            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-lime-100 text-lime-700 dark:bg-lime-400/15 dark:text-lime-300">
                                 <Icon className="size-5" />
                             </span>
                         )}
-                        <span className="grid flex-1 gap-0.5">
-                            <span className="text-sm font-semibold">
+                        <span className="grid min-w-0 flex-1 gap-0.5">
+                            <span className="text-[15px] font-semibold">
                                 {label}
                             </span>
                             {description && (
@@ -71,10 +77,6 @@ export function ChoiceCardGroup({
                                 </span>
                             )}
                         </span>
-                        <RadioGroupItem
-                            value={optionValue}
-                            disabled={disabled}
-                        />
                     </label>
                 ),
             )}

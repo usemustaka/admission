@@ -1,8 +1,10 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Wallet } from 'lucide-react';
+import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ChoiceCardGroup } from '@/components/choice-card-group';
+import { EmptyState } from '@/components/empty-state';
 import { FormField } from '@/components/form-field';
 import { PageHeader } from '@/components/page-header';
 import {
@@ -13,6 +15,7 @@ import { PersonAvatar } from '@/components/person-avatar';
 import { SearchInput } from '@/components/search-input';
 import { SectionCard } from '@/components/section-card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,6 +34,7 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
     const [groups, setGroups] = useState<OpenGroup[]>([]);
     const [selection, setSelection] = useState<Selection>({});
     const [loaded, setLoaded] = useState(false);
+    const [searched, setSearched] = useState(false);
 
     const form = useForm({
         payer_person_id: '',
@@ -49,13 +53,25 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
 
         const controller = new AbortController();
         const timeout = setTimeout(async () => {
-            const response = await fetch(search({ query: { q: term } }).url, {
-                headers: { Accept: 'application/json' },
-                signal: controller.signal,
-            });
+            try {
+                const response = await fetch(
+                    search({ query: { q: term } }).url,
+                    {
+                        headers: { Accept: 'application/json' },
+                        signal: controller.signal,
+                    },
+                );
 
-            if (response.ok) {
-                setCandidates((await response.json()).data);
+                if (response.ok) {
+                    setCandidates((await response.json()).data);
+                    setSearched(true);
+                } else {
+                    toast.error('Pencarian gagal. Coba lagi sebentar lagi.');
+                }
+            } catch (error) {
+                if ((error as Error).name !== 'AbortError') {
+                    toast.error('Pencarian gagal. Cek koneksimu.');
+                }
             }
         }, 250);
 
@@ -68,6 +84,7 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
     async function choose(candidate: Candidate) {
         setPayer(candidate);
         setSelection({});
+        setGroups([]);
         setLoaded(false);
         form.setData((data) => ({
             ...data,
@@ -75,16 +92,31 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
             items: [],
         }));
 
-        const response = await fetch(
-            openItems({ query: { payer: candidate.id } }).url,
-            { headers: { Accept: 'application/json' } },
-        );
+        try {
+            const response = await fetch(
+                openItems({ query: { payer: candidate.id } }).url,
+                { headers: { Accept: 'application/json' } },
+            );
 
-        if (response.ok) {
-            setGroups((await response.json()).groups);
+            if (response.ok) {
+                setGroups((await response.json()).groups);
+            } else {
+                toast.error('Tagihan tidak bisa dimuat. Coba pilih ulang.');
+            }
+        } catch {
+            toast.error('Tagihan tidak bisa dimuat. Cek koneksimu.');
         }
 
         setLoaded(true);
+    }
+
+    function clearPayer() {
+        setPayer(null);
+        setGroups([]);
+        setSelection({});
+        setLoaded(false);
+        setSearched(false);
+        form.setData((data) => ({ ...data, payer_person_id: '', items: [] }));
     }
 
     function change(next: Selection) {
@@ -102,7 +134,7 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
             <Head title="Catat pembayaran" />
             <form
                 onSubmit={submit}
-                className="mx-auto grid w-full max-w-3xl gap-6 p-4 md:p-6"
+                className="mx-auto grid w-full max-w-3xl gap-6"
             >
                 <PageHeader
                     icon={Wallet}
@@ -112,7 +144,7 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
 
                 <SectionCard title="Siapa yang membayar?">
                     {payer ? (
-                        <div className="flex items-center gap-3 rounded-2xl border bg-sage-50 p-3 dark:bg-secondary/40">
+                        <div className="flex items-center gap-3">
                             <PersonAvatar name={payer.name} />
                             <div className="grid flex-1 leading-tight">
                                 <span className="font-semibold">
@@ -124,18 +156,9 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
                             </div>
                             <Button
                                 type="button"
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                    setPayer(null);
-                                    setGroups([]);
-                                    setSelection({});
-                                    form.setData((data) => ({
-                                        ...data,
-                                        payer_person_id: '',
-                                        items: [],
-                                    }));
-                                }}
+                                onClick={clearPayer}
                             >
                                 Ganti
                             </Button>
@@ -146,14 +169,27 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
                                 value={term}
                                 onValueChange={setTerm}
                                 placeholder="Cari orang tua atau wali…"
+                                aria-label="Cari pembayar"
+                                autoFocus
                             />
+                            {searched &&
+                                term.trim().length >= 2 &&
+                                candidates.length === 0 && (
+                                    <p className="text-sm text-muted-foreground">
+                                        Tidak ada orang dengan nama itu. Coba
+                                        nama lain atau NIK-nya.
+                                    </p>
+                                )}
                             <ul className="grid gap-1">
-                                {candidates.map((candidate) => (
+                                {(term.trim().length >= 2
+                                    ? candidates
+                                    : []
+                                ).map((candidate) => (
                                     <li key={candidate.id}>
                                         <button
                                             type="button"
                                             onClick={() => choose(candidate)}
-                                            className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-sage-50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none dark:hover:bg-muted"
+                                            className="flex min-h-12 w-full items-center gap-3 rounded-xl p-2 text-left outline-none hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                                         >
                                             <PersonAvatar
                                                 name={candidate.name}
@@ -181,10 +217,23 @@ export default function RecordPayment({ methods }: { methods: Option[] }) {
                     )}
                 </SectionCard>
 
+                {payer && !loaded && (
+                    <div
+                        className="grid gap-3"
+                        aria-busy="true"
+                        aria-label="Memuat tagihan"
+                    >
+                        <Skeleton className="h-6 w-48" />
+                        <Skeleton className="h-24 w-full rounded-2xl" />
+                    </div>
+                )}
+
                 {payer && loaded && groups.length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                        {payer.name} tidak punya tagihan yang masih terbuka.
-                    </p>
+                    <EmptyState
+                        icon={Wallet}
+                        title="Tidak ada tagihan terbuka"
+                        description={`${payer.name} tidak punya tagihan yang masih harus dibayar.`}
+                    />
                 )}
 
                 {groups.length > 0 && (
@@ -303,5 +352,6 @@ RecordPayment.layout = {
     breadcrumbs: [
         { title: 'Beranda', href: dashboard() },
         { title: 'Pembayaran', href: index() },
+        { title: 'Catat', href: '#' },
     ],
 };

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DefaultRole;
 use App\Models\User;
 
 test('profile page is displayed', function () {
@@ -50,8 +51,8 @@ test('email verification status is unchanged when the email address is unchanged
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 
-test('user can delete their account', function () {
-    $user = User::factory()->create();
+test('staff can delete their account', function () {
+    $user = userWithRole(DefaultRole::Admin);
 
     $response = $this
         ->actingAs($user)
@@ -68,7 +69,7 @@ test('user can delete their account', function () {
 });
 
 test('correct password must be provided to delete account', function () {
-    $user = User::factory()->create();
+    $user = userWithRole(DefaultRole::Admin);
 
     $response = $this
         ->actingAs($user)
@@ -82,4 +83,24 @@ test('correct password must be provided to delete account', function () {
         ->assertRedirect(route('profile.edit'));
 
     expect($user->fresh())->not->toBeNull();
+});
+
+test('a parent cannot delete their account', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->delete(route('profile.destroy'), ['password' => 'password'])
+        ->assertForbidden();
+
+    expect($user->fresh())->not->toBeNull();
+});
+
+test('the profile page tells whether the account can be deleted', function () {
+    $this->actingAs(User::factory()->create())
+        ->get(route('profile.edit'))
+        ->assertInertia(fn ($page) => $page->where('canDeleteAccount', false));
+
+    $this->actingAs(userWithRole(DefaultRole::Admin))
+        ->get(route('profile.edit'))
+        ->assertInertia(fn ($page) => $page->where('canDeleteAccount', true));
 });

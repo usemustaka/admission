@@ -1,20 +1,22 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { CircleCheck, Receipt } from 'lucide-react';
+import { CircleCheck } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { ChoiceCardGroup } from '@/components/choice-card-group';
 import { EmptyState } from '@/components/empty-state';
 import { FormField } from '@/components/form-field';
 import { PageHeader } from '@/components/page-header';
-import {
-    PaymentItemsPicker,
-    selectedRows,
-} from '@/components/payments/payment-items-picker';
+import { selectedRows } from '@/components/payments/payment-items-picker';
+import { BankCard } from '@/components/portal/bank-card';
+import { PortalPaymentItemsPicker } from '@/components/portal/payment-items-picker';
+import { ProofUpload } from '@/components/portal/proof-upload';
+import { StickyActions } from '@/components/portal/sticky-actions';
 import { SectionCard } from '@/components/section-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { formatRupiah } from '@/lib/format';
 import { index } from '@/routes/portal/bills';
 import { bills } from '@/routes/portal/children';
 import { store } from '@/routes/portal/payments';
@@ -41,6 +43,7 @@ export default function CreatePayment({
     });
     const errors = form.errors as Record<string, string>;
     const backUrl = focus ? bills(focus.id) : index();
+    const total = form.data.items.reduce((sum, row) => sum + row.amount, 0);
 
     function change(next: Selection) {
         setSelection(next);
@@ -56,14 +59,14 @@ export default function CreatePayment({
         return (
             <>
                 <Head title="Konfirmasi pembayaran" />
-                <div className="mx-auto grid w-full max-w-2xl gap-6 px-4 py-8">
+                <div className="grid gap-4">
                     <PageHeader title="Konfirmasi pembayaran" />
                     <EmptyState
                         icon={CircleCheck}
                         title="Tidak ada yang perlu dibayar"
                         description="Semua tagihan sudah dibayar atau sedang menunggu verifikasi panitia."
                         action={
-                            <Button variant="outline" asChild>
+                            <Button variant="outline" size="lg" asChild>
                                 <Link href={backUrl}>Kembali ke tagihan</Link>
                             </Button>
                         }
@@ -76,22 +79,23 @@ export default function CreatePayment({
     return (
         <>
             <Head title="Konfirmasi pembayaran" />
-            <form
-                onSubmit={submit}
-                className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-8"
-            >
+            <form onSubmit={submit} className="grid gap-4">
                 <PageHeader
-                    icon={Receipt}
                     title="Konfirmasi pembayaran"
                     description={
                         focus
-                            ? `Untuk tagihan ${focus.child.name}.`
+                            ? `Untuk tagihan ${focus.child.name}. Sudah transfer? Unggah buktinya, lalu kirim.`
                             : 'Sudah transfer? Pilih rincian yang kamu bayar, unggah buktinya, lalu kirim. Bisa untuk beberapa anak sekaligus.'
                     }
                 />
 
-                <SectionCard title="Yang kamu bayar">
-                    <PaymentItemsPicker
+                <BankCard />
+
+                <SectionCard
+                    title="1. Yang kamu bayar"
+                    description="Centang rincian yang sudah kamu transfer."
+                >
+                    <PortalPaymentItemsPicker
                         groups={groups}
                         selection={selection}
                         onChange={change}
@@ -99,8 +103,24 @@ export default function CreatePayment({
                     />
                 </SectionCard>
 
-                <SectionCard title="Detail pembayaran">
-                    <div className="grid gap-6 sm:grid-cols-2">
+                <SectionCard title="2. Bukti pembayaran">
+                    <div className="grid gap-4">
+                        <FormField
+                            label="Foto atau PDF bukti transfer"
+                            required
+                            hint="Maksimal 4 MB"
+                            error={form.errors.proof}
+                        >
+                            {(control) => (
+                                <ProofUpload
+                                    value={form.data.proof}
+                                    onChange={(file) =>
+                                        form.setData('proof', file)
+                                    }
+                                    control={control}
+                                />
+                            )}
+                        </FormField>
                         <FormField
                             label="Tanggal bayar"
                             required
@@ -119,30 +139,9 @@ export default function CreatePayment({
                             )}
                         </FormField>
                         <FormField
-                            label="Bukti pembayaran"
-                            required
-                            hint="Foto atau PDF, maksimal 4 MB"
-                            error={form.errors.proof}
-                        >
-                            {(control) => (
-                                <Input
-                                    type="file"
-                                    accept="image/jpeg,image/png,application/pdf"
-                                    onChange={(e) =>
-                                        form.setData(
-                                            'proof',
-                                            e.target.files?.[0] ?? null,
-                                        )
-                                    }
-                                    {...control}
-                                />
-                            )}
-                        </FormField>
-                        <FormField
                             label="Cara bayar"
                             required
                             error={form.errors.method}
-                            className="sm:col-span-2"
                         >
                             {() => (
                                 <ChoiceCardGroup
@@ -158,11 +157,10 @@ export default function CreatePayment({
                         <FormField
                             label="Catatan (boleh kosong)"
                             error={form.errors.note}
-                            className="sm:col-span-2"
                         >
                             {(control) => (
                                 <Textarea
-                                    className="min-h-20"
+                                    className="min-h-24"
                                     placeholder="Contoh: transfer dari rekening ayah"
                                     value={form.data.note}
                                     onChange={(e) =>
@@ -175,20 +173,32 @@ export default function CreatePayment({
                     </div>
                 </SectionCard>
 
-                <div className="flex justify-end gap-3">
-                    <Button variant="outline" asChild>
-                        <Link href={backUrl}>Batal</Link>
-                    </Button>
-                    <Button
-                        type="submit"
-                        disabled={
-                            form.processing || form.data.items.length === 0
-                        }
-                    >
-                        {form.processing && <Spinner />}
-                        Kirim konfirmasi
-                    </Button>
-                </div>
+                <StickyActions>
+                    <p className="flex items-baseline justify-between gap-3">
+                        <span className="text-[15px] font-medium text-muted-foreground">
+                            Total dibayar
+                        </span>
+                        <span className="text-xl font-bold tracking-tight tabular-nums">
+                            {formatRupiah(total)}
+                        </span>
+                    </p>
+                    <div className="flex gap-3">
+                        <Button variant="outline" size="lg" asChild>
+                            <Link href={backUrl}>Batal</Link>
+                        </Button>
+                        <Button
+                            type="submit"
+                            size="lg"
+                            className="flex-1"
+                            disabled={
+                                form.processing || form.data.items.length === 0
+                            }
+                        >
+                            {form.processing && <Spinner />}
+                            Kirim konfirmasi
+                        </Button>
+                    </div>
+                </StickyActions>
             </form>
         </>
     );

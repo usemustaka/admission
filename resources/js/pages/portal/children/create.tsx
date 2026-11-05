@@ -7,6 +7,7 @@ import { FormField } from '@/components/form-field';
 import { NikInput } from '@/components/nik-input';
 import { OptionSelect } from '@/components/option-select';
 import { PageHeader } from '@/components/page-header';
+import { StickyActions } from '@/components/portal/sticky-actions';
 import { SectionCard } from '@/components/section-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,14 +48,14 @@ export default function RegisterChild({
         return (
             <>
                 <Head title="Daftarkan anak" />
-                <div className="mx-auto grid w-full max-w-2xl gap-6 px-4 py-8">
+                <div className="grid gap-4">
                     <PageHeader title="Daftarkan anak" />
                     <EmptyState
                         icon={Baby}
                         title="Pendaftaran sedang ditutup"
                         description="Belum ada gelombang yang menerima pendaftar. Coba lagi nanti atau hubungi sekolah ya."
                         action={
-                            <Button variant="outline" asChild>
+                            <Button variant="outline" size="lg" asChild>
                                 <Link href={portal()}>Kembali ke beranda</Link>
                             </Button>
                         }
@@ -75,27 +76,23 @@ export default function RegisterChild({
     return (
         <>
             <Head title="Daftarkan anak" />
-            <form
-                onSubmit={submit}
-                className="mx-auto grid w-full max-w-2xl gap-6 px-4 py-8"
-            >
+            <form onSubmit={submit} className="grid gap-4">
                 <PageHeader
-                    icon={Baby}
                     title="Daftarkan anak"
                     description="Isi data awalnya dulu. Data lengkap dan foto bisa diisi setelah ini, dan disimpan sebagai draf."
                 />
 
                 <SectionCard title="Tentang anak" icon={UserRound}>
-                    <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="grid gap-4">
                         <FormField
                             label="Nama lengkap anak"
                             required
                             hint="Sesuai akta kelahiran"
                             error={form.errors.name}
-                            className="sm:col-span-2"
                         >
                             {(control) => (
                                 <Input
+                                    autoComplete="off"
                                     value={form.data.name}
                                     onChange={(e) =>
                                         form.setData('name', e.target.value)
@@ -142,7 +139,6 @@ export default function RegisterChild({
                             label="Jenis kelamin"
                             required
                             error={form.errors.gender}
-                            className="sm:col-span-2"
                         >
                             {() => (
                                 <ChoiceCardGroup
@@ -159,7 +155,7 @@ export default function RegisterChild({
                 </SectionCard>
 
                 <SectionCard title="Mau mendaftar ke mana?">
-                    <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="grid gap-4">
                         <FormField
                             label="Lembaga tujuan"
                             required
@@ -198,7 +194,7 @@ export default function RegisterChild({
                 </SectionCard>
 
                 <SectionCard title="Kamu sebagai apa?" icon={Users}>
-                    <div className="grid gap-6">
+                    <div className="grid gap-4">
                         <FormField
                             label="Hubunganmu dengan anak"
                             required
@@ -236,15 +232,20 @@ export default function RegisterChild({
                     </div>
                 </SectionCard>
 
-                <div className="flex justify-end gap-3">
-                    <Button variant="outline" asChild>
+                <StickyActions className="flex gap-3">
+                    <Button variant="outline" size="lg" asChild>
                         <Link href={portal()}>Batal</Link>
                     </Button>
-                    <Button type="submit" disabled={form.processing}>
+                    <Button
+                        type="submit"
+                        size="lg"
+                        className="flex-1"
+                        disabled={form.processing}
+                    >
                         {form.processing && <Spinner />}
                         Daftarkan
                     </Button>
-                </div>
+                </StickyActions>
             </form>
         </>
     );

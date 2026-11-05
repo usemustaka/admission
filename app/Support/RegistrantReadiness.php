@@ -31,10 +31,6 @@ class RegistrantReadiness
             }
         }
 
-        if ($registrant->formal_photo_path === null) {
-            $missing[] = 'Pas foto anak';
-        }
-
         if (! $person->parentships()->exists()) {
             $missing[] = 'Data orang tua atau wali';
         }

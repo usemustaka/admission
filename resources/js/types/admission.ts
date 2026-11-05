@@ -1,3 +1,5 @@
+export type WaveState = 'upcoming' | 'ongoing' | 'ended';
+
 export type Wave = {
     id: number;
     name: string;
@@ -5,7 +7,18 @@ export type Wave = {
     ends_on: string | null;
     is_open: boolean;
     is_accepting: boolean;
+    state: WaveState;
+    state_label: string;
+    days_left: number | null;
+    days_until_start: number | null;
+    days_since_end: number | null;
+    /** Share of the window that has passed, 0-100; null without both dates. */
+    progress: number | null;
     rulesets_count: number;
+    registrants: {
+        total: number;
+        by_status: { status: string; label: string; count: number }[];
+    };
 };
 
 export type RulesetSummary = {
@@ -19,6 +32,7 @@ export type RulesetSummary = {
     wave: string | null;
     organization: string | null;
     gender: string | null;
+    registrants_count: number;
 };
 
 export type RulesetOptions = {

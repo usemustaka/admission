@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Enums\Ability;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
@@ -22,6 +23,7 @@ class ProfileController extends Controller
         return Inertia::render('settings/profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            'canDeleteAccount' => $request->user()->can(Ability::AdminAccess->value),
         ]);
     }
 
@@ -47,7 +49,7 @@ class ProfileController extends Controller
     }
 
     /**
-     * Delete the user's profile.
+     * Delete the user's account. Only staff may do this; parents ask the school.
      */
     public function destroy(ProfileDeleteRequest $request): RedirectResponse
     {

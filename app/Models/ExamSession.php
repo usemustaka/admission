@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A time slot on an exam day, such as "Sesi 1" from 10:00 to 12:00, with a seat quota.
@@ -31,5 +32,15 @@ class ExamSession extends Model
     public function day(): BelongsTo
     {
         return $this->belongsTo(ExamDay::class, 'exam_day_id');
+    }
+
+    /**
+     * Registrations that picked this session.
+     *
+     * @return HasMany<Registrant, $this>
+     */
+    public function registrants(): HasMany
+    {
+        return $this->hasMany(Registrant::class);
     }
 }

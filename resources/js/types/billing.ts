@@ -42,3 +42,58 @@ export type OpenGroup = {
 
 /** Item id to the amount typed for it, as text. Missing means not selected. */
 export type Selection = Record<number, string>;
+
+/** One row of the admin payments list. */
+export type PaymentRow = PaymentData & {
+    method_value: string;
+    note: string | null;
+    items: { name: string; amount: number }[];
+};
+
+export type PaymentListFilters = {
+    status: string;
+    cari: string;
+    cara: string;
+    dari: string;
+    sampai: string;
+    urut: 'tanggal' | 'nominal';
+    arah: 'asc' | 'desc';
+};
+
+export type PaymentSummary = {
+    pending_count: number;
+    pending_amount: number;
+    verified_this_month: number;
+    month: { dari: string; sampai: string };
+    rejected_count: number;
+    outstanding: number;
+};
+
+export type PaymentAllocationRow = {
+    bill_item_id: number;
+    item: string;
+    bill: string;
+    child: string;
+    item_amount: number;
+    amount: number;
+    /** What the item can still take; only known while the payment is pending. */
+    room: number | null;
+};
+
+export type PaymentDetail = PaymentData & {
+    method_value: string;
+    note: string | null;
+    proof_is_image: boolean;
+    created_by: string | null;
+    verified_by: string | null;
+    verified_at: string | null;
+};
+
+/** What the quick view of the list loads for one payment. */
+export type PaymentQuickViewData = {
+    payment: PaymentDetail;
+    allocations: PaymentAllocationRow[];
+    can_verify_as_submitted: boolean;
+    can: { verify: boolean };
+    queue: { next_id: number | null; left: number };
+};

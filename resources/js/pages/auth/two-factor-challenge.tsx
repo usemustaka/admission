@@ -9,6 +9,7 @@ import {
     InputOTPGroup,
     InputOTPSlot,
 } from '@/components/ui/input-otp';
+import { Spinner } from '@/components/ui/spinner';
 import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
 import { store } from '@/routes/two-factor/login';
 
@@ -23,18 +24,17 @@ export default function TwoFactorChallenge() {
     }>(() => {
         if (showRecoveryInput) {
             return {
-                title: 'Recovery code',
+                title: 'Kode pemulihan',
                 description:
-                    'Please confirm access to your account by entering one of your emergency recovery codes.',
-                toggleText: 'login using an authentication code',
+                    'Masukkan salah satu kode pemulihan darurat untuk membuktikan ini akunmu.',
+                toggleText: 'masuk dengan kode dari aplikasi',
             };
         }
 
         return {
-            title: 'Authentication code',
-            description:
-                'Enter the authentication code provided by your authenticator application.',
-            toggleText: 'login using a recovery code',
+            title: 'Kode verifikasi',
+            description: 'Masukkan kode dari aplikasi authenticator di HP-mu.',
+            toggleText: 'masuk dengan kode pemulihan',
         };
     }, [showRecoveryInput]);
 
@@ -51,7 +51,7 @@ export default function TwoFactorChallenge() {
 
     return (
         <>
-            <Head title="Two-factor authentication" />
+            <Head title="Verifikasi dua langkah" />
 
             <div className="space-y-6">
                 <Form
@@ -67,7 +67,7 @@ export default function TwoFactorChallenge() {
                                     <Input
                                         name="recovery_code"
                                         type="text"
-                                        placeholder="Enter recovery code"
+                                        placeholder="Masukkan kode pemulihan"
                                         autoFocus={showRecoveryInput}
                                         required
                                     />
@@ -94,6 +94,7 @@ export default function TwoFactorChallenge() {
                                                         <InputOTPSlot
                                                             key={index}
                                                             index={index}
+                                                            className="size-12 text-lg"
                                                         />
                                                     ),
                                                 )}
@@ -106,17 +107,19 @@ export default function TwoFactorChallenge() {
 
                             <Button
                                 type="submit"
+                                size="lg"
                                 className="w-full"
                                 disabled={processing}
                             >
-                                Continue
+                                {processing && <Spinner />}
+                                Lanjut
                             </Button>
 
-                            <div className="text-center text-sm text-muted-foreground">
-                                <span>or you can </span>
+                            <div className="text-center text-[15px] text-muted-foreground">
+                                <span>atau </span>
                                 <button
                                     type="button"
-                                    className="cursor-pointer text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                                    className="cursor-pointer py-2 font-semibold text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
                                     onClick={() =>
                                         toggleRecoveryMode(clearErrors)
                                     }

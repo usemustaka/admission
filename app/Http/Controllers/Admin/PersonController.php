@@ -11,6 +11,7 @@ use App\Enums\NoteUrgency;
 use App\Enums\NoteVisibility;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
+use App\Enums\PersonKind;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StorePersonRequest;
 use App\Http\Requests\Admin\UpdatePersonRequest;
@@ -19,6 +20,8 @@ use App\Models\NoteShare;
 use App\Models\Parentship;
 use App\Models\Person;
 use App\Models\User;
+use App\Support\PersonOverview;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,15 +38,65 @@ class PersonController extends Controller
         Gate::authorize('viewAny', Person::class);
 
         $term = $request->string('cari')->toString();
+        $kind = $request->enum('jenis', PersonKind::class);
+        $quality = in_array($request->string('data')->toString(), ['nik', 'kontak'], true) ? $request->string('data')->toString() : '';
+        $sort = $request->string('urut')->toString() === 'terbaru' ? 'terbaru' : 'nama';
+        $direction = match ($request->string('arah')->toString()) {
+            'asc' => 'asc',
+            'desc' => 'desc',
+            default => $sort === 'nama' ? 'asc' : 'desc',
+        };
+
+        $matching = fn (?PersonKind $kind, string $quality): Builder => Person::query()
+            ->search($term)
+            ->when($kind, fn (Builder $query, PersonKind $kind) => $query->ofKind($kind))
+            ->when($quality === 'nik', fn (Builder $query) => $query->withoutCompleteNik())
+            ->when($quality === 'kontak', fn (Builder $query) => $query->withoutContact());
+
+        $people = $matching($kind, $quality)
+            ->withExists([
+                'registrants as is_applicant',
+                'students as is_student',
+                'childrenParentships as is_family',
+                'employees as is_employee',
+                'parentships as has_parent_contact' => fn (Builder $parentships) => $parentships->whereHas('relatedPerson', fn (Builder $parent) => $parent->whereNotNull('phone')->where('phone', '<>', '')),
+            ]);
+
+        if ($sort === 'nama') {
+            $people->orderBy('name', $direction)->orderBy('id');
+        } else {
+            $people->orderBy('created_at', $direction)->orderBy('id', $direction);
+        }
 
         return Inertia::render('admin/people/index', [
-            'people' => Person::query()
-                ->search($term)
-                ->orderBy('name')
+            'people' => $people
                 ->paginate(15)
                 ->withQueryString()
-                ->through(fn (Person $person): array => $this->summary($person)),
-            'filters' => ['cari' => $term],
+                ->through(fn (Person $person): array => [
+                    ...$this->summary($person),
+                    'roles' => PersonOverview::roles((bool) $person->is_student, (bool) $person->is_applicant, (bool) $person->is_family, (bool) $person->is_employee),
+                    'nik_complete' => $person->nik !== null && strlen($person->nik) === 16,
+                    'has_contact' => filled($person->phone) || (bool) $person->has_parent_contact,
+                    'created_at' => $person->created_at?->toDateString(),
+                ]),
+            'filters' => [
+                'cari' => $term,
+                'jenis' => $kind?->value ?? '',
+                'data' => $quality,
+                'urut' => $sort,
+                'arah' => $direction,
+            ],
+            'options' => ['kinds' => $this->options(PersonKind::cases())],
+            'counts' => [
+                'kinds' => [
+                    'all' => $matching(null, $quality)->count(),
+                    ...collect(PersonKind::cases())->mapWithKeys(fn (PersonKind $case): array => [$case->value => $matching($case, $quality)->count()])->all(),
+                ],
+                'data' => [
+                    'nik' => $matching($kind, 'nik')->count(),
+                    'kontak' => $matching($kind, 'kontak')->count(),
+                ],
+            ],
         ]);
     }
 
@@ -108,6 +161,8 @@ class PersonController extends Controller
                 'relation' => $parentship->relation->label(),
             ])->values(),
             'notes' => $notes->map(fn (Note $note): array => $this->note($note, $user))->values(),
+            'roles' => PersonOverview::rolesOf($person),
+            'registrations' => PersonOverview::registrations($person),
             'can' => [
                 'update' => $user->can('update', $person),
                 'manageFamily' => $user->can(Ability::FamilyManage->value),

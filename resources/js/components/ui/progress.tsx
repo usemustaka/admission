@@ -17,7 +17,7 @@ function Progress({
       aria-valuemax={max}
       aria-valuenow={value}
       data-slot="progress"
-      className={cn("bg-sage-100 dark:bg-muted h-2 w-full overflow-hidden rounded-full", className)}
+      className={cn("bg-neutral-100 dark:bg-muted h-2 w-full overflow-hidden rounded-full", className)}
       {...props}
     >
       <div

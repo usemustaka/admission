@@ -17,7 +17,7 @@ class PlaceRegistrant
 
     /**
      * Place an announced registration into an academic year: the child becomes a student of the organization,
-     * with the formal photo from the registration as the student's own copy.
+     * with the child's profile photo copied as the student's own photo, when there is one.
      *
      * @throws ValidationException
      */
@@ -33,10 +33,6 @@ class PlaceRegistrant
             throw ValidationException::withMessages(['status' => 'Hanya pendaftaran yang sudah diumumkan yang bisa ditempatkan.']);
         }
 
-        if ($registrant->formal_photo_path === null) {
-            throw ValidationException::withMessages(['status' => 'Pas foto anak belum ada. Unggah dulu lewat tombol ubah data.']);
-        }
-
         if ($nis === '') {
             throw ValidationException::withMessages(['nis' => 'Isi nomor induk siswa.']);
         }
@@ -50,11 +46,12 @@ class PlaceRegistrant
         }
 
         return DB::transaction(function () use ($registrant, $by, $year, $nis): Student {
-            $photoPath = 'students/photos/'.basename($registrant->formal_photo_path);
             $disk = Storage::disk('public');
+            $profilePath = $registrant->person->photo_path;
+            $photoPath = $profilePath === null ? null : 'students/photos/'.basename($profilePath);
 
-            if (! $disk->exists($photoPath) && $disk->exists($registrant->formal_photo_path)) {
-                $disk->copy($registrant->formal_photo_path, $photoPath);
+            if ($photoPath !== null && ! $disk->exists($photoPath) && $disk->exists($profilePath)) {
+                $disk->copy($profilePath, $photoPath);
             }
 
             $student = Student::query()->create([
@@ -63,7 +60,7 @@ class PlaceRegistrant
                 'year_id' => $year->id,
                 'registrant_id' => $registrant->id,
                 'nis' => $nis,
-                'photo_path' => $disk->exists($photoPath) ? $photoPath : null,
+                'photo_path' => $photoPath !== null && $disk->exists($photoPath) ? $photoPath : null,
             ]);
 
             $this->changeStatus->handle($registrant, RegistrantStatus::Placed, $by);

@@ -4,8 +4,10 @@ namespace App\Models;
 
 use App\Contracts\HasNoteSubject;
 use App\Enums\Gender;
+use App\Enums\PersonKind;
 use Database\Factories\PersonFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -106,6 +108,22 @@ class Person extends Model implements HasNoteSubject
     }
 
     /**
+     * @return HasMany<Student, $this>
+     */
+    public function students(): HasMany
+    {
+        return $this->hasMany(Student::class);
+    }
+
+    /**
+     * @return HasMany<Employee, $this>
+     */
+    public function employees(): HasMany
+    {
+        return $this->hasMany(Employee::class);
+    }
+
+    /**
      * @return MorphMany<Note, $this>
      */
     public function notes(): MorphMany
@@ -130,6 +148,44 @@ class Person extends Model implements HasNoteSubject
             $query->where('name', 'like', "%{$term}%")
                 ->orWhere('nik', 'like', "{$term}%");
         });
+    }
+
+    /**
+     * People who play the given part: applicants and students, parents and guardians, or staff.
+     *
+     * @param  Builder<Person>  $query
+     */
+    #[Scope]
+    protected function ofKind(Builder $query, PersonKind $kind): void
+    {
+        match ($kind) {
+            PersonKind::Student => $query->where(fn (Builder $q) => $q->has('registrants')->orHas('students')),
+            PersonKind::Family => $query->has('childrenParentships'),
+            PersonKind::Employee => $query->has('employees'),
+        };
+    }
+
+    /**
+     * People whose NIK is missing or not the full 16 digits.
+     *
+     * @param  Builder<Person>  $query
+     */
+    #[Scope]
+    protected function withoutCompleteNik(Builder $query): void
+    {
+        $query->where(fn (Builder $q) => $q->whereNull('nik')->orWhereRaw('LENGTH(nik) <> 16'));
+    }
+
+    /**
+     * People nobody can reach: no phone number of their own and no parent or guardian with one.
+     *
+     * @param  Builder<Person>  $query
+     */
+    #[Scope]
+    protected function withoutContact(Builder $query): void
+    {
+        $query->where(fn (Builder $q) => $q->whereNull('phone')->orWhere('phone', ''))
+            ->whereDoesntHave('parentships.relatedPerson', fn (Builder $parent) => $parent->whereNotNull('phone')->where('phone', '<>', ''));
     }
 
     public function notePersonId(): ?int

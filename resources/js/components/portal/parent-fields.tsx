@@ -27,7 +27,7 @@ export function ParentFields({
     const error = (field: string) => errors[`parents.${relationKey}.${field}`];
 
     return (
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-6 @2xl:grid-cols-2">
             <FormField label="Nama lengkap" error={error('name')}>
                 {(control) => (
                     <Input
@@ -111,7 +111,7 @@ export function ParentFields({
             <FormField
                 label="Alamat"
                 error={error('address')}
-                className="sm:col-span-2"
+                className="@2xl:col-span-2"
             >
                 {(control) => (
                     <Textarea
@@ -126,7 +126,7 @@ export function ParentFields({
                 <FormField
                     label="Kandung atau tiri?"
                     error={error('kind')}
-                    className="sm:col-span-2"
+                    className="@2xl:col-span-2"
                 >
                     {() => (
                         <ChoiceCardGroup
@@ -138,7 +138,7 @@ export function ParentFields({
                     )}
                 </FormField>
             )}
-            <label className="flex items-center gap-3 text-sm font-medium sm:col-span-2">
+            <label className="flex min-h-11 items-center gap-3 text-[15px] font-medium @2xl:col-span-2">
                 <Switch
                     checked={value.is_alive}
                     onCheckedChange={(is_alive) => onChange({ is_alive })}

@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import type { ColumnDef, SortingState } from '@tanstack/react-table';
 import {
     ArrowDown,
     ArrowUp,
@@ -6,8 +7,9 @@ import {
     ListChecks,
     Plus,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RulesetConditions } from '@/components/admission/ruleset-conditions';
+import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { FormField } from '@/components/form-field';
 import { OptionSelect } from '@/components/option-select';
@@ -25,6 +27,8 @@ type MatchTest = {
     match: { id: number; name: string } | null;
     filters: { gelombang: string; lembaga: string; gender: string };
 };
+
+const noSorting: SortingState = [];
 
 export default function RulesetsIndex({
     rulesets,
@@ -47,10 +51,113 @@ export default function RulesetsIndex({
         );
     }
 
+    const columns = useMemo<ColumnDef<RulesetSummary>[]>(
+        () => [
+            {
+                id: 'order',
+                header: 'Urutan',
+                enableSorting: false,
+                meta: { className: 'w-20' },
+                cell: ({ row }) => (
+                    <span
+                        className="flex size-9 items-center justify-center rounded-full bg-lime-100 text-sm font-bold text-lime-800 tabular-nums dark:bg-lime-400/15 dark:text-lime-300"
+                        aria-label={`Urutan ${row.index + 1}`}
+                    >
+                        {row.index + 1}
+                    </span>
+                ),
+            },
+            {
+                id: 'name',
+                header: 'Aturan',
+                enableSorting: false,
+                cell: ({ row }) => (
+                    <span className="grid justify-items-start gap-1.5">
+                        <span className="flex flex-wrap items-center gap-2">
+                            <Link
+                                href={show(row.original.id)}
+                                className="font-semibold hover:underline"
+                            >
+                                {row.original.name}
+                            </Link>
+                            {!row.original.is_active && (
+                                <Badge variant="muted">Tidak aktif</Badge>
+                            )}
+                        </span>
+                        <span className="md:hidden">
+                            <RulesetConditions ruleset={row.original} />
+                        </span>
+                    </span>
+                ),
+            },
+            {
+                id: 'conditions',
+                header: 'Berlaku untuk',
+                enableSorting: false,
+                meta: { className: 'hidden md:table-cell' },
+                cell: ({ row }) => <RulesetConditions ruleset={row.original} />,
+            },
+            {
+                id: 'registrants',
+                header: 'Pendaftar',
+                enableSorting: false,
+                meta: { className: 'whitespace-nowrap tabular-nums' },
+                cell: ({ row }) => row.original.registrants_count,
+            },
+            ...(can.manage
+                ? [
+                      {
+                          id: 'move',
+                          header: () => <span className="sr-only">Urutan</span>,
+                          enableSorting: false,
+                          meta: { className: 'text-right whitespace-nowrap' },
+                          cell: ({ row }) => (
+                              <span className="inline-flex gap-1">
+                                  <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      aria-label={`Naikkan urutan ${row.original.name}`}
+                                      disabled={row.index === 0}
+                                      onClick={() =>
+                                          router.patch(
+                                              move(row.original.id).url,
+                                              { direction: 'up' },
+                                              { preserveScroll: true },
+                                          )
+                                      }
+                                  >
+                                      <ArrowUp />
+                                  </Button>
+                                  <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      aria-label={`Turunkan urutan ${row.original.name}`}
+                                      disabled={
+                                          row.index === rulesets.length - 1
+                                      }
+                                      onClick={() =>
+                                          router.patch(
+                                              move(row.original.id).url,
+                                              { direction: 'down' },
+                                              { preserveScroll: true },
+                                          )
+                                      }
+                                  >
+                                      <ArrowDown />
+                                  </Button>
+                              </span>
+                          ),
+                      } satisfies ColumnDef<RulesetSummary>,
+                  ]
+                : []),
+        ],
+        [can.manage, rulesets.length],
+    );
+
     return (
         <>
             <Head title="Aturan pendaftaran" />
-            <div className="mx-auto grid w-full max-w-4xl gap-6 p-4 md:p-6">
+            <div className="grid gap-6">
                 <PageHeader
                     icon={ListChecks}
                     title="Aturan pendaftaran"
@@ -67,89 +174,39 @@ export default function RulesetsIndex({
                     }
                 />
 
-                {rulesets.length === 0 ? (
-                    <EmptyState
-                        icon={ListChecks}
-                        title="Belum ada aturan"
-                        description="Tanpa aturan, pendaftar belum bisa dikelompokkan. Buat satu aturan umum dulu, lalu tambahkan yang lebih khusus."
-                    />
-                ) : (
-                    <ol className="grid gap-3">
-                        {rulesets.map((ruleset, position) => (
-                            <li
-                                key={ruleset.id}
-                                className="flex flex-wrap items-center gap-4 rounded-2xl border bg-card p-4 shadow-xs"
-                            >
-                                <span
-                                    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sage-100 text-sm font-bold text-sage-700 tabular-nums dark:bg-secondary dark:text-primary"
-                                    aria-label={`Urutan ${position + 1}`}
-                                >
-                                    {position + 1}
-                                </span>
-                                <div className="grid min-w-0 flex-1 gap-2">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <Link
-                                            href={show(ruleset.id)}
-                                            className="text-lg font-semibold tracking-tight hover:text-primary"
-                                        >
-                                            {ruleset.name}
+                <div className="grid gap-6 @5xl:grid-cols-[minmax(0,1fr)_24rem] @5xl:items-start">
+                    {rulesets.length === 0 ? (
+                        <EmptyState
+                            icon={ListChecks}
+                            title="Belum ada aturan"
+                            description="Tanpa aturan, pendaftar belum bisa dikelompokkan. Buat satu aturan umum dulu, lalu tambahkan yang lebih khusus."
+                            action={
+                                can.manage && (
+                                    <Button asChild>
+                                        <Link href={create()}>
+                                            <Plus />
+                                            Aturan baru
                                         </Link>
-                                        {!ruleset.is_active && (
-                                            <Badge variant="muted">
-                                                Tidak aktif
-                                            </Badge>
-                                        )}
-                                    </div>
-                                    <RulesetConditions ruleset={ruleset} />
-                                </div>
-                                {can.manage && (
-                                    <div className="flex gap-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Naikkan urutan"
-                                            disabled={position === 0}
-                                            onClick={() =>
-                                                router.patch(
-                                                    move(ruleset.id).url,
-                                                    { direction: 'up' },
-                                                    { preserveScroll: true },
-                                                )
-                                            }
-                                        >
-                                            <ArrowUp />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Turunkan urutan"
-                                            disabled={
-                                                position === rulesets.length - 1
-                                            }
-                                            onClick={() =>
-                                                router.patch(
-                                                    move(ruleset.id).url,
-                                                    { direction: 'down' },
-                                                    { preserveScroll: true },
-                                                )
-                                            }
-                                        >
-                                            <ArrowDown />
-                                        </Button>
-                                    </div>
-                                )}
-                            </li>
-                        ))}
-                    </ol>
-                )}
+                                    </Button>
+                                )
+                            }
+                        />
+                    ) : (
+                        <DataTable
+                            columns={columns}
+                            data={rulesets}
+                            getRowId={(row) => String(row.id)}
+                            sorting={noSorting}
+                            onSortingChange={() => {}}
+                        />
+                    )}
 
-                <SectionCard
-                    title="Coba pencocokan"
-                    description="Pilih data pendaftar contoh untuk melihat aturan mana yang akan dipakai."
-                    icon={FlaskConical}
-                >
-                    <div className="grid gap-5">
-                        <div className="grid gap-4 sm:grid-cols-3">
+                    <SectionCard
+                        title="Coba pencocokan"
+                        description="Pilih data pendaftar contoh untuk melihat aturan mana yang akan dipakai."
+                        icon={FlaskConical}
+                    >
+                        <div className="grid gap-5">
                             <FormField label="Gelombang">
                                 {(control) => (
                                     <OptionSelect
@@ -198,44 +255,43 @@ export default function RulesetsIndex({
                                     />
                                 )}
                             </FormField>
-                        </div>
-                        <div>
                             <Button variant="outline" onClick={runTest}>
                                 Cek aturan yang dipakai
                             </Button>
-                        </div>
 
-                        {test.ran &&
-                            (test.match ? (
-                                <Alert variant="success">
-                                    <ListChecks />
-                                    <AlertTitle>
-                                        Aturan yang dipakai: {test.match.name}
-                                    </AlertTitle>
-                                    <AlertDescription>
-                                        <Link
-                                            href={show(test.match.id)}
-                                            className="underline"
-                                        >
-                                            Lihat isinya
-                                        </Link>
-                                    </AlertDescription>
-                                </Alert>
-                            ) : (
-                                <Alert variant="warning">
-                                    <ListChecks />
-                                    <AlertTitle>
-                                        Belum ada aturan yang cocok
-                                    </AlertTitle>
-                                    <AlertDescription>
-                                        Pendaftar dengan data ini belum punya
-                                        aturan. Buat aturan umum atau yang
-                                        sesuai.
-                                    </AlertDescription>
-                                </Alert>
-                            ))}
-                    </div>
-                </SectionCard>
+                            {test.ran &&
+                                (test.match ? (
+                                    <Alert variant="success">
+                                        <ListChecks />
+                                        <AlertTitle>
+                                            Aturan yang dipakai:{' '}
+                                            {test.match.name}
+                                        </AlertTitle>
+                                        <AlertDescription>
+                                            <Link
+                                                href={show(test.match.id)}
+                                                className="underline"
+                                            >
+                                                Lihat isinya
+                                            </Link>
+                                        </AlertDescription>
+                                    </Alert>
+                                ) : (
+                                    <Alert variant="warning">
+                                        <ListChecks />
+                                        <AlertTitle>
+                                            Belum ada aturan yang cocok
+                                        </AlertTitle>
+                                        <AlertDescription>
+                                            Pendaftar dengan data ini belum
+                                            punya aturan. Buat aturan umum atau
+                                            yang sesuai.
+                                        </AlertDescription>
+                                    </Alert>
+                                ))}
+                        </div>
+                    </SectionCard>
+                </div>
             </div>
         </>
     );

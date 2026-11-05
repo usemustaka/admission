@@ -15,6 +15,68 @@ export type PersonDetail = PersonSummary & {
     is_alive: boolean;
 };
 
+/** One row of the people list. */
+export type PersonRow = PersonSummary & {
+    roles: string[];
+    nik_complete: boolean;
+    has_contact: boolean;
+    created_at: string | null;
+};
+
+export type PersonRegistration = {
+    id: number;
+    child_name: string;
+    is_self: boolean;
+    organization: string;
+    wave: string;
+    status: string;
+    status_label: string;
+};
+
+export type PersonQuickViewData = {
+    person: {
+        id: number;
+        name: string;
+        nik: string | null;
+        gender: string | null;
+        birth: string | null;
+        phone: string | null;
+        email: string | null;
+        is_alive: boolean;
+        photo_url: string | null;
+    };
+    roles: string[];
+    primary_contact: {
+        id: number;
+        name: string;
+        relation: string;
+        phone: string | null;
+    } | null;
+    parents: {
+        id: number;
+        name: string;
+        photo_url: string | null;
+        phone: string | null;
+        relation: string;
+        is_primary_contact: boolean;
+    }[];
+    dependents: {
+        id: number;
+        name: string;
+        photo_url: string | null;
+        relation: string;
+    }[];
+    notes: {
+        id: number;
+        body: string;
+        urgency: NoteItem['urgency'];
+        urgency_label: string;
+        author: string;
+        created_at: string | null;
+    }[];
+    registrations: PersonRegistration[];
+};
+
 export type Option<T extends string | number = string> = {
     value: T;
     label: string;
@@ -55,6 +117,9 @@ export type Paginated<T> = {
     links: { url: string | null; label: string; active: boolean }[];
     current_page: number;
     last_page: number;
+    from: number | null;
+    to: number | null;
+    per_page: number;
     total: number;
     prev_page_url: string | null;
     next_page_url: string | null;

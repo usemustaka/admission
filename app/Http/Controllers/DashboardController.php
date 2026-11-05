@@ -3,9 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Ability;
-use App\Models\Organization;
-use App\Models\Person;
-use App\Models\User;
+use App\Support\AdminDashboard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,12 +20,6 @@ class DashboardController extends Controller
             return to_route('portal');
         }
 
-        return Inertia::render('admin/dashboard', [
-            'stats' => [
-                'people' => Person::count(),
-                'organizations' => Organization::active()->count(),
-                'users' => User::count(),
-            ],
-        ]);
+        return Inertia::render('admin/dashboard', AdminDashboard::for($request->user()));
     }
 }

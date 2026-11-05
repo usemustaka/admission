@@ -50,9 +50,9 @@ export function PaymentItemsPicker({
             {groups.map((group) => (
                 <fieldset
                     key={group.bill_id}
-                    className="grid gap-3 rounded-2xl border bg-sage-50/50 p-4 dark:bg-card"
+                    className="grid gap-3 border-t border-line pt-4 first:border-t-0 first:pt-0"
                 >
-                    <legend className="px-1 text-sm font-semibold">
+                    <legend className="mb-3 text-sm font-semibold">
                         {group.registrant.child_name} · Tagihan{' '}
                         {group.type_label}
                     </legend>
@@ -68,7 +68,7 @@ export function PaymentItemsPicker({
                         return (
                             <div
                                 key={item.id}
-                                className="grid gap-2 sm:grid-cols-[1fr_11rem] sm:items-start"
+                                className="grid gap-2 @2xl:grid-cols-[1fr_11rem] @2xl:items-start"
                             >
                                 <label className="flex items-start gap-3 text-sm">
                                     <Checkbox
@@ -98,6 +98,7 @@ export function PaymentItemsPicker({
                                     <Input
                                         type="number"
                                         inputMode="numeric"
+                                        className="tabular-nums"
                                         min={1}
                                         max={item.outstanding}
                                         aria-label={`Nominal ${item.name}`}
@@ -130,8 +131,11 @@ export function PaymentItemsPicker({
                 </p>
             )}
 
-            <p className="text-right text-lg font-bold tracking-tight tabular-nums">
-                Total dibayar {formatRupiah(total)}
+            <p className="flex items-baseline justify-between gap-3 border-t border-line pt-4 text-lg font-semibold tracking-tight tabular-nums">
+                <span className="text-sm font-medium text-muted-foreground">
+                    Total dibayar
+                </span>
+                {formatRupiah(total)}
             </p>
         </div>
     );

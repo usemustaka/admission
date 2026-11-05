@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/status-badge';
 import { formatDate, formatRupiah } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -10,6 +9,9 @@ const kindLabel: Record<BillKind, string> = {
     settlement: 'Pelunasan',
 };
 
+/**
+ * One bill as a row: what it is for, its status, and what is left to pay.
+ */
 export function BillItem({
     title,
     kind,
@@ -35,33 +37,35 @@ export function BillItem({
     return (
         <div
             className={cn(
-                'flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between',
+                'grid gap-3 rounded-2xl border border-line bg-card p-4',
                 className,
             )}
         >
-            <div className="grid gap-1.5">
-                <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary">{kindLabel[kind]}</Badge>
-                    <StatusBadge status={status} />
+            <div className="flex items-start justify-between gap-3">
+                <div className="grid min-w-0 gap-1">
+                    <p className="text-sm font-semibold text-muted-foreground">
+                        {kindLabel[kind]}
+                    </p>
+                    <p className="text-base font-semibold">{title}</p>
+                    <p className="text-[15px] text-muted-foreground">
+                        {[
+                            studentName,
+                            dueDate && `Bayar sebelum ${formatDate(dueDate)}`,
+                        ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                    </p>
                 </div>
-                <p className="font-semibold">{title}</p>
-                <p className="text-sm text-muted-foreground">
-                    {[
-                        studentName,
-                        dueDate && `Bayar sebelum ${formatDate(dueDate)}`,
-                    ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                </p>
+                <StatusBadge status={status} />
             </div>
 
-            <div className="grid gap-0.5 sm:text-right">
-                <p className="text-xl font-bold tracking-tight tabular-nums">
+            <div className="grid gap-0.5">
+                <p className="text-2xl font-bold tracking-tight tabular-nums">
                     {formatRupiah(status === 'paid' ? amount : remaining)}
                 </p>
                 {status === 'partial' && (
-                    <p className="text-xs text-muted-foreground tabular-nums">
-                        dari {formatRupiah(amount)}
+                    <p className="text-sm text-muted-foreground tabular-nums">
+                        sisa dari {formatRupiah(amount)}
                     </p>
                 )}
             </div>

@@ -1,14 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    ArrowLeftRight,
-    BadgeCheck,
     CalendarDays,
-    ClipboardCheck,
+    ChevronLeft,
+    ChevronRight,
     GraduationCap,
     History,
+    ListOrdered,
     Megaphone,
-    MessageSquareWarning,
-    PencilLine,
+    MessageCircle,
+    Phone,
     ShieldAlert,
     Users,
     Wallet,
@@ -19,6 +19,8 @@ import { CopyableText } from '@/components/copyable-text';
 import { DescriptionList } from '@/components/description-list';
 import { PageHeader } from '@/components/page-header';
 import { PersonAvatar } from '@/components/person-avatar';
+import { NextStepCard } from '@/components/registrants/next-step-card';
+import { RelativeTime } from '@/components/registrants/relative-time';
 import { ExamScoresForm } from '@/components/registrants/exam-scores-form';
 import { StatusTimeline } from '@/components/registrants/status-timeline';
 import {
@@ -33,8 +35,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
-import { formatDate, formatRupiah } from '@/lib/format';
+import { formatDate, formatRupiah, whatsappUrl } from '@/lib/format';
 import { dashboard } from '@/routes';
 import { edit as editPerson } from '@/routes/admin/people';
 import {
@@ -43,6 +44,7 @@ import {
     examSession,
     index,
     resolveIdentity,
+    show,
 } from '@/routes/admin/registrants';
 import { edit } from '@/routes/admin/registrants/data';
 import type { BillData } from '@/types/billing';
@@ -50,6 +52,8 @@ import type { Option } from '@/types/people';
 import type {
     ChosenSession,
     ExamResultData,
+    RegistrantAbilities,
+    RegistrantQueue,
     TimelineEntry,
 } from '@/types/registrant';
 
@@ -65,7 +69,6 @@ type Detail = {
     wave: string;
     registered_at: string | null;
     submitted_at: string | null;
-    formal_photo_url: string | null;
     child: {
         id: number;
         name: string;
@@ -77,15 +80,6 @@ type Detail = {
         family_card_number: string | null;
         photo_url: string | null;
     };
-};
-
-type Can = {
-    manage: boolean;
-    accept: boolean;
-    revise: boolean;
-    announce: boolean;
-    place: boolean;
-    bypass: boolean;
 };
 
 export default function RegistrantShow({
@@ -105,6 +99,7 @@ export default function RegistrantShow({
     statuses,
     settlement,
     can,
+    queue,
 }: {
     registrant: Detail;
     family: {
@@ -132,23 +127,31 @@ export default function RegistrantShow({
     years: { value: number; label: string; is_active: boolean }[];
     statuses: Option[];
     settlement: { has_bill: boolean; paid: boolean };
-    can: Can;
+    can: RegistrantAbilities;
+    queue: RegistrantQueue;
 }) {
     const [revising, setRevising] = useState(false);
     const [bypassing, setBypassing] = useState(false);
     const [placing, setPlacing] = useState(false);
-    const [accepting, setAccepting] = useState(false);
+    const [accepting, setAccepting] = useState<'stay' | 'next' | null>(null);
     const [resolving, setResolving] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [session, setSession] = useState(selectedSession ?? undefined);
 
-    function post(url: string, onFinish?: () => void) {
+    function post(
+        url: string,
+        {
+            onFinish,
+            afterSuccess,
+        }: { onFinish?: () => void; afterSuccess?: () => void } = {},
+    ) {
         setProcessing(true);
         router.post(
             url,
             {},
             {
                 preserveScroll: true,
+                onSuccess: afterSuccess,
                 onFinish: () => {
                     setProcessing(false);
                     onFinish?.();
@@ -157,90 +160,49 @@ export default function RegistrantShow({
         );
     }
 
+    /**
+     * After a step succeeds the registrant leaves its queue, so "and next" moves on to who was next in line.
+     */
+    function openNext() {
+        if (queue.next_id !== null) {
+            router.visit(show(queue.next_id));
+        }
+    }
+
+    const primaryContact = family.find((member) => member.is_primary_contact);
+
     return (
         <>
             <Head title={registrant.child.name} />
-            <div className="mx-auto grid w-full max-w-5xl gap-6 p-4 md:p-6">
+            <div className="grid gap-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                     <PersonAvatar
                         name={registrant.child.name}
                         src={registrant.child.photo_url}
                         size="xl"
                     />
-                    <div className="flex-1">
-                        <PageHeader
-                            title={registrant.child.name}
-                            description={`${registrant.organization} · ${registrant.wave}`}
-                            meta={
-                                <div className="flex flex-wrap items-center gap-2 pt-1">
-                                    <StatusBadge status={registrant.status} />
-                                    {registrant.needs_identity_review && (
-                                        <Badge
-                                            variant="danger"
-                                            className="gap-1"
-                                        >
-                                            <ShieldAlert />
-                                            Cek NIK
-                                        </Badge>
-                                    )}
-                                </div>
-                            }
-                        />
-                    </div>
+                    <PageHeader
+                        title={registrant.child.name}
+                        description={`${registrant.organization} · ${registrant.wave}`}
+                        meta={
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                                <StatusBadge status={registrant.status} />
+                                {registrant.needs_identity_review && (
+                                    <Badge variant="danger">
+                                        <ShieldAlert />
+                                        Cek NIK
+                                    </Badge>
+                                )}
+                                <span className="text-sm text-muted-foreground">
+                                    Mendaftar{' '}
+                                    <RelativeTime
+                                        value={registrant.registered_at}
+                                    />
+                                </span>
+                            </div>
+                        }
+                    />
                 </div>
-
-                {can.manage && (
-                    <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href={edit(registrant.id)}>
-                                <PencilLine />
-                                Ubah data
-                            </Link>
-                        </Button>
-                        {can.accept && (
-                            <Button onClick={() => setAccepting(true)}>
-                                <BadgeCheck />
-                                Terima data
-                            </Button>
-                        )}
-                        {can.revise && (
-                            <Button
-                                variant="outline"
-                                onClick={() => setRevising(true)}
-                            >
-                                <MessageSquareWarning />
-                                Minta revisi
-                            </Button>
-                        )}
-                        {can.announce && (
-                            <Button
-                                disabled={processing}
-                                onClick={() =>
-                                    post(announce(registrant.id).url)
-                                }
-                            >
-                                {processing && <Spinner />}
-                                <Megaphone />
-                                Tandai sudah diumumkan
-                            </Button>
-                        )}
-                        {can.place && (
-                            <Button onClick={() => setPlacing(true)}>
-                                <GraduationCap />
-                                Tempatkan siswa
-                            </Button>
-                        )}
-                        {can.bypass && (
-                            <Button
-                                variant="ghost"
-                                onClick={() => setBypassing(true)}
-                            >
-                                <ArrowLeftRight />
-                                Lompati status
-                            </Button>
-                        )}
-                    </div>
-                )}
 
                 {registrant.needs_identity_review && (
                     <Alert variant="warning">
@@ -257,49 +219,48 @@ export default function RegistrantShow({
                                 &quot;. Selama belum dicocokkan, orang tua belum
                                 tertaut dan tidak melihat data anak ini.
                             </p>
-                            {can.manage && (
-                                <div className="flex flex-wrap gap-2 pt-2">
-                                    <Button
-                                        size="sm"
-                                        onClick={() => setResolving(true)}
-                                    >
-                                        NIK sudah cocok
-                                    </Button>
-                                    <Button size="sm" variant="outline" asChild>
-                                        <Link
-                                            href={editPerson(
-                                                registrant.child.id,
-                                            )}
-                                        >
-                                            Koreksi nama atau NIK
-                                        </Link>
-                                    </Button>
-                                </div>
-                            )}
                         </AlertDescription>
                     </Alert>
                 )}
 
-                {readiness.length > 0 && !registrant.needs_identity_review && (
-                    <Alert variant="info">
-                        <ClipboardCheck />
-                        <AlertTitle>
-                            Data belum siap dikirim orang tua
-                        </AlertTitle>
-                        <AlertDescription>
-                            Yang masih kurang: {readiness.join(', ')}.
-                        </AlertDescription>
-                    </Alert>
-                )}
+                <div className="grid gap-6 @5xl:grid-cols-[minmax(0,1fr)_24rem] @5xl:items-start">
+                    <div className="@5xl:col-start-2 @5xl:row-start-1">
+                        <NextStepCard
+                            status={registrant.status}
+                            needsIdentityReview={
+                                registrant.needs_identity_review
+                            }
+                            can={can}
+                            readiness={readiness}
+                            hasNext={queue.next_id !== null}
+                            processing={processing}
+                            editHref={edit(registrant.id).url}
+                            correctIdentityHref={
+                                editPerson(registrant.child.id).url
+                            }
+                            whatsappUrl={announcement?.whatsapp_url ?? null}
+                            onAccept={(goNext) =>
+                                setAccepting(goNext ? 'next' : 'stay')
+                            }
+                            onAnnounce={(goNext) =>
+                                post(announce(registrant.id).url, {
+                                    afterSuccess: goNext ? openNext : undefined,
+                                })
+                            }
+                            onRevise={() => setRevising(true)}
+                            onPlace={() => setPlacing(true)}
+                            onBypass={() => setBypassing(true)}
+                            onResolveIdentity={() => setResolving(true)}
+                        />
+                    </div>
 
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-                    <div className="grid content-start gap-6">
+                    <div className="grid content-start gap-6 @5xl:col-start-1 @5xl:row-span-2 @5xl:row-start-1">
                         <SectionCard title="Data anak">
                             <div className="grid gap-6 sm:grid-cols-[auto_1fr]">
-                                {registrant.formal_photo_url && (
+                                {registrant.child.photo_url && (
                                     <img
-                                        src={registrant.formal_photo_url}
-                                        alt={`Pas foto ${registrant.child.name}`}
+                                        src={registrant.child.photo_url}
+                                        alt={`Foto ${registrant.child.name}`}
                                         className="h-40 w-30 rounded-xl border object-cover"
                                     />
                                 )}
@@ -465,20 +426,58 @@ export default function RegistrantShow({
                                 />
                             </SectionCard>
                         )}
+
+                        <SectionCard title="Riwayat status" icon={History}>
+                            <StatusTimeline entries={timeline} />
+                        </SectionCard>
                     </div>
 
-                    <div className="grid content-start gap-6">
+                    <div className="grid content-start gap-6 @5xl:col-start-2 @5xl:row-start-2">
+                        <SectionCard
+                            title="Berikutnya dalam antrean"
+                            icon={ListOrdered}
+                            description={`${queue.position} dari ${queue.total} yang berstatus ${registrant.status_label.toLowerCase()}, urut dari yang paling lama mendaftar.`}
+                            contentClassName="grid grid-cols-2 gap-2"
+                        >
+                            {queue.previous_id !== null ? (
+                                <Button variant="outline" asChild>
+                                    <Link href={show(queue.previous_id)}>
+                                        <ChevronLeft />
+                                        Sebelumnya
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button variant="outline" disabled>
+                                    <ChevronLeft />
+                                    Sebelumnya
+                                </Button>
+                            )}
+                            {queue.next_id !== null ? (
+                                <Button variant="dark" asChild>
+                                    <Link href={show(queue.next_id)}>
+                                        Berikutnya
+                                        <ChevronRight />
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button variant="dark" disabled>
+                                    Berikutnya
+                                    <ChevronRight />
+                                </Button>
+                            )}
+                        </SectionCard>
+
                         <SectionCard title="Keluarga" icon={Users}>
                             {family.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">
                                     Belum ada orang tua atau wali yang tertaut.
                                 </p>
                             ) : (
-                                <ul className="grid gap-3">
+                                <ul className="grid gap-4">
                                     {family.map((member) => (
                                         <li
                                             key={member.id}
-                                            className="grid gap-0.5 text-sm"
+                                            className="grid gap-1.5 text-sm"
                                         >
                                             <span className="flex flex-wrap items-center gap-2">
                                                 <Link
@@ -498,14 +497,58 @@ export default function RegistrantShow({
                                                     </Badge>
                                                 )}
                                             </span>
-                                            <span className="text-muted-foreground">
-                                                {member.phone ??
-                                                    'Belum ada nomor HP'}
-                                            </span>
+                                            {member.phone ? (
+                                                <span className="flex items-center gap-1.5">
+                                                    <span className="text-muted-foreground tabular-nums">
+                                                        {member.phone}
+                                                    </span>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="size-10 md:size-8"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={`tel:${member.phone}`}
+                                                            aria-label={`Telepon ${member.name}`}
+                                                        >
+                                                            <Phone />
+                                                        </a>
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="size-10 md:size-8"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={whatsappUrl(
+                                                                member.phone,
+                                                            )}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            aria-label={`WhatsApp ${member.name}`}
+                                                        >
+                                                            <MessageCircle />
+                                                        </a>
+                                                    </Button>
+                                                </span>
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    Belum ada nomor HP
+                                                </span>
+                                            )}
                                         </li>
                                     ))}
                                 </ul>
                             )}
+                            {primaryContact === undefined &&
+                                family.length > 0 && (
+                                    <p className="pt-3 text-xs text-muted-foreground">
+                                        Belum ada kontak utama, jadi pengumuman
+                                        tidak bisa dikirim otomatis.
+                                    </p>
+                                )}
                         </SectionCard>
 
                         <SectionCard title="Tagihan" icon={Wallet}>
@@ -536,17 +579,7 @@ export default function RegistrantShow({
                                 </ul>
                             )}
                         </SectionCard>
-
-                        <SectionCard title="Riwayat status" icon={History}>
-                            <StatusTimeline entries={timeline} />
-                        </SectionCard>
                     </div>
-                </div>
-
-                <div>
-                    <Button variant="ghost" asChild>
-                        <Link href={index()}>Kembali ke daftar pendaftar</Link>
-                    </Button>
                 </div>
             </div>
 
@@ -568,18 +601,26 @@ export default function RegistrantShow({
                 years={years}
             />
             <ConfirmDialog
-                open={accepting}
-                onOpenChange={setAccepting}
+                open={accepting !== null}
+                onOpenChange={(open) => !open && setAccepting(null)}
                 title="Terima data ini?"
                 description={
                     settlement.has_bill
                         ? 'Data dinyatakan valid dan tagihan pelunasan langsung terbit untuk orang tua.'
                         : 'Data dinyatakan valid dan pendaftaran lanjut ke tahap pengumuman.'
                 }
-                confirmLabel="Ya, terima"
+                confirmLabel={
+                    accepting === 'next'
+                        ? 'Ya, terima dan lanjut'
+                        : 'Ya, terima'
+                }
                 processing={processing}
                 onConfirm={() =>
-                    post(accept(registrant.id).url, () => setAccepting(false))
+                    post(accept(registrant.id).url, {
+                        afterSuccess:
+                            accepting === 'next' ? openNext : undefined,
+                        onFinish: () => setAccepting(null),
+                    })
                 }
             />
             <ConfirmDialog
@@ -590,9 +631,9 @@ export default function RegistrantShow({
                 confirmLabel="Ya, sudah cocok"
                 processing={processing}
                 onConfirm={() =>
-                    post(resolveIdentity(registrant.id).url, () =>
-                        setResolving(false),
-                    )
+                    post(resolveIdentity(registrant.id).url, {
+                        onFinish: () => setResolving(false),
+                    })
                 }
             />
         </>

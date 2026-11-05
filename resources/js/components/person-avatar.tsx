@@ -2,7 +2,7 @@ import { cva } from 'class-variance-authority';
 import type { VariantProps } from 'class-variance-authority';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/hooks/use-initials';
-import { cn } from '@/lib/utils';
+import { cn, nameColor } from '@/lib/utils';
 
 const avatarSize = cva('', {
     variants: {
@@ -31,7 +31,12 @@ export function PersonAvatar({
     return (
         <Avatar className={cn(avatarSize({ size }), className)}>
             {src && <AvatarImage src={src} alt={name} />}
-            <AvatarFallback>{getInitials(name)}</AvatarFallback>
+            <AvatarFallback
+                className="font-bold text-white"
+                style={{ background: nameColor(name) }}
+            >
+                {getInitials(name)}
+            </AvatarFallback>
         </Avatar>
     );
 }

@@ -12,7 +12,6 @@ use App\Models\Registrant;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class SaveRegistrantData
@@ -39,21 +38,11 @@ class SaveRegistrantData
         array $parents,
         ?UploadedFile $photo = null,
         bool $removePhoto = false,
-        ?UploadedFile $formalPhoto = null,
-        bool $removeFormalPhoto = false,
     ): void {
-        DB::transaction(function () use ($registrant, $child, $parents, $photo, $removePhoto, $formalPhoto, $removeFormalPhoto): void {
+        DB::transaction(function () use ($registrant, $child, $parents, $photo, $removePhoto): void {
             $person = $registrant->person;
 
             $this->savePerson->handle($person, $child, $photo, $removePhoto);
-
-            if ($formalPhoto !== null || $removeFormalPhoto) {
-                if ($registrant->formal_photo_path !== null) {
-                    Storage::disk('public')->delete($registrant->formal_photo_path);
-                }
-
-                $registrant->update(['formal_photo_path' => $formalPhoto?->store('registrants/formal-photos', 'public') ?: null]);
-            }
 
             foreach (ParentRelation::cases() as $relation) {
                 $fields = $parents[$relation->value] ?? [];

@@ -35,8 +35,6 @@ class SaveRegistrantDataRequest extends FormRequest
             'child.address' => ['nullable', 'string', 'max:1000'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
             'remove_photo' => ['boolean'],
-            'formal_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
-            'remove_formal_photo' => ['boolean'],
         ];
 
         foreach (ParentRelation::cases() as $relation) {
@@ -74,7 +72,6 @@ class SaveRegistrantDataRequest extends FormRequest
             'child.child_order' => 'Anak ke-',
             'child.siblings_count' => 'Jumlah saudara',
             'child.address' => 'Alamat',
-            'formal_photo' => 'Pas foto',
         ];
 
         foreach ($labels as $relation => $label) {

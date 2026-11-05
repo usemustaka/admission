@@ -46,7 +46,7 @@ export default function RulesetForm({
             <Head title={title} />
             <form
                 onSubmit={submit}
-                className="mx-auto grid w-full max-w-2xl gap-6 p-4 md:p-6"
+                className="mx-auto grid w-full max-w-3xl gap-6"
             >
                 <PageHeader
                     title={title}
@@ -126,7 +126,7 @@ export default function RulesetForm({
                             </FormField>
                         </div>
 
-                        <label className="flex items-center gap-3 text-sm font-medium">
+                        <label className="flex min-h-10 items-center gap-3 text-sm font-medium">
                             <Switch
                                 checked={form.data.is_active}
                                 onCheckedChange={(checked) =>
@@ -138,7 +138,7 @@ export default function RulesetForm({
                     </div>
                 </SectionCard>
 
-                <div className="flex justify-end gap-3">
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                     <Button variant="outline" asChild>
                         <Link href={ruleset ? show(ruleset.id) : index()}>
                             Batal
@@ -146,7 +146,7 @@ export default function RulesetForm({
                     </Button>
                     <Button type="submit" disabled={form.processing}>
                         {form.processing && <Spinner />}
-                        Simpan
+                        {ruleset ? 'Simpan perubahan' : 'Buat aturan'}
                     </Button>
                 </div>
             </form>

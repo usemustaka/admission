@@ -23,11 +23,10 @@ beforeEach(function () {
     $this->save = fn (array $data = []) => $this->post(route('portal.children.data.update', $this->registrant), $data);
 });
 
-test('the child details and photos are saved as a draft', function () {
+test('the child details and photo are saved as a draft', function () {
     ($this->save)([
         'child' => ['gender' => 'female', 'birth_place' => 'Bogor', 'birth_date' => '2014-05-06', 'nisn' => '0123456789', 'family_card_number' => '3201123456789012', 'religion' => 'Islam', 'blood_type' => 'O', 'child_order' => 2, 'siblings_count' => 3, 'address' => 'Jl. Melati No. 12'],
         'photo' => UploadedFile::fake()->image('profil.jpg'),
-        'formal_photo' => UploadedFile::fake()->image('pasfoto.png'),
     ])->assertRedirect(route('portal.children.data.edit', $this->registrant));
 
     $child = $this->child->refresh();
@@ -40,8 +39,6 @@ test('the child details and photos are saved as a draft', function () {
         ->and($this->registrant->refresh()->status)->toBe(RegistrantStatus::Draft);
 
     Storage::disk('public')->assertExists($child->photo_path);
-    Storage::disk('public')->assertExists($this->registrant->formal_photo_path);
-    expect($child->photo_path)->not->toBe($this->registrant->formal_photo_path);
 });
 
 test('the saved draft comes back when the parent returns', function () {
@@ -65,16 +62,19 @@ test('the name and NIK of the child cannot be changed from the portal', function
     expect($this->child->refresh()->name)->toBe($name)->and($this->child->nik)->toBe($nik);
 });
 
-test('photos can be replaced and removed, and old files are cleaned up', function () {
-    ($this->save)(['photo' => UploadedFile::fake()->image('a.jpg'), 'formal_photo' => UploadedFile::fake()->image('b.jpg')]);
+test('the photo can be replaced and removed, and old files are cleaned up', function () {
+    ($this->save)(['photo' => UploadedFile::fake()->image('a.jpg')]);
     $oldPhoto = $this->child->refresh()->photo_path;
-    $oldFormal = $this->registrant->refresh()->formal_photo_path;
 
-    ($this->save)(['photo' => UploadedFile::fake()->image('c.jpg'), 'remove_formal_photo' => true]);
+    ($this->save)(['photo' => UploadedFile::fake()->image('c.jpg')]);
 
     Storage::disk('public')->assertMissing($oldPhoto);
-    Storage::disk('public')->assertMissing($oldFormal);
-    expect($this->registrant->refresh()->formal_photo_path)->toBeNull();
+    $newPhoto = $this->child->refresh()->photo_path;
+
+    ($this->save)(['remove_photo' => true]);
+
+    Storage::disk('public')->assertMissing($newPhoto);
+    expect($this->child->refresh()->photo_path)->toBeNull();
 });
 
 test('invalid details are refused', function () {

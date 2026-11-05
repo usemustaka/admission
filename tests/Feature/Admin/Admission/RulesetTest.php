@@ -2,6 +2,7 @@
 
 use App\Enums\DefaultRole;
 use App\Models\Organization;
+use App\Models\Registrant;
 use App\Models\Ruleset;
 use App\Models\User;
 use App\Models\Wave;
@@ -113,4 +114,19 @@ test('the matching test on the list shows which ruleset would apply', function (
 
     $this->get(route('admin.rulesets.index', ['uji' => 1, 'lembaga' => 999]))
         ->assertInertia(fn ($page) => $page->where('test.ran', true)->where('test.match', null));
+});
+
+test('the ruleset list and detail show how many registrations were made under each ruleset', function () {
+    $this->actingAs(userWithRole(DefaultRole::Operator));
+    $busy = Ruleset::factory()->create(['name' => 'Ramai', 'priority' => 1]);
+    $quiet = Ruleset::factory()->create(['name' => 'Sepi', 'priority' => 2]);
+    Registrant::factory()->count(2)->create(['ruleset_id' => $busy->id]);
+
+    $this->get(route('admin.rulesets.index'))
+        ->assertInertia(fn ($page) => $page->where('rulesets.0.registrants_count', 2)->where('rulesets.1.registrants_count', 0));
+
+    $this->get(route('admin.rulesets.show', $busy))
+        ->assertInertia(fn ($page) => $page->where('ruleset.registrants_count', 2));
+
+    expect($quiet->registrants()->count())->toBe(0);
 });

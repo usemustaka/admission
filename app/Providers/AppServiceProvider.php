@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Enums\DefaultRole;
 use App\Models\Person;
 use App\Models\User;
+use App\Support\Brand;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Date;
@@ -32,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureMorphMap();
         $this->configureSuperAdmin();
+        Brand::applyToConfig();
     }
 
     /**

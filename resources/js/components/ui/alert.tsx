@@ -4,19 +4,19 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
-  "relative w-full rounded-xl border px-4 py-3.5 text-sm grid has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] grid-cols-[0_1fr] has-[>svg]:gap-x-3 gap-y-0.5 items-start [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current",
+  "relative w-full rounded-2xl border px-4 py-3.5 text-sm grid has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] grid-cols-[0_1fr] has-[>svg]:gap-x-3 gap-y-0.5 items-start [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current",
   {
     variants: {
       variant: {
         default: "bg-background text-foreground",
         destructive:
-          "border-destructive/25 bg-destructive/5 text-destructive-foreground [&>svg]:text-current *:data-[slot=alert-description]:text-destructive-foreground/80",
+          "border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300 [&>svg]:text-current *:data-[slot=alert-description]:text-red-800/80 dark:*:data-[slot=alert-description]:text-red-300/80",
         success:
-          "border-success/25 bg-success/5 text-success [&>svg]:text-current *:data-[slot=alert-description]:text-foreground/70",
+          "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200 [&>svg]:text-current *:data-[slot=alert-description]:text-foreground/70",
         warning:
-          "border-warning/30 bg-warning/5 text-warning [&>svg]:text-current *:data-[slot=alert-description]:text-foreground/70",
+          "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200 [&>svg]:text-current *:data-[slot=alert-description]:text-foreground/70",
         info:
-          "border-info/25 bg-info/5 text-info [&>svg]:text-current *:data-[slot=alert-description]:text-foreground/70",
+          "border-line bg-neutral-50 text-ink dark:bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-foreground/70",
       },
     },
     defaultVariants: {

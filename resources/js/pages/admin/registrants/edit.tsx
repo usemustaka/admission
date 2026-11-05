@@ -15,20 +15,18 @@ import type { ParentRelationKey } from '@/types/portal';
 export default function RegistrantEdit({
     registrant,
     child,
-    formalPhotoUrl,
     parents,
     options,
 }: {
     registrant: { id: number; child_name: string; person_id: number };
     child: ChildData;
-    formalPhotoUrl: string | null;
     parents: Record<ParentRelationKey, ParentFromServer>;
     options: DataFormOptions;
 }) {
     return (
         <>
             <Head title={`Ubah data ${registrant.child_name}`} />
-            <div className="mx-auto grid w-full max-w-3xl gap-6 p-4 md:p-6">
+            <div className="mx-auto grid w-full max-w-3xl gap-6">
                 <PageHeader
                     title={`Ubah data ${registrant.child_name}`}
                     description="Panitia bisa melengkapi data yang sama dengan yang diisi orang tua, kapan pun statusnya."
@@ -39,7 +37,6 @@ export default function RegistrantEdit({
                     identityNote="Nama dan NIK anak diubah lewat halaman data orang."
                     identityHref={editPerson(registrant.person_id).url}
                     child={child}
-                    formalPhotoUrl={formalPhotoUrl}
                     parents={parents}
                     options={options}
                     canEdit

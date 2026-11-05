@@ -13,25 +13,21 @@ export function EmptyState({
     action?: ReactNode;
 }) {
     return (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-sage-300 bg-sage-50/60 px-6 py-14 text-center dark:border-border dark:bg-card/40">
+        <div className="grid place-items-center rounded-2xl border border-dashed border-neutral-300 px-6 py-14 text-center dark:border-border">
             {Icon && (
-                <span className="flex size-14 items-center justify-center rounded-full bg-sage-100 text-sage-700 dark:bg-secondary dark:text-primary">
-                    <Icon className="size-6" />
+                <span className="mb-4 grid size-16 place-items-center rounded-full bg-lime-100 text-lime-700 dark:bg-lime-400/15 dark:text-lime-300">
+                    <Icon className="size-7" />
                 </span>
             )}
 
-            <div className="space-y-1.5">
-                <h3 className="text-lg font-semibold tracking-tight">
-                    {title}
-                </h3>
-                {description && (
-                    <p className="mx-auto max-w-sm text-sm text-pretty text-muted-foreground">
-                        {description}
-                    </p>
-                )}
-            </div>
+            <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
+            {description && (
+                <p className="mt-1 max-w-sm text-[15px] text-pretty text-muted-foreground">
+                    {description}
+                </p>
+            )}
 
-            {action && <div className="mt-1">{action}</div>}
+            {action && <div className="mt-5">{action}</div>}
         </div>
     );
 }

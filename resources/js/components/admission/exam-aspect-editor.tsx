@@ -125,6 +125,7 @@ export function ExamAspectEditor({
                         type="button"
                         variant="outline"
                         size="sm"
+                        className="max-md:h-10"
                         onClick={() =>
                             setAspects([
                                 ...form.data.aspects,

@@ -67,7 +67,7 @@ export function ExamScheduleEditor({
             {form.data.days.map((day, dayIndex) => (
                 <div
                     key={day.id ?? `new-${dayIndex}`}
-                    className="grid gap-4 rounded-2xl border bg-sage-50/50 p-4 dark:bg-card"
+                    className="grid gap-4 rounded-2xl border bg-neutral-50 p-4 dark:bg-card"
                 >
                     <div className="flex flex-wrap items-start gap-3">
                         <div className="grid gap-1">
@@ -93,7 +93,7 @@ export function ExamScheduleEditor({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                className="ml-auto"
+                                className="ml-auto max-md:h-10"
                                 onClick={() =>
                                     setDays(
                                         form.data.days.filter(
@@ -218,7 +218,7 @@ export function ExamScheduleEditor({
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="w-fit"
+                                className="w-fit max-md:h-10"
                                 onClick={() =>
                                     updateDay(dayIndex, {
                                         sessions: [
@@ -247,6 +247,7 @@ export function ExamScheduleEditor({
                         type="button"
                         variant="outline"
                         size="sm"
+                        className="max-md:h-10"
                         onClick={() =>
                             setDays([
                                 ...form.data.days,

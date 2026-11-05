@@ -1,33 +1,75 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Plus, SearchX, Users } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import type { ColumnDef, SortingState } from '@tanstack/react-table';
+import { ChevronRight, Plus, SearchX, ShieldAlert, Users } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
+import { FilterPills } from '@/components/filter-pills';
+import { OptionSelect } from '@/components/option-select';
 import { PageHeader } from '@/components/page-header';
+import { Pager } from '@/components/pager';
 import { PersonAvatar } from '@/components/person-avatar';
+import { PersonQuickView } from '@/components/people/person-quick-view';
 import { SearchInput } from '@/components/search-input';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { formatDate } from '@/lib/format';
 import { dashboard } from '@/routes';
 import { create, index, show } from '@/routes/admin/people';
-import type { Paginated, PersonSummary } from '@/types/people';
+import type { Option, Paginated, PersonRow } from '@/types/people';
+
+type Filters = {
+    cari: string;
+    jenis: string;
+    data: '' | 'nik' | 'kontak';
+    urut: 'nama' | 'terbaru';
+    arah: 'asc' | 'desc';
+};
+
+type Counts = {
+    kinds: Record<string, number>;
+    data: { nik: number; kontak: number };
+};
+
+const ALL = 'semua';
 
 export default function PeopleIndex({
     people,
     filters,
+    options,
+    counts,
 }: {
-    people: Paginated<PersonSummary>;
-    filters: { cari: string };
+    people: Paginated<PersonRow>;
+    filters: Filters;
+    options: { kinds: Option[] };
+    counts: Counts;
 }) {
     const [term, setTerm] = useState(filters.cari);
+    const [loading, setLoading] = useState(false);
+    const [openId, setOpenId] = useState<number | null>(null);
     const isFirstRender = useRef(true);
+
+    function visit(changes: Partial<Filters>) {
+        const next = { ...filters, cari: term, ...changes };
+        const defaultDirection = next.urut === 'nama' ? 'asc' : 'desc';
+
+        router.get(
+            index().url,
+            {
+                cari: next.cari || undefined,
+                jenis: next.jenis || undefined,
+                data: next.data || undefined,
+                urut: next.urut === 'nama' ? undefined : next.urut,
+                arah: next.arah === defaultDirection ? undefined : next.arah,
+            },
+            {
+                preserveState: true,
+                replace: true,
+                onStart: () => setLoading(true),
+                onFinish: () => setLoading(false),
+            },
+        );
+    }
 
     useEffect(() => {
         if (isFirstRender.current) {
@@ -36,25 +78,148 @@ export default function PeopleIndex({
             return;
         }
 
-        const timeout = setTimeout(() => {
-            router.get(
-                index().url,
-                { cari: term || undefined },
-                { preserveState: true, replace: true },
-            );
-        }, 300);
+        const timeout = setTimeout(() => visit({ cari: term }), 300);
 
         return () => clearTimeout(timeout);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [term]);
+
+    const sorting: SortingState = [
+        {
+            id: filters.urut === 'nama' ? 'name' : 'created_at',
+            desc: filters.arah === 'desc',
+        },
+    ];
+
+    const columns = useMemo<ColumnDef<PersonRow>[]>(
+        () => [
+            {
+                id: 'name',
+                header: 'Nama',
+                accessorFn: (row) => row.name,
+                enableSorting: true,
+                cell: ({ row }) => {
+                    const person = row.original;
+
+                    return (
+                        <button
+                            type="button"
+                            onClick={() => setOpenId(person.id)}
+                            aria-label={`Lihat ringkasan ${person.name}`}
+                            className="flex min-h-10 items-center gap-3 rounded-lg text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        >
+                            <PersonAvatar
+                                name={person.name}
+                                src={person.photo_url}
+                                size="sm"
+                            />
+                            <span className="grid">
+                                <span className="font-semibold">
+                                    {person.name}
+                                </span>
+                                <span className="flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
+                                    {person.nik ?? 'Belum ada NIK'}
+                                    {!person.nik_complete && (
+                                        <ShieldAlert
+                                            className="size-3.5 text-amber-600"
+                                            aria-label="NIK belum lengkap"
+                                        />
+                                    )}
+                                </span>
+                            </span>
+                        </button>
+                    );
+                },
+            },
+            {
+                id: 'roles',
+                header: 'Peran',
+                enableSorting: false,
+                meta: { className: 'hidden md:table-cell' },
+                cell: ({ row }) =>
+                    row.original.roles.length === 0 ? (
+                        <span className="text-muted-foreground">-</span>
+                    ) : (
+                        <span className="flex flex-wrap gap-1.5">
+                            {row.original.roles.map((role) => (
+                                <Badge key={role} variant="muted">
+                                    {role}
+                                </Badge>
+                            ))}
+                        </span>
+                    ),
+            },
+            {
+                id: 'contact',
+                header: 'Kontak',
+                enableSorting: false,
+                meta: { className: 'hidden sm:table-cell' },
+                cell: ({ row }) => {
+                    const person = row.original;
+
+                    if (person.phone) {
+                        return (
+                            <span className="tabular-nums">{person.phone}</span>
+                        );
+                    }
+
+                    return person.has_contact ? (
+                        <span className="text-sm text-muted-foreground">
+                            Lewat orang tua
+                        </span>
+                    ) : (
+                        <Badge variant="warning">Belum ada kontak</Badge>
+                    );
+                },
+            },
+            {
+                id: 'created_at',
+                header: 'Ditambahkan',
+                accessorFn: (row) => row.created_at,
+                enableSorting: true,
+                meta: { className: 'hidden whitespace-nowrap lg:table-cell' },
+                cell: ({ row }) =>
+                    row.original.created_at
+                        ? formatDate(row.original.created_at)
+                        : '-',
+            },
+            {
+                id: 'actions',
+                header: () => <span className="sr-only">Aksi</span>,
+                enableSorting: false,
+                meta: { className: 'w-12 text-right' },
+                cell: ({ row }) => (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        asChild
+                        className="max-md:size-10"
+                    >
+                        <Link
+                            href={show(row.original.id)}
+                            aria-label={`Buka detail ${row.original.name}`}
+                        >
+                            <ChevronRight />
+                        </Link>
+                    </Button>
+                ),
+            },
+        ],
+        [],
+    );
+
+    const hasFilter =
+        filters.cari !== '' || filters.jenis !== '' || filters.data !== '';
+    const openRow = people.data.find((person) => person.id === openId);
 
     return (
         <>
             <Head title="Orang" />
-            <div className="mx-auto grid w-full max-w-5xl gap-6 p-4 md:p-6">
+            <div className="grid gap-6">
                 <PageHeader
                     icon={Users}
                     title="Orang"
-                    description="Semua orang yang tercatat: siswa, orang tua, wali, dan pegawai."
+                    description="Semua orang yang tercatat: calon siswa, siswa, orang tua, wali, dan pegawai."
                     actions={
                         <Button asChild>
                             <Link href={create()}>
@@ -65,121 +230,137 @@ export default function PeopleIndex({
                     }
                 />
 
-                <SearchInput
-                    value={term}
-                    onValueChange={setTerm}
-                    placeholder="Cari nama atau NIK…"
-                    className="max-w-md"
-                />
+                <div className="grid gap-3">
+                    <FilterPills
+                        label="Peran"
+                        value={filters.jenis || ALL}
+                        onChange={(value) =>
+                            visit({ jenis: value === ALL ? '' : value })
+                        }
+                        items={[
+                            {
+                                value: ALL,
+                                label: 'Semua',
+                                count: counts.kinds.all,
+                            },
+                            ...options.kinds.map((kind) => ({
+                                value: String(kind.value),
+                                label: kind.label,
+                                count: counts.kinds[kind.value],
+                            })),
+                        ]}
+                    />
+
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,28rem)_16rem]">
+                        <SearchInput
+                            value={term}
+                            onValueChange={setTerm}
+                            placeholder="Cari nama atau NIK…"
+                            aria-label="Cari nama atau NIK"
+                        />
+                        <OptionSelect
+                            aria-label="Kelengkapan data"
+                            value={filters.data}
+                            onValueChange={(value) =>
+                                visit({ data: value as Filters['data'] })
+                            }
+                            anyLabel="Semua data"
+                            options={[
+                                {
+                                    value: 'nik',
+                                    label: `NIK belum lengkap (${counts.data.nik})`,
+                                },
+                                {
+                                    value: 'kontak',
+                                    label: `Belum ada kontak (${counts.data.kontak})`,
+                                },
+                            ]}
+                        />
+                    </div>
+                </div>
 
                 {people.data.length === 0 ? (
                     <EmptyState
-                        icon={filters.cari ? SearchX : Users}
+                        icon={hasFilter ? SearchX : Users}
                         title={
-                            filters.cari
+                            hasFilter
                                 ? 'Tidak ada yang cocok'
                                 : 'Belum ada orang tercatat'
                         }
                         description={
-                            filters.cari
-                                ? 'Coba kata kunci lain, atau tambahkan sebagai orang baru.'
+                            hasFilter
+                                ? 'Coba kata kunci lain atau longgarkan filternya.'
                                 : 'Mulai dengan menambahkan orang pertama.'
                         }
                         action={
-                            <Button asChild>
-                                <Link href={create()}>Tambah orang</Link>
-                            </Button>
+                            hasFilter ? (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setTerm('');
+                                        router.get(
+                                            index().url,
+                                            {},
+                                            { replace: true },
+                                        );
+                                    }}
+                                >
+                                    Hapus semua filter
+                                </Button>
+                            ) : (
+                                <Button asChild>
+                                    <Link href={create()}>Tambah orang</Link>
+                                </Button>
+                            )
                         }
                     />
                 ) : (
-                    <Card className="gap-0 overflow-hidden py-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Nama</TableHead>
-                                    <TableHead>NIK</TableHead>
-                                    <TableHead className="hidden sm:table-cell">
-                                        Jenis kelamin
-                                    </TableHead>
-                                    <TableHead className="hidden md:table-cell">
-                                        Nomor HP
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {people.data.map((person) => (
-                                    <TableRow key={person.id}>
-                                        <TableCell>
-                                            <Link
-                                                href={show(person.id)}
-                                                className="flex items-center gap-3 font-semibold hover:text-primary"
-                                            >
-                                                <PersonAvatar
-                                                    name={person.name}
-                                                    src={person.photo_url}
-                                                    size="sm"
-                                                />
-                                                {person.name}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell className="tabular-nums">
-                                            {person.nik ?? '—'}
-                                        </TableCell>
-                                        <TableCell className="hidden sm:table-cell">
-                                            {person.gender ?? '—'}
-                                        </TableCell>
-                                        <TableCell className="hidden md:table-cell">
-                                            {person.phone ?? '—'}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </Card>
+                    <div
+                        aria-busy={loading}
+                        className={
+                            loading
+                                ? 'opacity-60 transition-opacity'
+                                : undefined
+                        }
+                    >
+                        <DataTable
+                            columns={columns}
+                            data={people.data}
+                            getRowId={(row) => String(row.id)}
+                            sorting={sorting}
+                            activeRowId={
+                                openId === null ? null : String(openId)
+                            }
+                            onRowOpen={(row) => setOpenId(row.id)}
+                            onSortingChange={(updater) => {
+                                const next =
+                                    typeof updater === 'function'
+                                        ? updater(sorting)
+                                        : updater;
+                                const first = next[0];
+
+                                if (first) {
+                                    visit({
+                                        urut:
+                                            first.id === 'name'
+                                                ? 'nama'
+                                                : 'terbaru',
+                                        arah: first.desc ? 'desc' : 'asc',
+                                    });
+                                }
+                            }}
+                        />
+                    </div>
                 )}
 
-                {people.last_page > 1 && (
-                    <nav
-                        className="flex items-center justify-between gap-4"
-                        aria-label="Halaman"
-                    >
-                        <p className="text-sm text-muted-foreground">
-                            Halaman {people.current_page} dari{' '}
-                            {people.last_page} · {people.total} orang
-                        </p>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                asChild={Boolean(people.prev_page_url)}
-                                disabled={!people.prev_page_url}
-                            >
-                                {people.prev_page_url ? (
-                                    <Link href={people.prev_page_url}>
-                                        Sebelumnya
-                                    </Link>
-                                ) : (
-                                    'Sebelumnya'
-                                )}
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                asChild={Boolean(people.next_page_url)}
-                                disabled={!people.next_page_url}
-                            >
-                                {people.next_page_url ? (
-                                    <Link href={people.next_page_url}>
-                                        Berikutnya
-                                    </Link>
-                                ) : (
-                                    'Berikutnya'
-                                )}
-                            </Button>
-                        </div>
-                    </nav>
-                )}
+                <Pager page={people} noun="orang" />
             </div>
+
+            <PersonQuickView
+                personId={openId}
+                fallbackName={openRow?.name}
+                onClose={() => setOpenId(null)}
+            />
         </>
     );
 }

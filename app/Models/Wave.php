@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\WaveState;
+use Carbon\CarbonInterface;
 use Database\Factories\WaveFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -44,6 +46,28 @@ class Wave extends Model
     public function rulesets(): HasMany
     {
         return $this->hasMany(Ruleset::class);
+    }
+
+    /**
+     * @return HasMany<Registrant, $this>
+     */
+    public function registrants(): HasMany
+    {
+        return $this->hasMany(Registrant::class);
+    }
+
+    /**
+     * Where the wave is on the calendar, regardless of whether it is switched on.
+     */
+    public function state(?CarbonInterface $today = null): WaveState
+    {
+        $today ??= today();
+
+        return match (true) {
+            $this->starts_on !== null && $this->starts_on->gt($today) => WaveState::Upcoming,
+            $this->ends_on !== null && $this->ends_on->lt($today) => WaveState::Ended,
+            default => WaveState::Ongoing,
+        };
     }
 
     /**

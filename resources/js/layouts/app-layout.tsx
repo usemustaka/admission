@@ -1,11 +1,11 @@
 import { usePage } from '@inertiajs/react';
-import AppHeaderLayout from '@/layouts/app/app-header-layout';
-import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import AppAdminLayout from '@/layouts/app/app-admin-layout';
+import AppPortalLayout from '@/layouts/app/app-portal-layout';
 import type { BreadcrumbItem } from '@/types';
 
 /**
- * Staff get the sidebar layout of the admin panel, everyone else the header
- * layout of the parent portal.
+ * Staff get the full-width admin panel, everyone else the phone-shaped
+ * parent portal.
  */
 export default function AppLayout({
     breadcrumbs = [],
@@ -16,8 +16,8 @@ export default function AppLayout({
 }) {
     const { abilities } = usePage().props.auth;
     const Layout = abilities.includes('core::admin.access')
-        ? AppSidebarLayout
-        : AppHeaderLayout;
+        ? AppAdminLayout
+        : AppPortalLayout;
 
     return <Layout breadcrumbs={breadcrumbs}>{children}</Layout>;
 }

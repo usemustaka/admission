@@ -27,12 +27,15 @@ export function NoteForm({
     visibilities,
     users,
     roles,
+    onSaved,
 }: {
     personId: number;
     urgencies: Option[];
     visibilities: Option[];
     users: Option<number>[];
     roles: Option<number>[];
+    /** Called after the note is saved, for example to close the panel. */
+    onSaved?: () => void;
 }) {
     const form = useForm({
         noteable_type: 'person',
@@ -50,7 +53,10 @@ export function NoteForm({
 
         form.post(store().url, {
             preserveScroll: true,
-            onSuccess: () => form.reset('body', 'shared_with_family'),
+            onSuccess: () => {
+                form.reset('body', 'shared_with_family');
+                onSaved?.();
+            },
         });
     }
 
@@ -67,7 +73,7 @@ export function NoteForm({
                 )}
             </FormField>
 
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-5">
                 <FormField
                     label="Seberapa mendesak?"
                     error={form.errors.urgency}
@@ -118,11 +124,11 @@ export function NoteForm({
                     <legend className="mb-1 text-sm font-medium">
                         Bagikan juga ke
                     </legend>
-                    <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="grid gap-1">
                         {roles.map((role) => (
                             <label
                                 key={`role-${role.value}`}
-                                className="flex items-center gap-2.5 text-sm"
+                                className="flex min-h-10 items-center gap-2.5 text-sm"
                             >
                                 <Checkbox
                                     checked={form.data.role_ids.includes(
@@ -145,7 +151,7 @@ export function NoteForm({
                         {users.map((user) => (
                             <label
                                 key={`user-${user.value}`}
-                                className="flex items-center gap-2.5 text-sm"
+                                className="flex min-h-10 items-center gap-2.5 text-sm"
                             >
                                 <Checkbox
                                     checked={form.data.user_ids.includes(
@@ -185,9 +191,10 @@ export function NoteForm({
                 )}
             </FormField>
 
-            <div className="flex justify-end">
+            <div className="sticky -bottom-5 -mx-5 -mb-5 border-t border-line bg-background px-5 py-3">
                 <Button
                     type="submit"
+                    className="w-full"
                     disabled={form.processing || form.data.body.trim() === ''}
                 >
                     {form.processing && <Spinner />}

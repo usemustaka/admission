@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Enums\Ability;
 use App\Enums\Gender;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
@@ -10,6 +11,7 @@ use App\Models\Parentship;
 use App\Models\Person;
 use App\Models\Registrant;
 use App\Models\RegistrantStatusChange;
+use App\Models\User;
 
 class RegistrantPresenter
 {
@@ -35,6 +37,56 @@ class RegistrantPresenter
     public static function childPhotoUrl(Registrant $registrant): ?string
     {
         return $registrant->needs_identity_review ? null : $registrant->person->photo_url;
+    }
+
+    /**
+     * What the committee member may do with a registration right now: the workflow actions that need no extra
+     * input are only offered when the status and the NIK check allow them.
+     *
+     * @return array{manage: bool, accept: bool, revise: bool, announce: bool, place: bool, bypass: bool}
+     */
+    public static function abilities(Registrant $registrant, User $user): array
+    {
+        $canManage = $user->can(Ability::RegistrantManage->value);
+        $status = $registrant->status;
+
+        return [
+            'manage' => $canManage,
+            'accept' => $canManage && $status === RegistrantStatus::Review && ! $registrant->needs_identity_review,
+            'revise' => $canManage && $status === RegistrantStatus::Review,
+            'announce' => $canManage && $status === RegistrantStatus::Validated && ! $registrant->needs_identity_review,
+            'place' => $canManage && $status === RegistrantStatus::Announced && ! $registrant->needs_identity_review,
+            'bypass' => $canManage && $status !== RegistrantStatus::Placed,
+        ];
+    }
+
+    /**
+     * Who the committee should call or message about this registration: the primary contact of the family. While
+     * the NIK is unconfirmed the family on record may be someone else's, so it is the parent who registered them.
+     * Needs `person.parentships.relatedPerson` and `registeredBy` loaded.
+     *
+     * @return array{name: string, phone: string, label: string, whatsapp_url: string}|null
+     */
+    public static function contact(Registrant $registrant): ?array
+    {
+        if ($registrant->needs_identity_review) {
+            $contact = $registrant->registeredBy;
+            $label = 'Yang mendaftarkan';
+        } else {
+            $contact = $registrant->person->parentships->first(fn (Parentship $parentship): bool => $parentship->is_primary_contact)?->relatedPerson;
+            $label = 'Kontak utama';
+        }
+
+        if ($contact === null || blank($contact->phone)) {
+            return null;
+        }
+
+        return [
+            'name' => $contact->name,
+            'phone' => $contact->phone,
+            'label' => $label,
+            'whatsapp_url' => 'https://wa.me/'.Announcement::whatsappNumber($contact->phone),
+        ];
     }
 
     /**
@@ -66,7 +118,7 @@ class RegistrantPresenter
     }
 
     /**
-     * How much of the draft is filled in: the child's key details, both parents' names, and the formal photo.
+     * How much of the draft is filled in: the child's key details, and both parents' names.
      *
      * @return array{filled: int, total: int}
      */
@@ -85,11 +137,7 @@ class RegistrantPresenter
             }
         }
 
-        if ($registrant->formal_photo_path !== null) {
-            $filled++;
-        }
-
-        return ['filled' => $filled, 'total' => count(self::CHILD_REQUIRED) + 3];
+        return ['filled' => $filled, 'total' => count(self::CHILD_REQUIRED) + 2];
     }
 
     /**
@@ -128,7 +176,7 @@ class RegistrantPresenter
      * What the data form shows: the child, the parents by relation, the photos and the choices to pick from.
      * The same form is used by the parent on the portal and by the committee when helping out.
      *
-     * @return array{child: array<string, mixed>, formalPhotoUrl: string|null, parents: array<string, array<string, mixed>|null>, options: array<string, mixed>}
+     * @return array{child: array<string, mixed>, parents: array<string, array<string, mixed>|null>, options: array<string, mixed>}
      */
     public static function dataForm(Registrant $registrant): array
     {
@@ -151,7 +199,6 @@ class RegistrantPresenter
                 'address' => $child->address,
                 'photo_url' => $child->photo_url,
             ],
-            'formalPhotoUrl' => $registrant->formal_photo_url,
             'parents' => collect(ParentRelation::cases())->mapWithKeys(function (ParentRelation $relation) use ($child): array {
                 $parentship = $child->parentships->first(fn (Parentship $link): bool => $link->relation === $relation);
 

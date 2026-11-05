@@ -1,11 +1,11 @@
-import { Head, Link } from '@inertiajs/react';
-import { Receipt, Wallet } from 'lucide-react';
+import { Head } from '@inertiajs/react';
+import { Wallet } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
-import { PaymentRow } from '@/components/payments/payment-row';
+import { BankCard } from '@/components/portal/bank-card';
 import { BillCard } from '@/components/portal/bill-card';
-import { SectionCard } from '@/components/section-card';
-import { Button } from '@/components/ui/button';
+import { BillSummary } from '@/components/portal/bill-summary';
+import { PaymentHistory } from '@/components/portal/payment-history';
 import { create } from '@/routes/portal/payments';
 import type { BillData, PaymentData } from '@/types/billing';
 import type { PortalRegistrant } from '@/types/portal';
@@ -26,24 +26,13 @@ export default function PortalBills({
     return (
         <>
             <Head title="Tagihan" />
-            <div className="mx-auto grid w-full max-w-4xl gap-6 px-4 py-8">
+            <div className="grid gap-4">
                 <PageHeader
-                    icon={Wallet}
                     title={focus ? `Tagihan ${focus.child.name}` : 'Tagihan'}
                     description={
                         focus
                             ? 'Tagihan untuk anak ini saja.'
                             : 'Semua tagihan anak-anakmu ada di sini. Pilih satu anak di atas untuk melihat tagihannya saja.'
-                    }
-                    actions={
-                        canPay && (
-                            <Button asChild>
-                                <Link href={payUrl}>
-                                    <Receipt />
-                                    Konfirmasi pembayaran
-                                </Link>
-                            </Button>
-                        )
                     }
                 />
 
@@ -54,32 +43,30 @@ export default function PortalBills({
                         description="Tagihan akan muncul di sini begitu ada yang perlu dibayar."
                     />
                 ) : (
-                    <div className="grid gap-4">
-                        {bills.map((bill) => (
-                            <BillCard
-                                key={bill.id}
-                                bill={bill}
-                                showChild={focus === null}
-                            />
-                        ))}
-                    </div>
-                )}
+                    <>
+                        <BillSummary
+                            bills={bills}
+                            canPay={canPay}
+                            payHref={payUrl.url}
+                        />
 
-                {payments.length > 0 && (
-                    <SectionCard
-                        title="Riwayat pembayaran"
-                        description="Pembayaran baru dihitung setelah diverifikasi panitia."
-                    >
-                        <div className="grid gap-3">
-                            {payments.map((payment) => (
-                                <PaymentRow
-                                    key={payment.id}
-                                    payment={payment}
+                        <BankCard />
+                        <section
+                            aria-label="Daftar tagihan"
+                            className="grid gap-3"
+                        >
+                            {bills.map((bill) => (
+                                <BillCard
+                                    key={bill.id}
+                                    bill={bill}
+                                    showChild={focus === null}
                                 />
                             ))}
-                        </div>
-                    </SectionCard>
+                        </section>
+                    </>
                 )}
+
+                {payments.length > 0 && <PaymentHistory payments={payments} />}
             </div>
         </>
     );

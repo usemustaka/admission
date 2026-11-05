@@ -6,6 +6,7 @@ import { FormField } from '@/components/form-field';
 import { OptionSelect } from '@/components/option-select';
 import { ParentFields } from '@/components/portal/parent-fields';
 import { PhotoUpload } from '@/components/photo-upload';
+import { StickyActions } from '@/components/portal/sticky-actions';
 import { SectionCard } from '@/components/section-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -71,10 +72,10 @@ export function RegistrantDataForm({
     identityNote,
     identityHref,
     child,
-    formalPhotoUrl,
     parents,
     options,
     canEdit,
+    stickyActions = false,
 }: {
     /** Where the form is posted. */
     action: string;
@@ -84,10 +85,11 @@ export function RegistrantDataForm({
     /** Where name and NIK can be changed, for the committee. */
     identityHref?: string;
     child: ChildData;
-    formalPhotoUrl: string | null;
     parents: Record<ParentRelationKey, ParentFromServer>;
     options: DataFormOptions;
     canEdit: boolean;
+    /** Pin the buttons above the portal's bottom tab bar (parents on a phone). */
+    stickyActions?: boolean;
 }) {
     const form = useForm({
         child: {
@@ -109,8 +111,6 @@ export function RegistrantDataForm({
         },
         photo: null as File | null,
         remove_photo: false,
-        formal_photo: null as File | null,
-        remove_formal_photo: false,
     });
     const [showGuardian, setShowGuardian] = useState(parents.guardian !== null);
     const errors = form.errors as Record<string, string>;
@@ -140,11 +140,29 @@ export function RegistrantDataForm({
                     ...data,
                     photo: null,
                     remove_photo: false,
-                    formal_photo: null,
-                    remove_formal_photo: false,
                 })),
         });
     }
+
+    const buttonSize = stickyActions ? 'lg' : 'default';
+    const actions = (
+        <>
+            <Button variant="outline" size={buttonSize} asChild>
+                <Link href={backHref}>Kembali</Link>
+            </Button>
+            {canEdit && (
+                <Button
+                    type="submit"
+                    size={buttonSize}
+                    className={stickyActions ? 'flex-1' : undefined}
+                    disabled={form.processing}
+                >
+                    {form.processing && <Spinner />}
+                    Simpan draf
+                </Button>
+            )}
+        </>
+    );
 
     return (
         <form onSubmit={submit} className="grid gap-6">
@@ -161,7 +179,7 @@ export function RegistrantDataForm({
 
             <fieldset disabled={!canEdit} className="grid gap-6">
                 <SectionCard title="Foto" icon={Camera}>
-                    <div className="grid gap-8">
+                    <div className="grid gap-4">
                         <PhotoUpload
                             label="Foto profil"
                             hint="Foto biasa anak. Format JPG atau PNG, maksimal 2 MB."
@@ -176,25 +194,9 @@ export function RegistrantDataForm({
                                 }))
                             }
                         />
-                        <PhotoUpload
-                            label="Pas foto"
-                            hint="Foto formal berlatar polos untuk kartu siswa. Format JPG atau PNG, maksimal 2 MB."
-                            value={
-                                form.data.remove_formal_photo
-                                    ? null
-                                    : formalPhotoUrl
-                            }
-                            onChange={(file) =>
-                                form.setData((data) => ({
-                                    ...data,
-                                    formal_photo: file,
-                                    remove_formal_photo: file === null,
-                                }))
-                            }
-                        />
-                        {(errors.photo || errors.formal_photo) && (
+                        {errors.photo && (
                             <p className="text-sm font-medium text-destructive-foreground">
-                                {errors.photo ?? errors.formal_photo}
+                                {errors.photo}
                             </p>
                         )}
                     </div>
@@ -208,18 +210,18 @@ export function RegistrantDataForm({
                                 { label: 'NIK', value: child.nik },
                             ]}
                         />
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-[15px] text-muted-foreground">
                             {identityNote}{' '}
                             {identityHref && (
                                 <Link
                                     href={identityHref}
-                                    className="font-semibold text-primary hover:underline"
+                                    className="font-semibold text-foreground underline underline-offset-4"
                                 >
                                     Buka data orang
                                 </Link>
                             )}
                         </p>
-                        <div className="grid gap-6 sm:grid-cols-2">
+                        <div className="grid gap-6 @2xl:grid-cols-2">
                             <FormField
                                 label="Jenis kelamin"
                                 error={errors['child.gender']}
@@ -392,7 +394,7 @@ export function RegistrantDataForm({
                             <FormField
                                 label="Alamat"
                                 error={errors['child.address']}
-                                className="sm:col-span-2"
+                                className="@2xl:col-span-2"
                             >
                                 {(control) => (
                                     <Textarea
@@ -415,6 +417,8 @@ export function RegistrantDataForm({
                             <Button
                                 type="button"
                                 variant="outline"
+                                size={buttonSize}
+                                className={stickyActions ? 'w-full' : undefined}
                                 onClick={() => setShowGuardian(true)}
                             >
                                 <Plus />
@@ -436,17 +440,11 @@ export function RegistrantDataForm({
                 )}
             </fieldset>
 
-            <div className="flex justify-end gap-3">
-                <Button variant="outline" asChild>
-                    <Link href={backHref}>Kembali</Link>
-                </Button>
-                {canEdit && (
-                    <Button type="submit" disabled={form.processing}>
-                        {form.processing && <Spinner />}
-                        Simpan draf
-                    </Button>
-                )}
-            </div>
+            {stickyActions ? (
+                <StickyActions className="flex gap-3">{actions}</StickyActions>
+            ) : (
+                <div className="flex justify-end gap-3">{actions}</div>
+            )}
         </form>
     );
 }

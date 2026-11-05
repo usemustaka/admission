@@ -96,7 +96,11 @@ function TwoFactorSetupStep({
                     </div>
 
                     <div className="flex w-full space-x-5">
-                        <Button className="w-full" onClick={onNextStep}>
+                        <Button
+                            size="lg"
+                            className="w-full"
+                            onClick={onNextStep}
+                        >
                             {buttonText}
                         </Button>
                     </div>
@@ -104,7 +108,7 @@ function TwoFactorSetupStep({
                     <div className="relative flex w-full items-center justify-center">
                         <div className="absolute inset-0 top-1/2 h-px w-full bg-border" />
                         <span className="relative bg-card px-2 py-1">
-                            or, enter the code manually
+                            atau, masukkan kodenya secara manual
                         </span>
                     </div>
 
@@ -120,13 +124,15 @@ function TwoFactorSetupStep({
                                         type="text"
                                         readOnly
                                         value={manualSetupKey}
-                                        className="h-full w-full bg-background p-3 text-foreground outline-none"
+                                        className="h-12 w-full min-w-0 bg-background p-3 text-base text-foreground outline-none"
                                     />
                                     <button
+                                        type="button"
                                         onClick={() => copy(manualSetupKey)}
-                                        className="border-l border-border px-3 hover:bg-muted"
+                                        aria-label="Salin kunci"
+                                        className="grid w-12 shrink-0 place-items-center border-l border-border hover:bg-muted"
                                     >
-                                        <IconComponent className="w-4" />
+                                        <IconComponent className="size-5" />
                                     </button>
                                 </>
                             )}
@@ -190,6 +196,7 @@ function TwoFactorVerificationStep({
                                             <InputOTPSlot
                                                 key={index}
                                                 index={index}
+                                                className="size-11 text-base"
                                             />
                                         ),
                                     )}
@@ -206,20 +213,23 @@ function TwoFactorVerificationStep({
                             <Button
                                 type="button"
                                 variant="outline"
+                                size="lg"
                                 className="flex-1"
                                 onClick={onBack}
                                 disabled={processing}
                             >
-                                Back
+                                Kembali
                             </Button>
                             <Button
                                 type="submit"
+                                size="lg"
                                 className="flex-1"
                                 disabled={
                                     processing || code.length < OTP_MAX_LENGTH
                                 }
                             >
-                                Confirm
+                                {processing && <Spinner />}
+                                Konfirmasi
                             </Button>
                         </div>
                     </div>
@@ -262,27 +272,27 @@ export default function TwoFactorSetupModal({
     }>(() => {
         if (twoFactorEnabled) {
             return {
-                title: 'Two-factor authentication enabled',
+                title: 'Verifikasi dua langkah sudah aktif',
                 description:
-                    'Two-factor authentication is now enabled. Scan the QR code or enter the setup key in your authenticator app.',
-                buttonText: 'Close',
+                    'Verifikasi dua langkah sudah aktif. Pindai kode QR atau masukkan kunci pengaturan di aplikasi authenticator-mu.',
+                buttonText: 'Tutup',
             };
         }
 
         if (showVerificationStep) {
             return {
-                title: 'Verify authentication code',
+                title: 'Masukkan kode verifikasi',
                 description:
-                    'Enter the 6-digit code from your authenticator app',
-                buttonText: 'Continue',
+                    'Masukkan kode 6 digit dari aplikasi authenticator-mu',
+                buttonText: 'Lanjut',
             };
         }
 
         return {
-            title: 'Enable two-factor authentication',
+            title: 'Aktifkan verifikasi dua langkah',
             description:
-                'To finish enabling two-factor authentication, scan the QR code or enter the setup key in your authenticator app',
-            buttonText: 'Continue',
+                'Untuk menyelesaikannya, pindai kode QR atau masukkan kunci pengaturan di aplikasi authenticator-mu',
+            buttonText: 'Lanjut',
         };
     }, [twoFactorEnabled, showVerificationStep]);
 

@@ -33,7 +33,10 @@ export function FocusSwitcher() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2 rounded-full">
+                <Button
+                    variant="outline"
+                    className="max-w-[70%] gap-2 rounded-full"
+                >
                     {focused ? (
                         <PersonAvatar
                             name={focused.name}
@@ -50,7 +53,7 @@ export function FocusSwitcher() {
                     <ChevronsUpDown className="opacity-60" />
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-64">
+            <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel>Lihat sebagai</DropdownMenuLabel>
                 <DropdownMenuItem asChild>
                     <Link href={portal()} className="cursor-pointer">

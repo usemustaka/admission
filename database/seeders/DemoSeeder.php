@@ -33,7 +33,6 @@ use App\Models\Wave;
 use App\Models\Year;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
@@ -68,8 +67,6 @@ class DemoSeeder extends Seeder
         $this->call(SystemSeeder::class);
 
         DB::transaction(function (): void {
-            Storage::disk('public')->put('registrants/formal-photos/demo.svg', '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="300" height="400" fill="#dfe8df"/><circle cx="150" cy="150" r="60" fill="#8fa88f"/><rect x="70" y="240" width="160" height="160" rx="80" fill="#8fa88f"/></svg>');
-
             $this->admin = $this->makeUser('Admin Demo', 'admin@demo.test', DefaultRole::Admin);
             $this->makeUser('Operator Demo', 'operator@demo.test', DefaultRole::Operator);
             $this->year = Year::query()->where('is_active', true)->firstOrFail();
@@ -171,7 +168,7 @@ class DemoSeeder extends Seeder
     }
 
     /**
-     * Fill in what the flow asks for before the data can be sent: profile, formal photo and exam session.
+     * Fill in what the flow asks for before the data can be sent: profile and exam session.
      */
     private function complete(Registrant $registrant, int $sessionNumber = 2): Registrant
     {
@@ -181,7 +178,6 @@ class DemoSeeder extends Seeder
             'address' => 'Jl. Melati No. '.$registrant->id,
             'family_card_number' => '3201020202020'.str_pad((string) $registrant->id, 3, '0', STR_PAD_LEFT),
         ]);
-        $registrant->update(['formal_photo_path' => 'registrants/formal-photos/demo.svg']);
 
         $session = $registrant->ruleset_id === null ? null : ExamSession::query()
             ->whereHas('day', fn ($days) => $days->where('ruleset_id', $registrant->ruleset_id))

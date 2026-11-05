@@ -203,7 +203,7 @@ export function PlaceDialog({
             open={open}
             onOpenChange={onOpenChange}
             title="Tempatkan siswa"
-            description="Anak ini akan tercatat sebagai siswa di tahun ajaran yang dipilih, lengkap dengan pas fotonya."
+            description="Anak ini akan tercatat sebagai siswa di tahun ajaran yang dipilih, lengkap dengan foto profilnya."
             submitLabel="Tempatkan siswa"
             processing={form.processing}
             onSubmit={(event) => {

@@ -8,14 +8,10 @@ export type NoteUrgency = 'low' | 'normal' | 'high' | 'critical';
 export type NoteVisibility = 'public' | 'private';
 
 const urgencyMeta = {
-    low: { label: 'Santai', variant: 'muted', border: 'border-l-border' },
-    normal: { label: 'Biasa', variant: 'info', border: 'border-l-info' },
-    high: { label: 'Penting', variant: 'warning', border: 'border-l-warning' },
-    critical: {
-        label: 'Mendesak',
-        variant: 'danger',
-        border: 'border-l-destructive',
-    },
+    low: { label: 'Santai', variant: 'muted' },
+    normal: { label: 'Biasa', variant: 'info' },
+    high: { label: 'Penting', variant: 'warning' },
+    critical: { label: 'Mendesak', variant: 'danger' },
 } as const;
 
 const visibilityMeta = {
@@ -59,8 +55,7 @@ export function NoteCard({
     return (
         <article
             className={cn(
-                'grid gap-3 rounded-2xl border border-l-4 bg-card p-4 shadow-xs',
-                urgencyMeta[urgency].border,
+                'grid gap-3 rounded-2xl border border-line bg-card p-4',
                 className,
             )}
         >
@@ -95,7 +90,9 @@ export function NoteCard({
                         <Badge variant="success">Terlihat oleh keluarga</Badge>
                     )}
                 </div>
-                {actions && <div className="flex gap-1">{actions}</div>}
+                {actions && (
+                    <div className="flex flex-wrap gap-1">{actions}</div>
+                )}
             </footer>
         </article>
     );

@@ -22,24 +22,43 @@
         {{-- Inline style to set the HTML background color based on our theme in app.css --}}
         <style>
             html {
-                background-color: oklch(0.99 0.004 140);
+                background-color: #ffffff;
             }
 
             html.dark {
-                background-color: oklch(0.19 0.01 150);
+                background-color: oklch(0.175 0 0);
             }
         </style>
 
-        <link rel="icon" href="/favicon.ico" sizes="any">
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+        @php($brandFavicon = \App\Support\Brand::faviconUrl())
+        @if ($brandFavicon)
+            <link rel="icon" href="{{ $brandFavicon }}">
+            <link rel="apple-touch-icon" href="{{ $brandFavicon }}">
+        @else
+            <link rel="icon" href="/favicon.ico" sizes="any">
+            <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+            <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+        @endif
+        <meta name="app-name" content="{{ \App\Support\Brand::name() }}">
+        @if ($brandTagline = \App\Support\Brand::get('brand.tagline'))
+            <meta name="description" content="{{ $brandTagline }}">
+        @endif
 
         @fonts
 
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
+        @if ($brandTheme = \App\Support\Brand::themeVariables())
+            <style>
+                :root, .dark {
+                    @foreach ($brandTheme as $property => $value)
+                        {{ $property }}: {{ $value }};
+                    @endforeach
+                }
+            </style>
+        @endif
         <x-inertia::head>
-            <title>{{ config('app.name', 'Laravel') }}</title>
+            <title>{{ \App\Support\Brand::name() }}</title>
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">

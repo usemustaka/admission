@@ -24,13 +24,12 @@ test('the data can be sent when everything is there', function () {
 });
 
 test('what is missing is listed and nothing is sent', function () {
-    $this->registrant->update(['formal_photo_path' => null]);
     $this->registrant->person->update(['religion' => null]);
     $session = examSessionFor($this->registrant);
 
     $this->post(route('portal.children.submit', $this->registrant))->assertSessionHasErrors('status');
 
-    expect(session('errors')->first('status'))->toContain('Pas foto')->toContain('Agama')->toContain('Jadwal ujian');
+    expect(session('errors')->first('status'))->toContain('Agama')->toContain('Jadwal ujian');
 
     expect($this->registrant->refresh()->status)->toBe(RegistrantStatus::Draft)
         ->and($session->exists)->toBeTrue();

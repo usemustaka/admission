@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\Ability;
 use App\Models\Registrant;
+use App\Support\Brand;
 use App\Support\RegistrantPresenter;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -40,7 +41,8 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            'name' => config('app.name'),
+            'name' => Brand::name(),
+            'brand' => fn (): array => Brand::shared(),
             'auth' => [
                 'user' => $request->user()?->loadMissing('person'),
                 'abilities' => $this->abilities($request),

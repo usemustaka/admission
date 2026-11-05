@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { UserPlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { ChoiceCardGroup } from '@/components/choice-card-group';
 import { FormField } from '@/components/form-field';
 import { PersonAvatar } from '@/components/person-avatar';
@@ -32,10 +33,13 @@ export function AddParentDialog({
     childId,
     relations,
     kinds,
+    trigger,
 }: {
     childId: number;
     relations: Option[];
     kinds: Option[];
+    /** Replaces the default button, for placing the action elsewhere on the page. */
+    trigger?: ReactNode;
 }) {
     const [open, setOpen] = useState(false);
     const [term, setTerm] = useState('');
@@ -127,10 +131,12 @@ export function AddParentDialog({
             }}
         >
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                    <UserPlus />
-                    Tambah orang tua / wali
-                </Button>
+                {trigger ?? (
+                    <Button variant="outline" size="sm" className="max-md:h-10">
+                        <UserPlus />
+                        Tambah orang tua / wali
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
                 <DialogHeader>
@@ -143,7 +149,7 @@ export function AddParentDialog({
 
                 {selected ? (
                     <div className="grid gap-5">
-                        <div className="flex items-center gap-3 rounded-2xl border bg-sage-50 p-3 dark:bg-secondary/40">
+                        <div className="flex items-center gap-3 rounded-2xl border bg-neutral-50 p-3 dark:bg-secondary/40">
                             <PersonAvatar name={selected.name} size="md" />
                             <div className="grid flex-1 leading-tight">
                                 <span className="font-semibold">
@@ -156,6 +162,7 @@ export function AddParentDialog({
                             <Button
                                 variant="ghost"
                                 size="sm"
+                                className="max-md:h-10"
                                 onClick={() => setSelected(null)}
                             >
                                 Ganti
@@ -217,7 +224,7 @@ export function AddParentDialog({
                                     <button
                                         type="button"
                                         onClick={() => setSelected(candidate)}
-                                        className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-sage-50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none dark:hover:bg-muted"
+                                        className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-neutral-50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none dark:hover:bg-muted"
                                     >
                                         <PersonAvatar
                                             name={candidate.name}

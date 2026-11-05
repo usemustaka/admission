@@ -79,7 +79,7 @@ test('a child goes from registration to placement', function () {
     $this->actingAs($parent)->post(route('portal.children.data.update', $registrant), [
         'child' => ['birth_place' => 'Bandung', 'religion' => 'Islam', 'address' => 'Jl. Melati 3', 'family_card_number' => '3201234567890123'],
         'parents' => ['father' => ['name' => 'Fauzi Rahman', 'phone' => '081234567890']],
-        'formal_photo' => UploadedFile::fake()->image('pas.jpg'),
+        'photo' => UploadedFile::fake()->image('profil.jpg'),
     ])->assertSessionHasNoErrors();
 
     $session = $registrant->refresh()->ruleset_id === $ruleset->id ? ExamSession::query()->firstOrFail() : null;

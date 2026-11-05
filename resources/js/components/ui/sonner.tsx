@@ -11,12 +11,14 @@ function Toaster({ ...props }: ToasterProps) {
         <Sonner
             theme={appearance}
             className="toaster group"
-            position="bottom-right"
+            position="bottom-left"
+            mobileOffset={{ bottom: 88, left: 16, right: 16 }}
             style={
                 {
-                    '--normal-bg': 'var(--popover)',
-                    '--normal-text': 'var(--popover-foreground)',
-                    '--normal-border': 'var(--border)',
+                    '--normal-bg': 'var(--color-neutral-900)',
+                    '--normal-text': 'white',
+                    '--normal-border': 'transparent',
+                    '--border-radius': '0.75rem',
                 } as React.CSSProperties
             }
             {...props}

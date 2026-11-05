@@ -1,37 +1,53 @@
-import { Link } from '@inertiajs/react';
-import AppLogoIcon from '@/components/app-logo-icon';
+import { Link, usePage } from '@inertiajs/react';
+import AppLogo from '@/components/app-logo';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
+import { PageTransition } from '@/components/page-transition';
 
 export default function AuthSimpleLayout({
     children,
     title,
     description,
 }: AuthLayoutProps) {
-    return (
-        <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
-            <div className="w-full max-w-sm">
-                <div className="flex flex-col gap-8">
-                    <div className="flex flex-col items-center gap-4">
-                        <Link
-                            href={home()}
-                            className="flex flex-col items-center gap-2 font-medium"
-                        >
-                            <div className="mb-1 flex h-9 w-9 items-center justify-center rounded-md">
-                                <AppLogoIcon className="size-9 fill-current text-[var(--foreground)] dark:text-white" />
-                            </div>
-                            <span className="sr-only">{title}</span>
-                        </Link>
+    const footerText = usePage().props.brand.public.footer_text;
 
-                        <div className="space-y-2 text-center">
-                            <h1 className="text-xl font-medium">{title}</h1>
-                            <p className="text-center text-sm text-muted-foreground">
-                                {description}
-                            </p>
-                        </div>
-                    </div>
-                    {children}
+    return (
+        <div className="grid min-h-svh place-items-center bg-neutral-50 px-4 py-8 dark:bg-background">
+            <div className="relative w-full max-w-[480px]">
+                <div className="mb-6 flex justify-center">
+                    <Link
+                        href={home()}
+                        className="rounded-lg outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    >
+                        <AppLogo />
+                    </Link>
                 </div>
+
+                <div className="overflow-hidden rounded-3xl border border-line bg-card">
+                    <div className="space-y-6 p-6 sm:p-8">
+                        {(title || description) && (
+                            <div className="space-y-2">
+                                {title && (
+                                    <h1 className="text-[26px] leading-tight font-semibold tracking-tight">
+                                        {title}
+                                    </h1>
+                                )}
+                                {description && (
+                                    <p className="text-[15px] text-muted-foreground">
+                                        {description}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                        <PageTransition>{children}</PageTransition>
+                    </div>
+                </div>
+
+                {footerText && (
+                    <p className="mt-6 text-center text-xs text-muted-foreground">
+                        {footerText}
+                    </p>
+                )}
             </div>
         </div>
     );

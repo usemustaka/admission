@@ -1,19 +1,33 @@
 import { usePage } from '@inertiajs/react';
-import { GraduationCap } from 'lucide-react';
+import { BrandMark } from '@/components/brand-mark';
+import { cn } from '@/lib/utils';
 
-export default function AppLogo() {
-    const { name } = usePage().props;
+/**
+ * Logo with the app name beside it. The name is hidden when `showName` is
+ * false, or when the settings say the uploaded logo already carries it.
+ */
+export default function AppLogo({
+    showName = true,
+    size = 32,
+    className,
+}: {
+    showName?: boolean;
+    size?: number;
+    className?: string;
+}) {
+    const { name, brand } = usePage().props;
+    const withName = showName && (brand.show_name || !brand.logo_url);
 
     return (
-        <>
-            <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground">
-                <GraduationCap className="size-5" />
-            </div>
-            <div className="ml-1 grid flex-1 text-left text-sm">
-                <span className="mb-0.5 truncate leading-tight font-bold tracking-tight">
+        <span className={cn('inline-flex items-center gap-2.5', className)}>
+            <BrandMark size={size} />
+            {withName ? (
+                <span className="truncate text-lg leading-tight font-extrabold tracking-tight">
                     {name}
                 </span>
-            </div>
-        </>
+            ) : (
+                <span className="sr-only">{name}</span>
+            )}
+        </span>
     );
 }

@@ -3,16 +3,19 @@ import {
     ArrowRight,
     CalendarDays,
     CircleAlert,
+    CircleCheck,
+    CircleX,
     Hourglass,
     History,
+    ListChecks,
     Megaphone,
     Send,
     Users,
-    Wallet,
 } from 'lucide-react';
 import { useState } from 'react';
-import { PageHeader } from '@/components/page-header';
 import { PersonAvatar } from '@/components/person-avatar';
+import { StickyActions } from '@/components/portal/sticky-actions';
+import { TurnBadge } from '@/components/portal/turn-badge';
 import { StatusTimeline } from '@/components/registrants/status-timeline';
 import { SectionCard } from '@/components/section-card';
 import { StatusBadge } from '@/components/status-badge';
@@ -22,12 +25,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
-import { formatDate } from '@/lib/format';
 import { currentStepIndex, stepsFor } from '@/lib/admission-steps';
-import { portal } from '@/routes';
+import { formatDate } from '@/lib/format';
+import { nextAction } from '@/lib/portal-next-step';
+import { cn } from '@/lib/utils';
 import { edit } from '@/routes/portal/children/data';
 import { edit as editExam } from '@/routes/portal/children/exam';
-import { bills, submit as submitData } from '@/routes/portal/children';
+import { submit as submitData } from '@/routes/portal/children';
 import type { Completeness, PortalRegistrant } from '@/types/portal';
 import type {
     ChosenSession,
@@ -66,49 +70,42 @@ export default function ChildShow({
     }
 
     const steps = stepsFor(registrant.steps);
-    const index = currentStepIndex(registrant.steps, registrant.current_step);
-    const percent = Math.round(
-        (completeness.filled / completeness.total) * 100,
-    );
+    const index =
+        registrant.status === 'placed'
+            ? steps.length
+            : currentStepIndex(registrant.steps, registrant.current_step);
+    const percent =
+        completeness.total === 0
+            ? 0
+            : Math.round((completeness.filled / completeness.total) * 100);
+    const next = nextAction(registrant, readiness);
+    const readyToSend = registrant.can_edit && readiness.length === 0;
+    // The send button lives in the sticky bar, so the card does not repeat it.
+    const nextCta = next.kind === 'submit' ? null : next.cta;
 
     return (
         <>
             <Head title={registrant.child.name} />
-            <div className="mx-auto grid w-full max-w-4xl gap-6 px-4 py-8">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="grid gap-4">
+                <header className="flex items-center gap-4 pt-2">
                     <PersonAvatar
                         name={registrant.child.name}
                         src={registrant.child.photo_url}
-                        size="xl"
+                        size="lg"
+                        className="size-16 text-xl"
                     />
-                    <div className="flex-1">
-                        <PageHeader
-                            title={registrant.child.name}
-                            description={`${registrant.organization} · ${registrant.wave}`}
-                            meta={
-                                <div className="pt-1">
-                                    <StatusBadge status={registrant.status} />
-                                </div>
-                            }
-                        />
+                    <div className="grid min-w-0 gap-1">
+                        <h1 className="text-[26px] leading-tight font-semibold tracking-tight text-balance">
+                            {registrant.child.name}
+                        </h1>
+                        <p className="text-[15px] text-muted-foreground">
+                            {registrant.organization} · {registrant.wave}
+                        </p>
+                        <div className="pt-0.5">
+                            <StatusBadge status={registrant.status} />
+                        </div>
                     </div>
-                </div>
-
-                <SectionCard
-                    title="Tahapan pendaftaran"
-                    description="Kamu bisa memantau sampai pengumuman."
-                >
-                    <div className="hidden lg:block">
-                        <Stepper steps={steps} currentIndex={index} />
-                    </div>
-                    <div className="lg:hidden">
-                        <Stepper
-                            steps={steps}
-                            currentIndex={index}
-                            orientation="vertical"
-                        />
-                    </div>
-                </SectionCard>
+                </header>
 
                 {registrant.identity_pending && (
                     <Alert variant="info">
@@ -146,30 +143,88 @@ export default function ChildShow({
                     </Alert>
                 )}
 
-                {registrant.current_step === 'registration-bill' && (
-                    <SectionCard
-                        title="Bayar tagihan pendaftaran"
-                        description="Selesaikan dulu supaya pendaftaran bisa lanjut ke tahap berikutnya. Datanya boleh diisi sambil menunggu."
-                        icon={Wallet}
-                    >
-                        <Button asChild>
-                            <Link href={bills(registrant.id)}>
-                                Lihat tagihan
+                <section
+                    aria-label="Langkah berikutnya"
+                    className={cn(
+                        'grid gap-3 rounded-2xl border p-4',
+                        next.turn === 'parent'
+                            ? 'border-lime-300 bg-lime-50 dark:border-lime-400/40 dark:bg-lime-400/10'
+                            : 'border-line bg-card',
+                    )}
+                >
+                    <div className="grid justify-items-start gap-3">
+                        <TurnBadge turn={next.turn} label={next.turnLabel} />
+                        <div className="grid gap-1">
+                            <h2 className="text-xl font-semibold tracking-tight">
+                                {next.title}
+                            </h2>
+                            <p className="text-[15px] text-muted-foreground">
+                                {next.description}
+                            </p>
+                        </div>
+                    </div>
+                    {nextCta && (
+                        <Button asChild size="lg" className="w-full">
+                            <Link href={nextCta.href}>
+                                {nextCta.label}
                                 <ArrowRight />
                             </Link>
                         </Button>
+                    )}
+                </section>
+
+                {result && result.aspects.length > 0 && (
+                    <SectionCard title="Hasil ujian" icon={Megaphone}>
+                        <ul className="grid divide-y divide-line">
+                            {result.aspects.map((aspect) => (
+                                <li
+                                    key={aspect.name}
+                                    className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                                >
+                                    <div className="grid gap-0.5">
+                                        <span className="text-base font-semibold">
+                                            {aspect.name}
+                                        </span>
+                                        <span className="text-[15px] text-muted-foreground tabular-nums">
+                                            Nilai {aspect.score ?? '-'} (KKM{' '}
+                                            {aspect.passing_score})
+                                        </span>
+                                    </div>
+                                    {aspect.passed !== null && (
+                                        <Badge
+                                            variant={
+                                                aspect.passed
+                                                    ? 'success'
+                                                    : 'danger'
+                                            }
+                                            className="gap-1.5 px-3 py-1 text-[13px]"
+                                        >
+                                            {aspect.passed ? (
+                                                <CircleCheck />
+                                            ) : (
+                                                <CircleX />
+                                            )}
+                                            {aspect.passed
+                                                ? 'Tuntas'
+                                                : 'Belum tuntas'}
+                                        </Badge>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
                     </SectionCard>
                 )}
 
                 {registrant.can_edit && (
                     <SectionCard
-                        title="Lengkapi data anak"
+                        title="Kelengkapan data"
+                        icon={ListChecks}
                         description="Data disimpan sebagai draf, jadi boleh dilanjutkan kapan saja."
                     >
                         <div className="grid gap-4">
                             <div className="grid gap-2">
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="font-medium">
+                                <div className="flex items-center justify-between gap-3 text-[15px]">
+                                    <span className="font-semibold">
                                         Sudah terisi
                                     </span>
                                     <span className="text-muted-foreground tabular-nums">
@@ -182,139 +237,123 @@ export default function ChildShow({
                                     aria-label="Kelengkapan data"
                                 />
                             </div>
-                            <div>
-                                <Button asChild>
-                                    <Link href={edit(registrant.id)}>
-                                        {completeness.filled === 0
-                                            ? 'Mulai mengisi'
-                                            : 'Lanjutkan mengisi'}
-                                        <ArrowRight />
-                                    </Link>
-                                </Button>
-                            </div>
-                        </div>
-                    </SectionCard>
-                )}
 
-                {!registrant.identity_pending && hasExamSchedule && (
-                    <SectionCard
-                        title="Jadwal ujian"
-                        icon={CalendarDays}
-                        description={
-                            examSession
-                                ? undefined
-                                : 'Pilih tanggal dan sesi ujian dulu sebelum data dikirim.'
-                        }
-                    >
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                            <p className="text-sm font-semibold">
-                                {examSession
-                                    ? `${formatDate(examSession.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, ${examSession.label}`
-                                    : 'Belum memilih'}
-                            </p>
+                            {readiness.length > 0 ? (
+                                <div className="grid gap-2">
+                                    <p className="text-[15px] font-semibold">
+                                        Yang masih kurang
+                                    </p>
+                                    <ul className="grid gap-2">
+                                        {readiness.map((item) => (
+                                            <li
+                                                key={item}
+                                                className="flex items-start gap-2 text-[15px]"
+                                            >
+                                                <CircleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
+                                                {item}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <p className="text-sm text-muted-foreground">
+                                        Kalau semuanya sudah lengkap, tombol
+                                        kirim akan muncul di bawah layar.
+                                    </p>
+                                </div>
+                            ) : (
+                                <p className="flex items-center gap-2 text-[15px] font-medium text-success">
+                                    <CircleCheck className="size-5" />
+                                    Semua sudah lengkap.
+                                </p>
+                            )}
+
                             <Button
-                                variant={examSession ? 'outline' : 'default'}
                                 asChild
+                                size="lg"
+                                variant="outline"
+                                className="w-full"
                             >
-                                <Link href={editExam(registrant.id)}>
-                                    {examSession
-                                        ? registrant.can_edit
-                                            ? 'Ganti jadwal'
-                                            : 'Lihat jadwal'
-                                        : 'Pilih jadwal'}
+                                <Link href={edit(registrant.id)}>
+                                    {completeness.filled === 0
+                                        ? 'Mulai mengisi'
+                                        : 'Lanjutkan mengisi'}
+                                    <ArrowRight />
                                 </Link>
                             </Button>
                         </div>
                     </SectionCard>
                 )}
 
-                {registrant.can_edit && (
-                    <SectionCard
-                        title="Kirim untuk diperiksa"
-                        description="Kalau semuanya sudah lengkap, kirim datanya supaya panitia bisa memeriksa."
-                        icon={Send}
-                    >
+                {!registrant.identity_pending && hasExamSchedule && (
+                    <SectionCard title="Jadwal ujian" icon={CalendarDays}>
                         <div className="grid gap-4">
-                            {readiness.length > 0 ? (
-                                <div className="grid gap-2">
-                                    <p className="text-sm font-medium">
-                                        Yang masih kurang:
+                            {examSession ? (
+                                <div className="grid gap-0.5">
+                                    <p className="text-lg font-semibold">
+                                        {formatDate(examSession.date, {
+                                            weekday: 'long',
+                                            day: 'numeric',
+                                            month: 'long',
+                                            year: 'numeric',
+                                        })}
                                     </p>
-                                    <ul className="grid list-disc gap-1 pl-5 text-sm text-muted-foreground">
-                                        {readiness.map((item) => (
-                                            <li key={item}>{item}</li>
-                                        ))}
-                                    </ul>
+                                    <p className="text-[15px] text-muted-foreground">
+                                        {examSession.label}
+                                    </p>
                                 </div>
                             ) : (
-                                <p className="text-sm text-muted-foreground">
-                                    Semua sudah lengkap. Setelah dikirim, data
-                                    tidak bisa diubah sampai panitia selesai
-                                    memeriksa.
+                                <p className="text-[15px] text-muted-foreground">
+                                    Belum memilih. Pilih tanggal dan sesi ujian
+                                    dulu sebelum data dikirim.
                                 </p>
                             )}
-                            <div>
-                                <Button
-                                    onClick={sendData}
-                                    disabled={sending || readiness.length > 0}
-                                >
-                                    {sending && <Spinner />}
-                                    Kirim data
-                                </Button>
-                            </div>
+                            <Button
+                                asChild
+                                size="lg"
+                                variant={
+                                    examSession || !registrant.can_edit
+                                        ? 'outline'
+                                        : 'default'
+                                }
+                                className="w-full"
+                            >
+                                <Link href={editExam(registrant.id)}>
+                                    {examSession
+                                        ? registrant.can_edit
+                                            ? 'Ganti jadwal'
+                                            : 'Lihat jadwal'
+                                        : registrant.can_edit
+                                          ? 'Pilih jadwal'
+                                          : 'Lihat jadwal'}
+                                </Link>
+                            </Button>
                         </div>
                     </SectionCard>
                 )}
 
-                {result && result.aspects.length > 0 && (
-                    <SectionCard title="Hasil ujian" icon={Megaphone}>
-                        <ul className="grid gap-3">
-                            {result.aspects.map((aspect) => (
-                                <li
-                                    key={aspect.name}
-                                    className="flex items-center justify-between gap-3 text-sm"
-                                >
-                                    <span className="font-semibold">
-                                        {aspect.name}
-                                    </span>
-                                    <span className="flex items-center gap-2">
-                                        <span className="tabular-nums">
-                                            {aspect.score ?? '-'} (KKM{' '}
-                                            {aspect.passing_score})
-                                        </span>
-                                        {aspect.passed !== null && (
-                                            <Badge
-                                                variant={
-                                                    aspect.passed
-                                                        ? 'success'
-                                                        : 'danger'
-                                                }
-                                            >
-                                                {aspect.passed
-                                                    ? 'Tuntas'
-                                                    : 'Belum tuntas'}
-                                            </Badge>
-                                        )}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    </SectionCard>
-                )}
+                <SectionCard
+                    title="Tahapan pendaftaran"
+                    description="Kamu bisa memantau sampai pengumuman."
+                >
+                    <Stepper
+                        steps={steps}
+                        currentIndex={index}
+                        orientation="vertical"
+                    />
+                </SectionCard>
 
-                {!registrant.identity_pending && (
+                {!registrant.identity_pending && family.length > 0 && (
                     <SectionCard title="Keluarga" icon={Users}>
-                        <ul className="grid gap-2">
+                        <ul className="grid gap-3">
                             {family.map((member) => (
                                 <li
                                     key={member.id}
-                                    className="flex items-center gap-3 text-sm"
+                                    className="flex items-center gap-3"
                                 >
                                     <PersonAvatar
                                         name={member.name}
-                                        size="sm"
+                                        size="md"
                                     />
-                                    <span className="font-semibold">
+                                    <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">
                                         {member.name}
                                     </span>
                                     <Badge variant="muted">
@@ -332,11 +371,23 @@ export default function ChildShow({
                     </SectionCard>
                 )}
 
-                <div>
-                    <Button variant="ghost" asChild>
-                        <Link href={portal()}>Kembali ke semua anak</Link>
-                    </Button>
-                </div>
+                {readyToSend && (
+                    <StickyActions>
+                        <p className="text-sm text-muted-foreground">
+                            Setelah dikirim, data tidak bisa diubah sampai
+                            panitia selesai memeriksa.
+                        </p>
+                        <Button
+                            size="lg"
+                            className="w-full"
+                            onClick={sendData}
+                            disabled={sending}
+                        >
+                            {sending ? <Spinner /> : <Send />}
+                            Kirim data untuk diperiksa
+                        </Button>
+                    </StickyActions>
+                )}
             </div>
         </>
     );

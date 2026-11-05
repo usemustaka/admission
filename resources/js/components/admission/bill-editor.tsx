@@ -170,6 +170,7 @@ export function BillEditor({
                                     type="button"
                                     variant="outline"
                                     size="sm"
+                                    className="max-md:h-10"
                                     onClick={() =>
                                         setItems(group.key, [
                                             ...items,

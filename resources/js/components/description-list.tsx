@@ -16,16 +16,16 @@ export function DescriptionList({
     className?: string;
 }) {
     return (
-        <dl className={cn('grid gap-x-8 gap-y-5 sm:grid-cols-2', className)}>
+        <dl className={cn('grid gap-x-8 gap-y-5 @2xl:grid-cols-2', className)}>
             {items.map(({ label, value, wide }) => (
                 <div
                     key={label}
-                    className={cn('grid gap-1', wide && 'sm:col-span-2')}
+                    className={cn('grid gap-1', wide && '@2xl:col-span-2')}
                 >
                     <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                         {label}
                     </dt>
-                    <dd className="text-sm font-medium break-words">
+                    <dd className="text-[15px] font-medium break-words">
                         {value === undefined ||
                         value === null ||
                         value === '' ? (

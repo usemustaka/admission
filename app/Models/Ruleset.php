@@ -59,6 +59,16 @@ class Ruleset extends Model
     }
 
     /**
+     * The registrations that were made under this ruleset.
+     *
+     * @return HasMany<Registrant, $this>
+     */
+    public function registrants(): HasMany
+    {
+        return $this->hasMany(Registrant::class);
+    }
+
+    /**
      * @return HasMany<RulesetBill, $this>
      */
     public function bills(): HasMany

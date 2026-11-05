@@ -7,13 +7,11 @@ import type { RulesetSummary } from '@/types/admission';
 export function RulesetConditions({ ruleset }: { ruleset: RulesetSummary }) {
     return (
         <div className="flex flex-wrap gap-1.5">
-            <Badge variant="secondary">
-                {ruleset.wave ?? 'Semua gelombang'}
-            </Badge>
-            <Badge variant="secondary">
+            <Badge variant="muted">{ruleset.wave ?? 'Semua gelombang'}</Badge>
+            <Badge variant="muted">
                 {ruleset.organization ?? 'Semua lembaga'}
             </Badge>
-            <Badge variant="secondary">
+            <Badge variant="muted">
                 {ruleset.gender ?? 'Semua jenis kelamin'}
             </Badge>
         </div>

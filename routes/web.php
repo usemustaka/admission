@@ -1,8 +1,12 @@
 <?php
 
 use App\Enums\Ability;
+use App\Enums\SettingGroup;
 use App\Http\Controllers\Admin\Admission\AdmissionSettingController;
+use App\Http\Controllers\Admin\Admission\RegistrantBulkController;
 use App\Http\Controllers\Admin\Admission\RegistrantController;
+use App\Http\Controllers\Admin\Admission\RegistrantExportController;
+use App\Http\Controllers\Admin\Admission\RegistrantQuickViewController;
 use App\Http\Controllers\Admin\Admission\RegistrantWorkflowController;
 use App\Http\Controllers\Admin\Admission\RulesetContentController;
 use App\Http\Controllers\Admin\Admission\RulesetController;
@@ -12,7 +16,9 @@ use App\Http\Controllers\Admin\Finance\PaymentController as AdminPaymentControll
 use App\Http\Controllers\Admin\NoteController;
 use App\Http\Controllers\Admin\ParentshipController;
 use App\Http\Controllers\Admin\PersonController;
+use App\Http\Controllers\Admin\PersonQuickViewController;
 use App\Http\Controllers\Admin\PersonSearchController;
+use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentProofController;
 use App\Http\Controllers\Portal\BillController;
@@ -56,7 +62,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->prefix('admin')
         ->name('admin.')
         ->group(function () {
+            Route::get('settings', [SettingController::class, 'index'])->name('settings.index');
+            Route::get('settings/{group}', [SettingController::class, 'edit'])->whereIn('group', array_column(SettingGroup::cases(), 'value'))->name('settings.edit');
+            Route::post('settings/{group}', [SettingController::class, 'update'])->whereIn('group', array_column(SettingGroup::cases(), 'value'))->name('settings.update');
+
             Route::get('people/search', PersonSearchController::class)->name('people.search');
+            Route::get('people/{person}/ringkasan', PersonQuickViewController::class)->name('people.quick-view');
             Route::resource('people', PersonController::class)->except('destroy');
 
             Route::resource('people.parentships', ParentshipController::class)
@@ -66,7 +77,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::resource('notes', NoteController::class)->only(['store', 'update', 'destroy']);
 
             Route::get('registrants', [RegistrantController::class, 'index'])->name('registrants.index');
+            Route::get('registrants/export', RegistrantExportController::class)->name('registrants.export');
+            Route::post('registrants/bulk', RegistrantBulkController::class)->name('registrants.bulk');
             Route::get('registrants/{registrant}', [RegistrantController::class, 'show'])->name('registrants.show');
+            Route::get('registrants/{registrant}/ringkasan', RegistrantQuickViewController::class)->name('registrants.quick-view');
             Route::get('registrants/{registrant}/data', [RegistrantController::class, 'edit'])->name('registrants.data.edit');
             Route::post('registrants/{registrant}/data', [RegistrantController::class, 'update'])->name('registrants.data.update');
 
@@ -85,6 +99,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('admission/settings', [AdmissionSettingController::class, 'update'])->name('admission-settings.update');
 
             Route::get('payments/open-items', [AdminPaymentController::class, 'openItems'])->name('payments.open-items');
+            Route::get('payments/ekspor', [AdminPaymentController::class, 'export'])->name('payments.export');
+            Route::post('payments/verifikasi-massal', [AdminPaymentController::class, 'bulkVerify'])->name('payments.bulk-verify');
+            Route::get('payments/{payment}/ringkasan', [AdminPaymentController::class, 'quickView'])->name('payments.quick-view');
             Route::resource('payments', AdminPaymentController::class)->only(['index', 'create', 'store', 'show']);
             Route::put('payments/{payment}/verify', [AdminPaymentController::class, 'verify'])->name('payments.verify');
             Route::put('payments/{payment}/reject', [AdminPaymentController::class, 'reject'])->name('payments.reject');

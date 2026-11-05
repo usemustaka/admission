@@ -31,7 +31,7 @@ export function CopyableText({
     }
 
     return (
-        <div className="grid gap-3 rounded-2xl border bg-sage-50/60 p-4 dark:bg-card">
+        <div className="grid gap-3 rounded-2xl border bg-neutral-50 p-4 dark:bg-card">
             <p className="text-sm leading-relaxed whitespace-pre-wrap">
                 {text}
             </p>

@@ -1,12 +1,12 @@
-import { Form, Head, usePage } from '@inertiajs/react';
-import { Link } from '@inertiajs/react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { CircleCheck } from 'lucide-react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
-import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
+import { FormField } from '@/components/form-field';
+import { SectionCard } from '@/components/section-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { edit } from '@/routes/profile';
 import type { Auth } from '@/types';
 import { send } from '@/routes/verification';
@@ -18,112 +18,99 @@ type PageProps = {
 export default function Profile({
     mustVerifyEmail,
     status,
+    canDeleteAccount,
 }: {
     mustVerifyEmail: boolean;
     status?: string;
+    canDeleteAccount: boolean;
 }) {
     const { auth } = usePage<PageProps>().props;
 
     return (
         <>
-            <Head title="Profile settings" />
+            <Head title="Pengaturan profil" />
 
-            <h1 className="sr-only">Profile settings</h1>
-
-            <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Profile"
-                    description="Update your name and email address"
-                />
-
+            <SectionCard
+                title="Profil"
+                description="Ubah nama dan alamat emailmu."
+            >
                 <Form
                     {...ProfileController.update.form()}
                     options={{
                         preserveScroll: true,
                     }}
-                    className="space-y-6"
+                    className="grid gap-6"
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="name">Name</Label>
+                            <FormField label="Nama lengkap" error={errors.name}>
+                                {(control) => (
+                                    <Input
+                                        defaultValue={auth.user.name}
+                                        name="name"
+                                        required
+                                        autoComplete="name"
+                                        {...control}
+                                    />
+                                )}
+                            </FormField>
 
-                                <Input
-                                    id="name"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.name}
-                                    name="name"
-                                    required
-                                    autoComplete="name"
-                                    placeholder="Full name"
-                                />
-
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.name}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
-
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.email}
-                                    name="email"
-                                    required
-                                    autoComplete="username"
-                                    placeholder="Email address"
-                                />
-
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.email}
-                                />
-                            </div>
+                            <FormField
+                                label="Alamat email"
+                                error={errors.email}
+                            >
+                                {(control) => (
+                                    <Input
+                                        type="email"
+                                        defaultValue={auth.user.email}
+                                        name="email"
+                                        required
+                                        autoComplete="username"
+                                        {...control}
+                                    />
+                                )}
+                            </FormField>
 
                             {mustVerifyEmail &&
                                 auth.user.email_verified_at === null && (
-                                    <div>
-                                        <p className="-mt-4 text-sm text-muted-foreground">
-                                            Your email address is unverified.{' '}
+                                    <div className="grid gap-2 text-[15px]">
+                                        <p className="text-muted-foreground">
+                                            Alamat emailmu belum diverifikasi.{' '}
                                             <Link
                                                 href={send()}
                                                 as="button"
-                                                className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                                                className="inline-flex min-h-11 items-center font-semibold text-foreground underline underline-offset-4"
                                             >
-                                                Click here to re-send the
-                                                verification email.
+                                                Kirim ulang email verifikasi
                                             </Link>
                                         </p>
 
                                         {status ===
                                             'verification-link-sent' && (
-                                            <div className="mt-2 text-sm font-medium text-green-600">
-                                                A new verification link has been
-                                                sent to your email address.
-                                            </div>
+                                            <p className="flex items-center gap-2 font-medium text-success">
+                                                <CircleCheck className="size-5" />
+                                                Tautan verifikasi baru sudah
+                                                dikirim ke emailmu.
+                                            </p>
                                         )}
                                     </div>
                                 )}
 
-                            <div className="flex items-center gap-4">
-                                <Button
-                                    disabled={processing}
-                                    data-test="update-profile-button"
-                                >
-                                    Save
-                                </Button>
-                            </div>
+                            <Button
+                                size="lg"
+                                className="w-full @2xl:w-fit"
+                                disabled={processing}
+                                data-test="update-profile-button"
+                            >
+                                {processing && <Spinner />}
+                                Simpan
+                            </Button>
                         </>
                     )}
                 </Form>
-            </div>
+            </SectionCard>
 
-            <DeleteUser />
+            {canDeleteAccount && <DeleteUser />}
         </>
     );
 }
@@ -131,7 +118,7 @@ export default function Profile({
 Profile.layout = {
     breadcrumbs: [
         {
-            title: 'Profile settings',
+            title: 'Pengaturan profil',
             href: edit(),
         },
     ],

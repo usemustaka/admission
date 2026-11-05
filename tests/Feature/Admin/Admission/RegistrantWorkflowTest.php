@@ -195,12 +195,13 @@ describe('announcing', function () {
 
 describe('placing', function () {
     beforeEach(function () {
-        Storage::disk('public')->put('registrants/formal-photos/pas.jpg', 'foto');
+        Storage::disk('public')->put('people/photos/profil.jpg', 'foto');
+        $this->registrant->person->update(['photo_path' => 'people/photos/profil.jpg']);
         $this->registrant->update(['status' => RegistrantStatus::Announced]);
         $this->year = Year::factory()->active()->create();
     });
 
-    test('the child becomes a student of the organization with their own copy of the formal photo', function () {
+    test('the child becomes a student of the organization with their own copy of the profile photo', function () {
         $this->post(route('admin.registrants.place', $this->registrant), ['year_id' => $this->year->id, 'nis' => '2026001'])->assertSessionHasNoErrors();
 
         $student = Student::query()->firstOrFail();
@@ -211,10 +212,10 @@ describe('placing', function () {
             ->and($student->year_id)->toBe($this->year->id)
             ->and($student->registrant_id)->toBe($this->registrant->id)
             ->and($student->nis)->toBe('2026001')
-            ->and($student->photo_path)->not->toBe($this->registrant->formal_photo_path);
+            ->and($student->photo_path)->not->toBe($this->registrant->person->photo_path);
 
         Storage::disk('public')->assertExists($student->photo_path);
-        Storage::disk('public')->assertExists($this->registrant->formal_photo_path);
+        Storage::disk('public')->assertExists($this->registrant->person->photo_path);
     });
 
     test('only announced registrations can be placed', function () {
@@ -225,12 +226,12 @@ describe('placing', function () {
         expect(Student::query()->count())->toBe(0);
     });
 
-    test('the formal photo is needed', function () {
-        $this->registrant->update(['formal_photo_path' => null]);
+    test('a child without a photo can still be placed', function () {
+        $this->registrant->person->update(['photo_path' => null]);
 
-        $this->post(route('admin.registrants.place', $this->registrant), ['year_id' => $this->year->id, 'nis' => '2026001'])->assertSessionHasErrors('status');
+        $this->post(route('admin.registrants.place', $this->registrant), ['year_id' => $this->year->id, 'nis' => '2026001'])->assertSessionHasNoErrors();
 
-        expect(Student::query()->count())->toBe(0);
+        expect(Student::query()->firstOrFail()->photo_path)->toBeNull();
     });
 
     test('the student number is required and cannot be used twice', function () {

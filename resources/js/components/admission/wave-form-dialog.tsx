@@ -41,7 +41,9 @@ export function WaveFormDialog({
             onSuccess: () => {
                 setOpen(false);
 
-                if (!wave) {
+                if (wave) {
+                    form.setDefaults();
+                } else {
                     form.reset();
                 }
             },
@@ -55,7 +57,17 @@ export function WaveFormDialog({
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+            open={open}
+            onOpenChange={(next) => {
+                setOpen(next);
+
+                if (!next) {
+                    form.reset();
+                    form.clearErrors();
+                }
+            }}
+        >
             <DialogTrigger asChild>{trigger}</DialogTrigger>
             <DialogContent>
                 <form onSubmit={submit} className="grid gap-5">
@@ -122,7 +134,7 @@ export function WaveFormDialog({
                         </FormField>
                     </div>
 
-                    <label className="flex items-center gap-3 text-sm font-medium">
+                    <label className="flex min-h-10 items-center gap-3 text-sm font-medium">
                         <Switch
                             checked={form.data.is_open}
                             onCheckedChange={(checked) =>
@@ -142,7 +154,7 @@ export function WaveFormDialog({
                         </Button>
                         <Button type="submit" disabled={form.processing}>
                             {form.processing && <Spinner />}
-                            Simpan
+                            {wave ? 'Simpan perubahan' : 'Buat gelombang'}
                         </Button>
                     </DialogFooter>
                 </form>
