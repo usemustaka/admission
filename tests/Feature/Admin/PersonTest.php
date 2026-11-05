@@ -43,15 +43,16 @@ test('staff can add a person with a photo', function () {
     Storage::disk('public')->assertExists($person->photo_path);
 });
 
-test('adding a NIK that already exists leads to the same person instead of a duplicate', function () {
+test('adding a NIK that already exists is refused without changing the person on record', function () {
     $this->actingAs(userWithRole(DefaultRole::Operator));
-    $existing = Person::factory()->create(['nik' => '3201987654321098']);
+    $existing = Person::factory()->create(['nik' => '3201987654321098', 'name' => 'Ahmad Fauzi']);
 
-    $this->post(route('admin.people.store'), ['name' => 'Nama Lain', 'nik' => '3201987654321098'])
-        ->assertRedirect(route('admin.people.show', $existing));
+    $this->from(route('admin.people.create'))->post(route('admin.people.store'), ['name' => 'Nama Lain', 'nik' => '3201987654321098'])
+        ->assertRedirect(route('admin.people.create'))
+        ->assertSessionHasErrors(['nik' => 'NIK ini sudah tercatat atas nama Ahmad Fauzi, bukan Nama Lain. Cek lagi NIK dan namanya; data yang sudah ada tidak diubah.']);
 
     expect(Person::where('nik', '3201987654321098')->count())->toBe(1)
-        ->and($existing->refresh()->name)->not->toBe('Nama Lain');
+        ->and($existing->refresh()->name)->toBe('Ahmad Fauzi');
 });
 
 test('a NIK must have 16 digits', function () {

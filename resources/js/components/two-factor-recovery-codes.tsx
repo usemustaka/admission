@@ -109,7 +109,7 @@ export default function TwoFactorRecoveryCodes({
                         <>
                             <div
                                 ref={codesSectionRef}
-                                className="grid gap-1.5 rounded-xl bg-muted p-4 font-mono text-[15px]"
+                                className="grid gap-1.5 rounded-xl bg-muted p-4 text-[15px] tabular-nums"
                                 role="list"
                                 aria-label="Kode pemulihan"
                             >

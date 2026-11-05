@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Contracts\HasNoteSubject;
 use App\Enums\Gender;
 use App\Enums\PersonKind;
+use App\Support\PhoneNumber;
 use Database\Factories\PersonFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -132,7 +134,8 @@ class Person extends Model implements HasNoteSubject
     }
 
     /**
-     * Match people by name or NIK.
+     * Match people by name (anywhere in it), by the start of the NIK, NISN or family card number, and by phone number
+     * (digits typed in any form, matched anywhere in the stored number). `%` and `_` in the term only match themselves.
      *
      * @param  Builder<Person>  $query
      */
@@ -144,9 +147,46 @@ class Person extends Model implements HasNoteSubject
             return;
         }
 
-        $query->where(function (Builder $query) use ($term): void {
-            $query->where('name', 'like', "%{$term}%")
-                ->orWhere('nik', 'like', "{$term}%");
+        $escape = fn (string $text): string => str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $text);
+        $digits = preg_replace('/\D+/', '', $term) ?? '';
+        $looksNumeric = preg_match('/^[\d\s+()-]+$/', $term) === 1 && $digits !== '';
+
+        $query->where(function (Builder $query) use ($term, $escape, $digits, $looksNumeric): void {
+            $query->whereRaw("name like ? escape '!'", ['%'.$escape($term).'%']);
+
+            if ($looksNumeric) {
+                $prefix = $escape($digits).'%';
+
+                $query->orWhereRaw("nik like ? escape '!'", [$prefix])
+                    ->orWhereRaw("nisn like ? escape '!'", [$prefix])
+                    ->orWhereRaw("family_card_number like ? escape '!'", [$prefix]);
+
+                $number = preg_replace('/^(62|0)/', '', $digits) ?? $digits;
+
+                if (strlen($number) >= 3) {
+                    $query->orWhereRaw(PhoneNumber::strippedColumn()." like ? escape '!'", ['%'.$escape($number).'%']);
+                }
+            }
+        });
+    }
+
+    /**
+     * People who share a stored phone number, or a name (ignoring case) and birth date, with someone else. A cheap
+     * pointer for cleaning up the list; `PersonDuplicates` is the thorough check made when a person is added.
+     *
+     * @param  Builder<Person>  $query
+     */
+    #[Scope]
+    protected function probableDuplicate(Builder $query): void
+    {
+        $query->where(function (Builder $query): void {
+            $query->whereIn('people.phone', fn ($sub) => $sub->select('phone')->from('people')->whereNotNull('phone')->where('phone', '<>', '')->groupBy('phone')->havingRaw('count(*) > 1'))
+                ->orWhereIn('people.id', fn ($sub) => $sub->select('person.id')->from('people as person')
+                    ->joinSub(
+                        DB::table('people')->selectRaw('lower(name) as lowered_name, birth_date as born_on')->whereNotNull('birth_date')->groupByRaw('lower(name), birth_date')->havingRaw('count(*) > 1'),
+                        'twins',
+                        fn ($join) => $join->on('twins.born_on', '=', 'person.birth_date')->on('twins.lowered_name', '=', DB::raw('lower(person.name)')),
+                    ));
         });
     }
 

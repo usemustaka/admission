@@ -21,14 +21,14 @@ import type { Option, Paginated, PersonRow } from '@/types/people';
 type Filters = {
     cari: string;
     jenis: string;
-    data: '' | 'nik' | 'kontak';
+    data: '' | 'nik' | 'kontak' | 'duplikat';
     urut: 'nama' | 'terbaru';
     arah: 'asc' | 'desc';
 };
 
 type Counts = {
     kinds: Record<string, number>;
-    data: { nik: number; kontak: number };
+    data: { nik: number; kontak: number; duplikat: number };
 };
 
 const ALL = 'semua';
@@ -259,8 +259,8 @@ export default function PeopleIndex({
                         <SearchInput
                             value={term}
                             onValueChange={setTerm}
-                            placeholder="Cari nama atau NIK…"
-                            aria-label="Cari nama atau NIK"
+                            placeholder="Cari nama, NIK, KK, atau nomor HP…"
+                            aria-label="Cari nama, NIK, KK, atau nomor HP"
                         />
                         <OptionSelect
                             aria-label="Kelengkapan data"
@@ -277,6 +277,10 @@ export default function PeopleIndex({
                                 {
                                     value: 'kontak',
                                     label: `Belum ada kontak (${counts.data.kontak})`,
+                                },
+                                {
+                                    value: 'duplikat',
+                                    label: `Kemungkinan duplikat (${counts.data.duplikat})`,
                                 },
                             ]}
                         />

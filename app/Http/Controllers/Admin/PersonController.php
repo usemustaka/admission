@@ -20,6 +20,8 @@ use App\Models\NoteShare;
 use App\Models\Parentship;
 use App\Models\Person;
 use App\Models\User;
+use App\Support\PersonDuplicates;
+use App\Support\PersonName;
 use App\Support\PersonOverview;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -27,6 +29,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
@@ -39,7 +42,7 @@ class PersonController extends Controller
 
         $term = $request->string('cari')->toString();
         $kind = $request->enum('jenis', PersonKind::class);
-        $quality = in_array($request->string('data')->toString(), ['nik', 'kontak'], true) ? $request->string('data')->toString() : '';
+        $quality = in_array($request->string('data')->toString(), ['nik', 'kontak', 'duplikat'], true) ? $request->string('data')->toString() : '';
         $sort = $request->string('urut')->toString() === 'terbaru' ? 'terbaru' : 'nama';
         $direction = match ($request->string('arah')->toString()) {
             'asc' => 'asc',
@@ -51,7 +54,8 @@ class PersonController extends Controller
             ->search($term)
             ->when($kind, fn (Builder $query, PersonKind $kind) => $query->ofKind($kind))
             ->when($quality === 'nik', fn (Builder $query) => $query->withoutCompleteNik())
-            ->when($quality === 'kontak', fn (Builder $query) => $query->withoutContact());
+            ->when($quality === 'kontak', fn (Builder $query) => $query->withoutContact())
+            ->when($quality === 'duplikat', fn (Builder $query) => $query->probableDuplicate());
 
         $people = $matching($kind, $quality)
             ->withExists([
@@ -96,6 +100,7 @@ class PersonController extends Controller
                 'data' => [
                     'nik' => $matching($kind, 'nik')->count(),
                     'kontak' => $matching($kind, 'kontak')->count(),
+                    'duplikat' => $matching($kind, 'duplikat')->count(),
                 ],
             ],
         ]);
@@ -111,18 +116,43 @@ class PersonController extends Controller
         ]);
     }
 
+    /**
+     * Add a person. Two things can stop it, and both leave what was typed on the form: a NIK that is already on record
+     * (the existing person is shown, nothing is changed), and people who look like the same human (shown for
+     * confirmation; `confirm_duplicate` says this is somebody else).
+     */
     public function store(StorePersonRequest $request, SavePerson $savePerson): RedirectResponse
     {
-        $nik = $request->validated('nik');
-        $existing = $nik ? Person::query()->where('nik', $nik)->first() : null;
+        $data = Arr::except($request->validated(), ['photo', 'remove_photo', 'confirm_duplicate']);
+
+        $existing = filled($data['nik'] ?? null) ? Person::query()->where('nik', $data['nik'])->first() : null;
 
         if ($existing !== null) {
-            Inertia::flash('toast', ['type' => 'info', 'message' => "NIK ini sudah terdaftar atas nama {$existing->name}, jadi kamu dialihkan ke datanya."]);
+            $differs = ! PersonName::same($existing->name, (string) $data['name']);
 
-            return to_route('admin.people.show', $existing);
+            Inertia::flash('existing_person', [
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'typed_name' => $data['name'],
+                'name_differs' => $differs,
+            ]);
+
+            throw ValidationException::withMessages(['nik' => $differs
+                ? "NIK ini sudah tercatat atas nama {$existing->name}, bukan {$data['name']}. Cek lagi NIK dan namanya; data yang sudah ada tidak diubah."
+                : "NIK ini sudah tercatat atas nama {$existing->name}. Buka datanya, tidak perlu menambah lagi."]);
         }
 
-        $person = $savePerson->handle(null, Arr::except($request->validated(), ['photo', 'remove_photo']), $request->file('photo'));
+        if (! $request->boolean('confirm_duplicate')) {
+            $duplicates = PersonDuplicates::find($data);
+
+            if ($duplicates->isNotEmpty()) {
+                Inertia::flash('duplicates', PersonDuplicates::present($duplicates));
+
+                throw ValidationException::withMessages(['duplicate' => 'Kemungkinan orang ini sudah tercatat. Pakai yang sudah ada, atau pilih "Tetap tambah" kalau memang orang yang berbeda.']);
+            }
+        }
+
+        $person = $savePerson->handle(null, $data, $request->file('photo'));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Orang baru sudah ditambahkan.']);
 
@@ -242,6 +272,7 @@ class PersonController extends Controller
             'birth_place' => $person->birth_place,
             'birth_date' => $person->birth_date?->toDateString(),
             'email' => $person->email,
+            'family_card_number' => $person->family_card_number,
             'is_alive' => $person->is_alive,
         ];
     }

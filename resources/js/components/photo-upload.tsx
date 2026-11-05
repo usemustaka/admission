@@ -7,7 +7,7 @@ export function PhotoUpload({
     value,
     onChange,
     label = 'Foto',
-    hint = 'Format JPG atau PNG, maksimal 2 MB.',
+    hint = 'Format JPG atau PNG, maksimal 1 MB.',
     maxSizeMb = 2,
     accept = 'image/jpeg,image/png',
     fit = 'cover',

@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import type { ColumnDef, SortingState } from '@tanstack/react-table';
 import {
+    CalendarClock,
     Check,
     CircleCheck,
     Clock,
@@ -42,6 +43,7 @@ import { Label } from '@/components/ui/label';
 import { formatDate, formatRupiah } from '@/lib/format';
 import { dashboard } from '@/routes';
 import {
+    arrears,
     bulkVerify,
     create,
     exportMethod,
@@ -380,6 +382,12 @@ export default function PaymentsIndex({
                     description="Cek bukti transfer dari orang tua dan catat pembayaran tunai. Hanya yang sudah diverifikasi yang dihitung ke tagihan."
                     actions={
                         <>
+                            <Button variant="outline" asChild>
+                                <Link href={arrears()}>
+                                    <CalendarClock />
+                                    Tunggakan
+                                </Link>
+                            </Button>
                             <Button variant="outline" asChild>
                                 <Link href={reconciliation()}>
                                     <Scale />

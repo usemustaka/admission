@@ -19,6 +19,8 @@ class ChooseExamSessionRequest extends FormRequest
     {
         return [
             'exam_session_id' => ['required', 'integer', 'exists:exam_sessions,id'],
+            'override_full' => ['sometimes', 'boolean'],
+            'override_reason' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -27,6 +29,6 @@ class ChooseExamSessionRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['exam_session_id' => 'Sesi ujian'];
+        return ['exam_session_id' => 'Sesi ujian', 'override_reason' => 'Alasan'];
     }
 }

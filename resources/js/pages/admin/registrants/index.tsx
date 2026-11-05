@@ -3,10 +3,12 @@ import type { ColumnDef, SortingState } from '@tanstack/react-table';
 import {
     BadgeCheck,
     ClipboardCheck,
+    Clock,
     Download,
     GraduationCap,
     Megaphone,
     MessageCircle,
+    MessageSquareWarning,
     RotateCcw,
     Settings2,
     ShieldAlert,
@@ -14,7 +16,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { ConfirmDialog } from '@/components/confirm-dialog';
 import { BulkBar } from '@/components/bulk-bar';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
@@ -23,10 +24,14 @@ import { OptionSelect } from '@/components/option-select';
 import { PageHeader } from '@/components/page-header';
 import { Pager } from '@/components/pager';
 import { PersonAvatar } from '@/components/person-avatar';
+import { BulkActionDialog } from '@/components/registrants/bulk-action-dialog';
+import type { BulkSelection } from '@/components/registrants/bulk-action-dialog';
 import { BulkSkippedDialog } from '@/components/registrants/bulk-skipped-dialog';
 import { FilterToggle } from '@/components/registrants/filter-toggle';
 import { RegistrantQuickView } from '@/components/registrants/registrant-quick-view';
 import { RelativeTime } from '@/components/registrants/relative-time';
+import { RegistrantsTableSkeleton } from '@/components/registrants/registrants-table-skeleton';
+import { WaitingSince } from '@/components/registrants/waiting-since';
 import { SearchInput } from '@/components/search-input';
 import { StatCard } from '@/components/stat-card';
 import { StatusBadge } from '@/components/status-badge';
@@ -36,13 +41,10 @@ import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/format';
 import { dashboard } from '@/routes';
 import { edit as admissionSettings } from '@/routes/admin/admission-settings';
-import registrantRoutes, {
-    bulk,
-    index,
-    show,
-} from '@/routes/admin/registrants';
+import registrantRoutes, { index, show } from '@/routes/admin/registrants';
 import type { Option, Paginated } from '@/types/people';
 import type {
+    BulkAction,
     BulkSkipped,
     RegistrantRow,
     StatusCounts,
@@ -54,25 +56,37 @@ type Filters = {
     lembaga: number | '';
     gelombang: number | '';
     perlu_dicek: boolean;
-    bayar: '' | 'lunas' | 'belum';
+    bayar: '' | 'lunas' | 'belum' | 'menunggu';
     belum_ujian: boolean;
-    urut: 'nama' | 'terbaru';
+    urut: 'nama' | 'terbaru' | 'dikirim';
     arah: 'asc' | 'desc';
+    per_halaman: number;
 };
 
-type BulkAction = 'accept' | 'announce';
-
+/** Ticked rows that can be picked one by one; the server accepts no more ids than this per run. */
 const MAX_BULK = 200;
+
+/** Most registrants one "select all results" run handles (the server's cap). */
+const MAX_FILTERED = 1000;
+
+const DEFAULT_PER_PAGE = 25;
 
 const paymentOptions: Option[] = [
     { value: 'lunas', label: 'Lunas' },
     { value: 'belum', label: 'Belum lunas' },
+    { value: 'menunggu', label: 'Bukti bayar menunggu' },
 ];
 
+/** Newest registration first; names and waiting time run from the start. */
+function defaultDirection(urut: Filters['urut']) {
+    return urut === 'terbaru' ? 'desc' : 'asc';
+}
+
 /**
- * The query string a set of filters stands for; defaults are left out so URLs stay short.
+ * The query string the filters and the order stand for; defaults are left out so URLs stay short. This is also
+ * what a "select all results" bulk action sends, so the server re-runs exactly what the list shows.
  */
-function toQuery(filters: Filters) {
+function filterQuery(filters: Filters) {
     return {
         cari: filters.cari || undefined,
         status: filters.status || undefined,
@@ -83,11 +97,20 @@ function toQuery(filters: Filters) {
         belum_ujian: filters.belum_ujian ? 1 : undefined,
         urut: filters.urut === 'terbaru' ? undefined : filters.urut,
         arah:
-            filters.urut === 'nama' && filters.arah === 'asc'
+            filters.arah === defaultDirection(filters.urut)
                 ? undefined
-                : filters.urut === 'terbaru' && filters.arah === 'desc'
-                  ? undefined
-                  : filters.arah,
+                : filters.arah,
+    };
+}
+
+/** The list's own URL: the filters plus the page size. */
+function toQuery(filters: Filters) {
+    return {
+        ...filterQuery(filters),
+        per_halaman:
+            filters.per_halaman === DEFAULT_PER_PAGE
+                ? undefined
+                : filters.per_halaman,
     };
 }
 
@@ -115,6 +138,7 @@ export default function RegistrantsIndex({
     registrants: Paginated<RegistrantRow>;
     filters: Filters;
     options: {
+        per_page: number[];
         statuses: Option[];
         organizations: Option<number>[];
         waves: Option<number>[];
@@ -133,11 +157,13 @@ export default function RegistrantsIndex({
     const [quickId, setQuickId] = useState<number | null>(null);
     const [quickOpen, setQuickOpen] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());
+    /** Every result of the filters is selected, not only the ticked rows. */
+    const [selectAll, setSelectAll] = useState(false);
     const [confirming, setConfirming] = useState<BulkAction | null>(null);
-    const [bulkProcessing, setBulkProcessing] = useState(false);
     const [bulkResult, setBulkResult] = useState<{
         done: number;
         skipped: BulkSkipped[];
+        skippedTotal: number;
     } | null>(null);
     const isFirstRender = useRef(true);
 
@@ -145,19 +171,19 @@ export default function RegistrantsIndex({
         const next = { ...filters, cari: term, ...changes };
 
         setSelected(new Set());
+        setSelectAll(false);
 
         router.get(index().url, toQuery(next), {
             preserveState: true,
             replace: true,
-            onStart: () => setLoading(true),
             ...listFailure,
-            onFinish: () => setLoading(false),
         });
     }
 
     function resetFilters() {
         setTerm('');
         setSelected(new Set());
+        setSelectAll(false);
         router.get(
             index().url,
             toQuery({
@@ -173,12 +199,28 @@ export default function RegistrantsIndex({
             {
                 preserveState: true,
                 replace: true,
-                onStart: () => setLoading(true),
                 ...listFailure,
-                onFinish: () => setLoading(false),
             },
         );
     }
+
+    /** Any visit to the list (a filter, a sort, another page) shows the table skeleton until it is loaded. */
+    useEffect(() => {
+        const listPath = new URL(index().url, window.location.origin).pathname;
+        const stopStart = router.on('start', (event) => {
+            const { visit } = event.detail;
+
+            if (visit.method === 'get' && visit.url.pathname === listPath) {
+                setLoading(true);
+            }
+        });
+        const stopFinish = router.on('finish', () => setLoading(false));
+
+        return () => {
+            stopStart();
+            stopFinish();
+        };
+    }, []);
 
     useEffect(() => {
         if (isFirstRender.current) {
@@ -198,13 +240,18 @@ export default function RegistrantsIndex({
             router.on('flash', (event) => {
                 const flash = (event as CustomEvent).detail?.flash;
                 const result = flash?.bulk as
-                    | { done: number; skipped: BulkSkipped[] }
+                    | {
+                          done: number;
+                          skipped: BulkSkipped[];
+                          skipped_total: number;
+                      }
                     | undefined;
 
                 if (result && result.skipped.length > 0) {
                     setBulkResult({
                         done: result.done,
                         skipped: result.skipped,
+                        skippedTotal: result.skipped_total,
                     });
                 }
             }),
@@ -216,31 +263,19 @@ export default function RegistrantsIndex({
         setQuickOpen(true);
     }
 
-    function runBulk(action: BulkAction) {
-        setBulkProcessing(true);
-        router.post(
-            bulk().url,
-            { action, ids: [...selected].map(Number) },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => setSelected(new Set()),
-                onError: (errors) =>
-                    toast.error(
-                        Object.values(errors)[0] ??
-                            'Pendaftar belum bisa diproses. Coba lagi ya.',
-                    ),
-                onFinish: () => {
-                    setBulkProcessing(false);
-                    setConfirming(null);
-                },
-            },
-        );
+    function changeSelection(next: Set<string>) {
+        setSelected(next);
+        setSelectAll(false);
     }
 
     const sorting: SortingState = [
         {
-            id: filters.urut === 'nama' ? 'child' : 'registered_at',
+            id:
+                filters.urut === 'nama'
+                    ? 'child'
+                    : filters.urut === 'dikirim'
+                      ? 'waiting'
+                      : 'registered_at',
             desc: filters.arah === 'desc',
         },
     ];
@@ -248,7 +283,7 @@ export default function RegistrantsIndex({
     /** What the detail page needs to keep its queue in step with this list: the filters and the order. */
     const detailQuery = useMemo(
         () => ({
-            ...toQuery({ ...filters, cari: term }),
+            ...filterQuery({ ...filters, cari: term }),
             urut: filters.urut,
             arah: filters.arah,
         }),
@@ -323,14 +358,23 @@ export default function RegistrantsIndex({
                 header: 'Pembayaran',
                 enableSorting: false,
                 meta: { className: 'hidden lg:table-cell' },
-                cell: ({ row }) =>
-                    row.original.payment === 'none' ? (
-                        <span className="text-sm text-muted-foreground">
-                            Tanpa tagihan
-                        </span>
-                    ) : (
-                        <StatusBadge status={row.original.payment} />
-                    ),
+                cell: ({ row }) => (
+                    <span className="flex flex-wrap items-center gap-1.5">
+                        {row.original.payment === 'none' ? (
+                            <span className="text-sm text-muted-foreground">
+                                Tanpa tagihan
+                            </span>
+                        ) : (
+                            <StatusBadge status={row.original.payment} />
+                        )}
+                        {row.original.payment_pending > 0 && (
+                            <Badge variant="warning">
+                                <Clock />
+                                Menunggu verifikasi
+                            </Badge>
+                        )}
+                    </span>
+                ),
             },
             {
                 id: 'exam',
@@ -379,6 +423,22 @@ export default function RegistrantsIndex({
                 cell: ({ row }) => (
                     <span className="text-sm">
                         <RelativeTime value={row.original.registered_at} />
+                    </span>
+                ),
+            },
+            {
+                id: 'waiting',
+                header: 'Menunggu sejak',
+                accessorFn: (row) => row.submitted_at,
+                enableSorting: true,
+                sortDescFirst: false,
+                meta: { className: 'hidden whitespace-nowrap lg:table-cell' },
+                cell: ({ row }) => (
+                    <span className="text-sm">
+                        <WaitingSince
+                            value={row.original.submitted_at}
+                            waiting={row.original.status === 'review'}
+                        />
                     </span>
                 ),
             },
@@ -448,7 +508,7 @@ export default function RegistrantsIndex({
         filters.belum_ujian;
 
     const exportUrl = registrantRoutes.export.url({
-        query: { ...toQuery({ ...filters, cari: term }) },
+        query: toQuery({ ...filters, cari: term }),
     });
 
     const statusItems = [
@@ -460,23 +520,53 @@ export default function RegistrantsIndex({
         })),
     ];
 
-    const confirmCopy: Record<
-        BulkAction,
-        { title: string; description: string; label: string }
-    > = {
-        accept: {
-            title: `Terima data ${selected.size} pendaftar?`,
-            description:
-                'Data dinyatakan valid dan tagihan pelunasan terbit kalau aturannya punya. Yang bukan berstatus Sedang diperiksa atau masih perlu cek NIK akan dilewati.',
-            label: 'Ya, terima',
-        },
-        announce: {
-            title: `Tandai ${selected.size} pendaftar sudah diumumkan?`,
-            description:
-                'Pastikan pengumumannya sudah dikirim ke kontak utama. Yang bukan berstatus Data valid atau masih perlu cek NIK akan dilewati.',
-            label: 'Ya, tandai',
-        },
+    const pageIds = registrants.data.map((row) => String(row.id));
+    const allOnPageSelected =
+        pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+    const hasMoreThanPage = registrants.total > registrants.data.length;
+
+    /** Who a bulk action is about: every result of the filters, or the ticked rows. */
+    const bulkSelection: BulkSelection = selectAll
+        ? {
+              mode: 'filters',
+              filters: filterQuery(filters),
+              total: registrants.total,
+          }
+        : { mode: 'ids', ids: [...selected].map(Number) };
+
+    /** How many ticked rows each step applies to, from the statuses on this page; unknown for a select-all. */
+    const selectedRows = registrants.data.filter((row) =>
+        selected.has(String(row.id)),
+    );
+    const eligibleCount: Record<BulkAction, number> = {
+        accept: selectedRows.filter((row) => row.can.accept).length,
+        announce: selectedRows.filter((row) => row.can.announce).length,
+        revise: selectedRows.filter((row) => row.can.revise).length,
     };
+    const noneEligibleHint: Record<BulkAction, string> = {
+        accept: 'Tidak ada yang berstatus Sedang diperiksa di pilihanmu.',
+        announce: 'Tidak ada yang berstatus Data valid di pilihanmu.',
+        revise: 'Tidak ada yang berstatus Sedang diperiksa di pilihanmu.',
+    };
+
+    const selectionExportUrl = selectAll
+        ? exportUrl
+        : registrantRoutes.export.url({
+              query: { selected_only: 1, ids: [...selected].map(Number) },
+          });
+
+    const tooManyTicked = !selectAll && selected.size > MAX_BULK;
+
+    function bulkButton(action: BulkAction) {
+        const ticked = !selectAll;
+        const none = ticked && eligibleCount[action] === 0;
+
+        return {
+            disabled: tooManyTicked || none,
+            title: none ? noneEligibleHint[action] : undefined,
+            suffix: ticked ? ` (${eligibleCount[action]})` : '',
+        };
+    }
 
     return (
         <>
@@ -554,7 +644,7 @@ export default function RegistrantsIndex({
                         <SearchInput
                             value={term}
                             onValueChange={setTerm}
-                            placeholder="Cari nama atau NIK…"
+                            placeholder="Cari nama anak, orang tua, HP, atau NIK…"
                             aria-label="Cari pendaftar"
                             className="md:col-span-2 xl:col-span-1"
                         />
@@ -610,6 +700,23 @@ export default function RegistrantsIndex({
                         >
                             Belum memilih ujian
                         </FilterToggle>
+                        <FilterToggle
+                            pressed={
+                                filters.urut === 'dikirim' &&
+                                filters.arah === 'asc'
+                            }
+                            onPressedChange={(oldestFirst) =>
+                                oldestFirst
+                                    ? visit({
+                                          urut: 'dikirim',
+                                          arah: 'asc',
+                                          status: filters.status || 'review',
+                                      })
+                                    : visit({ urut: 'terbaru', arah: 'desc' })
+                            }
+                        >
+                            Terlama dulu
+                        </FilterToggle>
                         {hasFilter && (
                             <Button variant="ghost" onClick={resetFilters}>
                                 <RotateCcw />
@@ -619,7 +726,59 @@ export default function RegistrantsIndex({
                     </div>
                 </div>
 
-                {registrants.data.length === 0 ? (
+                {can.bulk &&
+                    (selectAll || (allOnPageSelected && hasMoreThanPage)) && (
+                        <div
+                            role="status"
+                            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-line bg-neutral-50 px-4 py-3 text-sm dark:bg-card"
+                        >
+                            {selectAll ? (
+                                <>
+                                    <p>
+                                        Semua{' '}
+                                        <strong className="tabular-nums">
+                                            {registrants.total}
+                                        </strong>{' '}
+                                        hasil dipilih.
+                                        {registrants.total > MAX_FILTERED &&
+                                            ` Sekali proses paling banyak ${MAX_FILTERED}; sisanya bisa dijalankan lagi.`}
+                                    </p>
+                                    <Button
+                                        variant="link"
+                                        size="sm"
+                                        className="h-auto p-0"
+                                        onClick={() => setSelectAll(false)}
+                                    >
+                                        Pilih yang di halaman ini saja
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="tabular-nums">
+                                        {selected.size} pendaftar di halaman ini
+                                        dipilih.
+                                    </p>
+                                    <Button
+                                        variant="link"
+                                        size="sm"
+                                        className="h-auto p-0"
+                                        onClick={() => setSelectAll(true)}
+                                    >
+                                        Pilih semua {registrants.total} hasil
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                {loading ? (
+                    <RegistrantsTableSkeleton
+                        rows={Math.min(
+                            Math.max(registrants.data.length, 5),
+                            10,
+                        )}
+                    />
+                ) : registrants.data.length === 0 ? (
                     <EmptyState
                         icon={UsersRound}
                         title={
@@ -645,47 +804,61 @@ export default function RegistrantsIndex({
                         }
                     />
                 ) : (
-                    <div
-                        aria-busy={loading}
-                        className={cn(
-                            'transition-opacity',
-                            loading && 'pointer-events-none opacity-60',
-                        )}
-                    >
-                        <DataTable
-                            columns={columns}
-                            data={registrants.data}
-                            getRowId={(row) => String(row.id)}
-                            sorting={sorting}
-                            selection={
-                                can.bulk
-                                    ? { selected, onChange: setSelected }
-                                    : undefined
-                            }
-                            onRowOpen={openQuickView}
-                            activeRowId={
-                                quickOpen && quickId !== null
-                                    ? String(quickId)
-                                    : null
-                            }
-                            onSortingChange={(updater) => {
-                                const next =
-                                    typeof updater === 'function'
-                                        ? updater(sorting)
-                                        : updater;
-                                const first = next[0];
+                    <DataTable
+                        columns={columns}
+                        data={registrants.data}
+                        getRowId={(row) => String(row.id)}
+                        sorting={sorting}
+                        selection={
+                            can.bulk
+                                ? { selected, onChange: changeSelection }
+                                : undefined
+                        }
+                        onRowOpen={openQuickView}
+                        activeRowId={
+                            quickOpen && quickId !== null
+                                ? String(quickId)
+                                : null
+                        }
+                        onSortingChange={(updater) => {
+                            const next =
+                                typeof updater === 'function'
+                                    ? updater(sorting)
+                                    : updater;
+                            const first = next[0];
 
-                                if (first) {
-                                    visit({
-                                        urut:
-                                            first.id === 'child'
-                                                ? 'nama'
-                                                : 'terbaru',
-                                        arah: first.desc ? 'desc' : 'asc',
-                                    });
-                                }
-                            }}
+                            if (first) {
+                                visit({
+                                    urut:
+                                        first.id === 'child'
+                                            ? 'nama'
+                                            : first.id === 'waiting'
+                                              ? 'dikirim'
+                                              : 'terbaru',
+                                    arah: first.desc ? 'desc' : 'asc',
+                                });
+                            }
+                        }}
+                    />
+                )}
+
+                {(registrants.total > DEFAULT_PER_PAGE ||
+                    filters.per_halaman !== DEFAULT_PER_PAGE) && (
+                    <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+                        <span id="per-page-label">Tampilkan</span>
+                        <OptionSelect
+                            aria-labelledby="per-page-label"
+                            className="w-24"
+                            value={String(filters.per_halaman)}
+                            onValueChange={(perPage) =>
+                                visit({ per_halaman: Number(perPage) })
+                            }
+                            options={options.per_page.map((size) => ({
+                                value: size,
+                                label: String(size),
+                            }))}
                         />
+                        <span>per halaman</span>
                     </div>
                 )}
 
@@ -700,48 +873,71 @@ export default function RegistrantsIndex({
             />
 
             <BulkBar
-                count={selected.size}
+                count={selectAll ? registrants.total : selected.size}
                 noun="pendaftar"
-                onClear={() => setSelected(new Set())}
+                onClear={() => {
+                    setSelected(new Set());
+                    setSelectAll(false);
+                }}
             >
-                <Button
-                    size="sm"
-                    disabled={selected.size > MAX_BULK}
-                    onClick={() => setConfirming('accept')}
-                >
-                    <BadgeCheck />
-                    Terima data
-                </Button>
-                <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={selected.size > MAX_BULK}
-                    onClick={() => setConfirming('announce')}
-                >
-                    <Megaphone />
-                    Umumkan
-                </Button>
-                {selected.size > MAX_BULK && (
+                {(
+                    [
+                        ['accept', 'Terima data', BadgeCheck, 'default'],
+                        ['announce', 'Umumkan', Megaphone, 'outline'],
+                        [
+                            'revise',
+                            'Minta revisi',
+                            MessageSquareWarning,
+                            'outline',
+                        ],
+                    ] as const
+                ).map(([action, label, Icon, variant]) => {
+                    const { disabled, title, suffix } = bulkButton(action);
+
+                    return (
+                        <span key={action} title={title}>
+                            <Button
+                                size="sm"
+                                variant={variant}
+                                disabled={disabled}
+                                onClick={() => setConfirming(action)}
+                            >
+                                <Icon />
+                                {label}
+                                {suffix}
+                            </Button>
+                        </span>
+                    );
+                })}
+                {can.export && (
+                    <Button size="sm" variant="outline" asChild>
+                        <a href={selectionExportUrl}>
+                            <Download />
+                            Ekspor
+                        </a>
+                    </Button>
+                )}
+                {tooManyTicked && (
                     <span className="text-xs">
                         Paling banyak {MAX_BULK} sekali proses.
                     </span>
                 )}
             </BulkBar>
 
-            <ConfirmDialog
-                open={confirming !== null}
-                onOpenChange={(open) => !open && setConfirming(null)}
-                title={confirming ? confirmCopy[confirming].title : ''}
-                description={
-                    confirming ? confirmCopy[confirming].description : undefined
-                }
-                confirmLabel={confirming ? confirmCopy[confirming].label : ''}
-                processing={bulkProcessing}
-                onConfirm={() => confirming && runBulk(confirming)}
+            <BulkActionDialog
+                action={confirming}
+                selection={bulkSelection}
+                onClose={() => setConfirming(null)}
+                onDone={() => {
+                    setConfirming(null);
+                    setSelected(new Set());
+                    setSelectAll(false);
+                }}
             />
 
             <BulkSkippedDialog
                 skipped={bulkResult?.skipped ?? null}
+                skippedTotal={bulkResult?.skippedTotal ?? 0}
                 done={bulkResult?.done ?? 0}
                 onClose={() => setBulkResult(null)}
             />

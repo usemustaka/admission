@@ -10,6 +10,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { formatDate } from '@/lib/format';
 import { cn, toUrl } from '@/lib/utils';
 import {
     search as searchPeople,
@@ -25,7 +26,13 @@ type Result = {
     leading: ReactNode;
 };
 
-type PersonHit = { id: number; name: string; nik: string | null };
+type PersonHit = {
+    id: number;
+    name: string;
+    nik: string | null;
+    birth_date: string | null;
+    phone_masked: string | null;
+};
 
 /**
  * Quick jump for staff: type a page name, a child's name or a NIK, press
@@ -103,7 +110,16 @@ export function AdminSearch({
             key: `person-${person.id}`,
             kind: 'Orang',
             label: person.name,
-            hint: person.nik ?? undefined,
+            hint:
+                [
+                    person.nik,
+                    person.birth_date
+                        ? `Lahir ${formatDate(new Date(`${person.birth_date}T00:00:00`))}`
+                        : null,
+                    person.phone_masked,
+                ]
+                    .filter(Boolean)
+                    .join(' · ') || undefined,
             url: showPerson(person.id).url,
             leading: <PersonAvatar name={person.name} size="sm" />,
         }));
@@ -139,7 +155,7 @@ export function AdminSearch({
             >
                 <DialogTitle className="sr-only">Cari</DialogTitle>
                 <DialogDescription className="sr-only">
-                    Cari halaman, nama, atau NIK
+                    Cari halaman, nama, NIK, atau nomor HP
                 </DialogDescription>
 
                 <div className="p-4">
@@ -168,7 +184,7 @@ export function AdminSearch({
                                     go(results[cursor]);
                                 }
                             }}
-                            placeholder="Cari halaman, nama anak, atau NIK…"
+                            placeholder="Cari halaman, nama, NIK, atau nomor HP…"
                             aria-label="Pencarian cepat"
                             className="w-full bg-transparent text-base outline-none placeholder:text-neutral-500"
                         />

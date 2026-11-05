@@ -33,7 +33,7 @@ class SaveRegistrantDataRequest extends FormRequest
             'child.child_order' => ['nullable', 'integer', 'min:1', 'max:30'],
             'child.siblings_count' => ['nullable', 'integer', 'min:0', 'max:30'],
             'child.address' => ['nullable', 'string', 'max:1000'],
-            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:1024'],
             'remove_photo' => ['boolean'],
         ];
 

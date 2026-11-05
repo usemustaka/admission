@@ -1,8 +1,9 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { UserPlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ChoiceCardGroup } from '@/components/choice-card-group';
+import { DuplicateCandidates } from '@/components/people/duplicate-candidates';
 import { FormField } from '@/components/form-field';
 import { PersonAvatar } from '@/components/person-avatar';
 import { SearchInput } from '@/components/search-input';
@@ -22,7 +23,7 @@ import { Switch } from '@/components/ui/switch';
 import { formatDate } from '@/lib/format';
 import { search } from '@/routes/admin/people';
 import { store } from '@/routes/admin/people/parentships';
-import type { Option } from '@/types/people';
+import type { DuplicateCandidate, Option } from '@/types/people';
 
 type Candidate = {
     id: number;
@@ -68,6 +69,8 @@ export function AddParentDialog({
     const [isPrimaryContact, setIsPrimaryContact] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
+    const flash = usePage().flash as { duplicates?: DuplicateCandidate[] };
+    const duplicates = errors.duplicate ? (flash.duplicates ?? []) : [];
 
     useEffect(() => {
         if (!open || selected || term.trim().length < 2) {
@@ -107,7 +110,7 @@ export function AddParentDialog({
         setErrors({});
     }
 
-    function submit() {
+    function submit(confirmDuplicate = false) {
         if (!selected) {
             return;
         }
@@ -119,6 +122,7 @@ export function AddParentDialog({
                 relation,
                 kind: relation === 'guardian' ? null : kind || null,
                 is_primary_contact: isPrimaryContact,
+                ...(confirmDuplicate ? { confirm_duplicate: true } : {}),
             },
             {
                 preserveScroll: true,
@@ -180,11 +184,54 @@ export function AddParentDialog({
                                 variant="ghost"
                                 size="sm"
                                 className="max-md:h-10"
-                                onClick={() => setSelected(null)}
+                                onClick={() => {
+                                    setSelected(null);
+                                    setErrors({});
+                                }}
                             >
                                 Ganti
                             </Button>
                         </div>
+
+                        {duplicates.length > 0 && (
+                            <DuplicateCandidates
+                                message={`Ada orang lain yang datanya mirip dengan ${selected.name}. Kalau orang tuanya sebenarnya salah satu dari mereka, pilih yang itu supaya keluarganya tidak terbelah.`}
+                                candidates={duplicates}
+                                action={(candidate) => (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            setSelected({
+                                                id: candidate.id,
+                                                name: candidate.name,
+                                                nik: candidate.has_nik
+                                                    ? 'NIK tercatat'
+                                                    : null,
+                                                birth_date:
+                                                    candidate.birth_date,
+                                                phone_masked:
+                                                    candidate.phone_masked,
+                                                linked: false,
+                                            });
+                                            setErrors({});
+                                        }}
+                                    >
+                                        Pakai yang ini
+                                    </Button>
+                                )}
+                            >
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    className="w-fit"
+                                    disabled={!canSubmit || processing}
+                                    onClick={() => submit(true)}
+                                >
+                                    Tetap pakai {selected.name}
+                                </Button>
+                            </DuplicateCandidates>
+                        )}
 
                         <FormField
                             label="Hubungannya"
@@ -280,7 +327,7 @@ export function AddParentDialog({
                     </Button>
                     <Button
                         disabled={!canSubmit || processing}
-                        onClick={submit}
+                        onClick={() => submit()}
                     >
                         {processing && <Spinner />}
                         Tambahkan

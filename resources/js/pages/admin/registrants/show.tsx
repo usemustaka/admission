@@ -10,28 +10,39 @@ import {
     MessageCircle,
     Phone,
     ShieldAlert,
+    StickyNote,
     Undo2,
     Users,
     Wallet,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CancelPlacementDialog } from '@/components/academic/cancel-placement-dialog';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { CopyableText } from '@/components/copyable-text';
 import { DescriptionList } from '@/components/description-list';
+import { EmptyState } from '@/components/empty-state';
+import { NoteCard } from '@/components/note-card';
+import type { NoteUrgency, NoteVisibility } from '@/components/note-card';
 import { PageHeader } from '@/components/page-header';
 import { PersonAvatar } from '@/components/person-avatar';
+import { NoteForm } from '@/components/people/note-form';
+import { QuickView } from '@/components/quick-view';
+import { MessageLinks } from '@/components/registrants/message-links';
 import { NextStepCard } from '@/components/registrants/next-step-card';
+import { AnnounceWarnings } from '@/components/registrants/announce-warnings';
+import { RegistrantDataView } from '@/components/registrants/registrant-data-view';
+import type { RegistrantDetailData } from '@/components/registrants/registrant-data-view';
 import { RelativeTime } from '@/components/registrants/relative-time';
 import { ExamScoresForm } from '@/components/registrants/exam-scores-form';
 import { StatusTimeline } from '@/components/registrants/status-timeline';
 import {
     BypassDialog,
     PlaceDialog,
+    RepointIdentityDialog,
     ReviseDialog,
 } from '@/components/registrants/workflow-dialogs';
 import { SectionCard } from '@/components/section-card';
-import { SlotPicker } from '@/components/slot-picker';
+import { ExamSessionForm } from '@/components/registrants/exam-session-form';
 import type { SlotDay } from '@/components/slot-picker';
 import { StatusBadge } from '@/components/status-badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -40,11 +51,11 @@ import { Button } from '@/components/ui/button';
 import { toastFirstError } from '@/hooks/use-flash-toast';
 import { formatDate, formatRupiah, whatsappUrl } from '@/lib/format';
 import { dashboard } from '@/routes';
-import { edit as editPerson } from '@/routes/admin/people';
+import { edit as editPerson, show as showPerson } from '@/routes/admin/people';
+import { index as paymentsIndex } from '@/routes/admin/payments';
 import {
     accept,
     announce,
-    examSession,
     index,
     resolveIdentity,
     show,
@@ -56,6 +67,7 @@ import type {
     ChosenSession,
     ExamResultData,
     RegistrantAbilities,
+    RegistrantMessage,
     RegistrantQueue,
     RegistrantQueueContext,
     TimelineEntry,
@@ -77,18 +89,34 @@ type Detail = {
         id: number;
         name: string;
         nik: string | null;
-        gender: string | null;
-        birth: string | null;
-        religion: string | null;
-        address: string | null;
-        family_card_number: string | null;
         photo_url: string | null;
     };
 };
 
+type RegistrantNote = {
+    id: number;
+    body: string;
+    urgency: NoteUrgency;
+    visibility: NoteVisibility;
+    shared_with_family: boolean;
+    created_at: string | null;
+    author: { name: string; photo_url: string | null };
+    shared_with: string[];
+};
+
+type NoteOptions = {
+    urgencies: Option[];
+    visibilities: Option[];
+    users: Option<number>[];
+    roles: Option<number>[];
+};
+
 export default function RegistrantShow({
     registrant,
+    data,
     family,
+    contact,
+    messages,
     examSession: chosenSession,
     examDays,
     selectedSession,
@@ -97,16 +125,22 @@ export default function RegistrantShow({
     scores,
     readiness,
     timeline,
+    announceWarnings,
     announcement,
     student,
     years,
     statuses,
     settlement,
     can,
+    access,
+    notes,
+    noteOptions,
     queue,
     queueContext,
 }: {
     registrant: Detail;
+    data: RegistrantDetailData;
+    contact: { name: string; phone: string; label: string } | null;
     family: {
         id: number;
         person_id: number;
@@ -115,6 +149,7 @@ export default function RegistrantShow({
         phone: string | null;
         is_primary_contact: boolean;
     }[];
+    messages: RegistrantMessage[];
     examSession: ChosenSession | null;
     examDays: SlotDay[];
     selectedSession: string | null;
@@ -123,6 +158,7 @@ export default function RegistrantShow({
     scores: (number | null)[];
     readiness: string[];
     timeline: TimelineEntry[];
+    announceWarnings: string[];
     announcement: {
         text: string;
         recipient: { name: string; phone: string } | null;
@@ -133,6 +169,14 @@ export default function RegistrantShow({
     statuses: Option[];
     settlement: { has_bill: boolean; paid: boolean };
     can: RegistrantAbilities;
+    access: {
+        person: boolean;
+        payments: boolean;
+        notes: boolean;
+        createNote: boolean;
+    };
+    notes: RegistrantNote[];
+    noteOptions: NoteOptions | null;
     queue: RegistrantQueue;
     queueContext: RegistrantQueueContext;
 }) {
@@ -143,8 +187,9 @@ export default function RegistrantShow({
     const [accepting, setAccepting] = useState<'stay' | 'next' | null>(null);
     const [announcing, setAnnouncing] = useState<'stay' | 'next' | null>(null);
     const [resolving, setResolving] = useState(false);
+    const [repointing, setRepointing] = useState(false);
+    const [writingNote, setWritingNote] = useState(false);
     const [processing, setProcessing] = useState(false);
-    const [session, setSession] = useState(selectedSession ?? undefined);
 
     function post(
         url: string,
@@ -178,6 +223,50 @@ export default function RegistrantShow({
         }
     }
 
+    /**
+     * j and k walk the queue, a opens the accept dialog. They stay out of the way while typing or while a dialog
+     * or panel is open.
+     */
+    useEffect(() => {
+        function onKeyDown(event: KeyboardEvent) {
+            if (
+                event.defaultPrevented ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.altKey
+            ) {
+                return;
+            }
+
+            const target = event.target as HTMLElement | null;
+
+            if (
+                target?.closest(
+                    'input, textarea, select, [contenteditable="true"]',
+                ) ||
+                document.querySelector('[role="dialog"], [role="alertdialog"]')
+            ) {
+                return;
+            }
+
+            if (event.key === 'j' && queue.next_id !== null) {
+                router.visit(
+                    show(queue.next_id, { query: queueContext.query }),
+                );
+            } else if (event.key === 'k' && queue.previous_id !== null) {
+                router.visit(
+                    show(queue.previous_id, { query: queueContext.query }),
+                );
+            } else if (event.key === 'a' && can.accept) {
+                setAccepting('stay');
+            }
+        }
+
+        window.addEventListener('keydown', onKeyDown);
+
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [queue.next_id, queue.previous_id, queueContext.query, can.accept]);
+
     const primaryContact = family.find((member) => member.is_primary_contact);
 
     return (
@@ -208,6 +297,14 @@ export default function RegistrantShow({
                                         value={registrant.registered_at}
                                     />
                                 </span>
+                                {access.person && (
+                                    <Link
+                                        href={showPerson(registrant.child.id)}
+                                        className="text-sm font-semibold underline underline-offset-4"
+                                    >
+                                        Buka profil anak
+                                    </Link>
+                                )}
                             </div>
                         }
                     />
@@ -258,59 +355,71 @@ export default function RegistrantShow({
                             onPlace={() => setPlacing(true)}
                             onBypass={() => setBypassing(true)}
                             onResolveIdentity={() => setResolving(true)}
+                            onRepointIdentity={() => setRepointing(true)}
                         />
                     </div>
 
                     <div className="grid content-start gap-6 @5xl:col-start-1 @5xl:row-span-2 @5xl:row-start-1">
-                        <SectionCard title="Data anak">
-                            <div className="grid gap-6 sm:grid-cols-[auto_1fr]">
-                                {registrant.child.photo_url && (
-                                    <img
-                                        src={registrant.child.photo_url}
-                                        alt={`Foto ${registrant.child.name}`}
-                                        className="h-40 w-30 rounded-xl border object-cover"
+                        <RegistrantDataView
+                            data={data}
+                            editHref={edit(registrant.id).url}
+                            canEdit={can.manage}
+                            canViewPerson={access.person}
+                        />
+
+                        {access.notes && (
+                            <SectionCard
+                                title="Catatan"
+                                icon={StickyNote}
+                                description="Catatan tentang anak ini yang boleh kamu baca, yang mendesak di atas. Catatan sistem seperti Cek NIK ikut tampil."
+                                actions={
+                                    access.createNote &&
+                                    noteOptions && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setWritingNote(true)}
+                                        >
+                                            <StickyNote />
+                                            Tulis catatan
+                                        </Button>
+                                    )
+                                }
+                                contentClassName="grid gap-3"
+                            >
+                                {notes.length === 0 ? (
+                                    <EmptyState
+                                        icon={StickyNote}
+                                        title="Belum ada catatan"
+                                        description="Catatan yang boleh kamu baca akan muncul di sini."
                                     />
+                                ) : (
+                                    notes.map((note) => (
+                                        <NoteCard
+                                            key={note.id}
+                                            authorName={note.author.name}
+                                            authorPhoto={note.author.photo_url}
+                                            createdAt={note.created_at ?? ''}
+                                            body={note.body}
+                                            urgency={note.urgency}
+                                            visibility={note.visibility}
+                                            sharedWith={note.shared_with}
+                                            sharedWithFamily={
+                                                note.shared_with_family
+                                            }
+                                        />
+                                    ))
                                 )}
-                                <DescriptionList
-                                    items={[
-                                        {
-                                            label: 'NIK',
-                                            value: registrant.child.nik,
-                                        },
-                                        {
-                                            label: 'Jenis kelamin',
-                                            value: registrant.child.gender,
-                                        },
-                                        {
-                                            label: 'Tempat, tanggal lahir',
-                                            value: registrant.child.birth,
-                                        },
-                                        {
-                                            label: 'Agama',
-                                            value: registrant.child.religion,
-                                        },
-                                        {
-                                            label: 'Nomor KK',
-                                            value: registrant.child
-                                                .family_card_number,
-                                        },
-                                        {
-                                            label: 'Mendaftar',
-                                            value: registrant.registered_at
-                                                ? formatDate(
-                                                      registrant.registered_at,
-                                                  )
-                                                : null,
-                                        },
-                                        {
-                                            label: 'Alamat',
-                                            value: registrant.child.address,
-                                            wide: true,
-                                        },
-                                    ]}
-                                />
-                            </div>
-                        </SectionCard>
+                                {access.person && notes.length > 0 && (
+                                    <Link
+                                        href={showPerson(registrant.child.id)}
+                                        className="w-fit text-sm font-semibold underline underline-offset-4"
+                                    >
+                                        Ubah atau hapus catatan di profil anak
+                                    </Link>
+                                )}
+                            </SectionCard>
+                        )}
 
                         <SectionCard title="Ujian" icon={CalendarDays}>
                             <div className="grid gap-6">
@@ -324,52 +433,11 @@ export default function RegistrantShow({
                                         </span>
                                     </p>
                                     {can.manage && examDays.length > 0 && (
-                                        <div className="grid gap-3">
-                                            <SlotPicker
-                                                days={examDays}
-                                                value={session}
-                                                onValueChange={setSession}
-                                            />
-                                            <div>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    disabled={
-                                                        processing ||
-                                                        session === undefined ||
-                                                        session ===
-                                                            selectedSession
-                                                    }
-                                                    onClick={() => {
-                                                        setProcessing(true);
-                                                        router.put(
-                                                            examSession(
-                                                                registrant.id,
-                                                            ).url,
-                                                            {
-                                                                exam_session_id:
-                                                                    session,
-                                                            },
-                                                            {
-                                                                preserveScroll: true,
-                                                                onError: (
-                                                                    errors,
-                                                                ) =>
-                                                                    toastFirstError(
-                                                                        errors,
-                                                                    ),
-                                                                onFinish: () =>
-                                                                    setProcessing(
-                                                                        false,
-                                                                    ),
-                                                            },
-                                                        );
-                                                    }}
-                                                >
-                                                    Ubah jadwal
-                                                </Button>
-                                            </div>
-                                        </div>
+                                        <ExamSessionForm
+                                            registrantId={registrant.id}
+                                            days={examDays}
+                                            selected={selectedSession}
+                                        />
                                     )}
                                 </div>
 
@@ -499,10 +567,39 @@ export default function RegistrantShow({
                                     <ChevronRight />
                                 </Button>
                             )}
+                            <p className="col-span-2 text-xs text-muted-foreground">
+                                Pintasan papan ketik:{' '}
+                                <kbd className="rounded border border-line px-1 font-mono">
+                                    j
+                                </kbd>{' '}
+                                berikutnya,{' '}
+                                <kbd className="rounded border border-line px-1 font-mono">
+                                    k
+                                </kbd>{' '}
+                                sebelumnya
+                                {can.accept && (
+                                    <>
+                                        ,{' '}
+                                        <kbd className="rounded border border-line px-1 font-mono">
+                                            a
+                                        </kbd>{' '}
+                                        terima data
+                                    </>
+                                )}
+                                .
+                            </p>
                         </SectionCard>
 
                         <SectionCard title="Keluarga" icon={Users}>
-                            {family.length === 0 ? (
+                            {registrant.needs_identity_review ? (
+                                <p className="text-sm text-muted-foreground">
+                                    {contact
+                                        ? `${contact.label}: ${contact.name}, ${contact.phone}. `
+                                        : ''}
+                                    Keluarga yang tercatat disembunyikan sampai
+                                    NIK dicocokkan.
+                                </p>
+                            ) : family.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">
                                     Belum ada orang tua atau wali yang tertaut.
                                 </p>
@@ -514,14 +611,20 @@ export default function RegistrantShow({
                                             className="grid gap-1.5 text-sm"
                                         >
                                             <span className="flex flex-wrap items-center gap-2">
-                                                <Link
-                                                    href={editPerson(
-                                                        member.person_id,
-                                                    )}
-                                                    className="font-semibold hover:underline"
-                                                >
-                                                    {member.name}
-                                                </Link>
+                                                {access.person ? (
+                                                    <Link
+                                                        href={showPerson(
+                                                            member.person_id,
+                                                        )}
+                                                        className="font-semibold hover:underline"
+                                                    >
+                                                        {member.name}
+                                                    </Link>
+                                                ) : (
+                                                    <span className="font-semibold">
+                                                        {member.name}
+                                                    </span>
+                                                )}
                                                 <Badge variant="muted">
                                                     {member.relation}
                                                 </Badge>
@@ -577,15 +680,39 @@ export default function RegistrantShow({
                                 </ul>
                             )}
                             {primaryContact === undefined &&
-                                family.length > 0 && (
+                                family.length > 0 &&
+                                !registrant.needs_identity_review && (
                                     <p className="pt-3 text-xs text-muted-foreground">
                                         Belum ada kontak utama, jadi pengumuman
                                         tidak bisa dikirim otomatis.
                                     </p>
                                 )}
+                            {messages.length > 0 && (
+                                <div className="border-t pt-4">
+                                    <MessageLinks messages={messages} />
+                                </div>
+                            )}
                         </SectionCard>
 
-                        <SectionCard title="Tagihan" icon={Wallet}>
+                        <SectionCard
+                            title="Tagihan"
+                            icon={Wallet}
+                            actions={
+                                access.payments && (
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link
+                                            href={paymentsIndex({
+                                                query: {
+                                                    cari: registrant.child.name,
+                                                },
+                                            })}
+                                        >
+                                            Lihat pembayaran
+                                        </Link>
+                                    </Button>
+                                )
+                            }
+                        >
                             {bills.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">
                                     Belum ada tagihan terbit.
@@ -635,6 +762,33 @@ export default function RegistrantShow({
                     onClose={() => setCancellingPlacement(false)}
                 />
             )}
+            <RepointIdentityDialog
+                registrantId={registrant.id}
+                open={repointing}
+                onOpenChange={setRepointing}
+                typedName={registrant.submitted_name}
+            />
+            {access.createNote && noteOptions && (
+                <QuickView
+                    open={writingNote}
+                    onOpenChange={setWritingNote}
+                    title="Tulis catatan"
+                    description="Catatan untuk sesama panitia"
+                >
+                    <p className="mb-5 text-sm text-muted-foreground">
+                        Catatan untuk sesama panitia. Hanya yang kamu izinkan
+                        yang bisa membacanya.
+                    </p>
+                    <NoteForm
+                        personId={registrant.child.id}
+                        urgencies={noteOptions.urgencies}
+                        visibilities={noteOptions.visibilities}
+                        users={noteOptions.users}
+                        roles={noteOptions.roles}
+                        onSaved={() => setWritingNote(false)}
+                    />
+                </QuickView>
+            )}
             <PlaceDialog
                 registrantId={registrant.id}
                 open={placing}
@@ -682,7 +836,9 @@ export default function RegistrantShow({
                         onFinish: () => setAnnouncing(null),
                     })
                 }
-            />
+            >
+                <AnnounceWarnings warnings={announceWarnings} />
+            </ConfirmDialog>
             <ConfirmDialog
                 open={resolving}
                 onOpenChange={setResolving}

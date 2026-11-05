@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Enums\RegistrantStatus;
 use App\Models\Registrant;
 
 class RegistrantReadiness
@@ -40,5 +41,18 @@ class RegistrantReadiness
         }
 
         return $missing;
+    }
+
+    /**
+     * What the committee still has to look at: the gaps are shown in every status before the result is announced,
+     * so the member who accepts the data sees what is missing. Afterwards the data is settled and nothing is listed.
+     *
+     * @return list<string>
+     */
+    public static function forCommittee(Registrant $registrant): array
+    {
+        $open = [RegistrantStatus::Draft, RegistrantStatus::Revision, RegistrantStatus::Review, RegistrantStatus::Validated];
+
+        return in_array($registrant->status, $open, true) ? self::missing($registrant) : [];
     }
 }

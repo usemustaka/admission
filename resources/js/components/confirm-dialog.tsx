@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -19,6 +20,7 @@ export function ConfirmDialog({
     tone = 'default',
     processing = false,
     onConfirm,
+    children,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -29,6 +31,8 @@ export function ConfirmDialog({
     tone?: 'default' | 'danger';
     processing?: boolean;
     onConfirm: () => void;
+    /** Extra content under the description, such as a list of warnings. */
+    children?: ReactNode;
 }) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -39,6 +43,7 @@ export function ConfirmDialog({
                         <DialogDescription>{description}</DialogDescription>
                     )}
                 </DialogHeader>
+                {children}
                 <DialogFooter className="gap-2">
                     <Button
                         variant="outline"

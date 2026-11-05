@@ -14,7 +14,10 @@ class PersonName
         return self::normalize($first) === self::normalize($second);
     }
 
-    private static function normalize(string $name): string
+    /**
+     * The name lower-cased with accents, spaces and punctuation removed, to compare names that were typed differently.
+     */
+    public static function normalize(string $name): string
     {
         return (string) preg_replace('/[^a-z0-9]/', '', Str::lower(Str::ascii($name)));
     }

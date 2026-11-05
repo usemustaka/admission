@@ -10,9 +10,13 @@ export type RegistrantRow = {
     exam_date: string | null;
     passed: boolean | null;
     payment: PaymentState;
+    /** Rupiah of payment proofs waiting for verification; 0 when there are none. */
+    payment_pending: number;
     contact: RegistrantContact | null;
     /** ISO 8601 timestamp. */
     registered_at: string | null;
+    /** ISO 8601 timestamp of the last time the data was sent in for checking; null if never. */
+    submitted_at: string | null;
     can: RegistrantAbilities;
 };
 
@@ -61,6 +65,7 @@ export type RegistrantQuickViewData = {
         is_primary_contact: boolean;
     }[];
     contact: RegistrantContact | null;
+    messages: RegistrantMessage[];
     bills: {
         status: PaymentState;
         total: number;
@@ -77,6 +82,8 @@ export type RegistrantQuickViewData = {
     };
     exam: { session: ChosenSession | null; result: ExamResultData };
     readiness: string[];
+    /** Why announcing now would be early: missing scores, not passed, an open bill. */
+    announce_warnings: string[];
     timeline: TimelineEntry[];
     can: RegistrantAbilities;
 };
@@ -97,6 +104,29 @@ export type RegistrantQueueContext = {
 export type StatusCounts = Record<string, number> & { all: number };
 
 export type BulkSkipped = { id: number; name: string; reason: string };
+
+export type BulkAction = 'accept' | 'announce' | 'revise';
+
+/** What a bulk run would do, from the server, without changing anything. */
+export type BulkPreview = {
+    action: BulkAction;
+    /** Every registrant the selection stands for. */
+    total: number;
+    /** How many of them one run handles (the first `cap` when `capped`). */
+    processed: number;
+    capped: boolean;
+    cap: number;
+    eligible: number;
+    skipped: number;
+    reasons: { reason: string; count: number }[];
+    /** Only for announcing: how many of the registrants in the right status are incomplete, and how. */
+    readiness: {
+        missing_scores: number;
+        not_passed: number;
+        unsettled: number;
+        incomplete: number;
+    } | null;
+};
 
 export type ExamResultData = {
     aspects: {
@@ -121,3 +151,10 @@ export type TimelineEntry = {
 };
 
 export type ChosenSession = { date: string; label: string };
+
+/** A WhatsApp message with its template filled in, offered when it fits the registration's situation. */
+export type RegistrantMessage = {
+    kind: string;
+    label: string;
+    url: string;
+};

@@ -129,11 +129,17 @@ describe('exam scores', function () {
             ->and($result['aspects'][0]['passed'])->toBeTrue();
     });
 
-    test('scores stay between 0 and 100 and match the aspects', function () {
+    test('scores stay between 0 and 100 and belong to an aspect that exists', function () {
         $this->put(route('admin.registrants.scores', $this->registrant), ['scores' => [101, 50]])->assertSessionHasErrors('scores.0');
-        $this->put(route('admin.registrants.scores', $this->registrant), ['scores' => [80]])->assertSessionHasErrors('scores');
+        $this->put(route('admin.registrants.scores', $this->registrant), ['scores' => [80, 50, 40]])->assertSessionHasErrors('scores');
 
         expect($this->registrant->refresh()->exam_scores)->toBeNull();
+    });
+
+    test('scores for some of the aspects leave the others as they are', function () {
+        $this->put(route('admin.registrants.scores', $this->registrant), ['scores' => [80]])->assertSessionHasNoErrors();
+
+        expect($this->registrant->refresh()->exam_scores)->toBe([80, null]);
     });
 });
 
@@ -179,8 +185,8 @@ describe('announcing', function () {
     });
 
     test('the template can be changed in the settings', function () {
-        $this->put(route('admin.admission-settings.update'), ['template' => 'Hasil {nama}: {hasil}'])->assertSessionHasNoErrors();
-        $this->put(route('admin.admission-settings.update'), ['template' => ''])->assertSessionHasErrors('template');
+        $this->put(route('admin.admission-settings.update'), ['templates' => ['announcement-incomplete' => 'Hasil {nama}: {hasil}']])->assertSessionHasNoErrors();
+        $this->put(route('admin.admission-settings.update'), ['templates' => ['announcement-incomplete' => 'Hasil {nama} {typo}']])->assertSessionHasErrors('templates.announcement-incomplete');
 
         expect(Announcement::template())->toBe('Hasil {nama}: {hasil}');
     });

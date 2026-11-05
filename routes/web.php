@@ -3,6 +3,8 @@
 use App\Enums\Ability;
 use App\Enums\SettingGroup;
 use App\Http\Controllers\Admin\Admission\AdmissionSettingController;
+use App\Http\Controllers\Admin\Admission\ExamController;
+use App\Http\Controllers\Admin\Admission\ExamScoreGridController;
 use App\Http\Controllers\Admin\Admission\RegistrantBulkController;
 use App\Http\Controllers\Admin\Admission\RegistrantController;
 use App\Http\Controllers\Admin\Admission\RegistrantExportController;
@@ -12,6 +14,7 @@ use App\Http\Controllers\Admin\Admission\RulesetContentController;
 use App\Http\Controllers\Admin\Admission\RulesetController;
 use App\Http\Controllers\Admin\Admission\RulesetOrderController;
 use App\Http\Controllers\Admin\Admission\WaveController;
+use App\Http\Controllers\Admin\Finance\ArrearsController;
 use App\Http\Controllers\Admin\Finance\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Admin\Finance\PaymentCorrectionController;
 use App\Http\Controllers\Admin\Finance\PaymentReconciliationController;
@@ -90,6 +93,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('registrants', [RegistrantController::class, 'index'])->name('registrants.index');
             Route::get('registrants/export', RegistrantExportController::class)->name('registrants.export');
             Route::post('registrants/bulk', RegistrantBulkController::class)->name('registrants.bulk');
+            Route::post('registrants/bulk/pratinjau', [RegistrantBulkController::class, 'preview'])->name('registrants.bulk-preview');
             Route::get('registrants/{registrant}', [RegistrantController::class, 'show'])->name('registrants.show');
             Route::get('registrants/{registrant}/ringkasan', RegistrantQuickViewController::class)->name('registrants.quick-view');
             Route::get('registrants/{registrant}/data', [RegistrantController::class, 'edit'])->name('registrants.data.edit');
@@ -102,15 +106,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::post('announce', 'announce')->name('announce');
                 Route::post('place', 'place')->name('place');
                 Route::post('resolve-identity', 'resolveIdentity')->name('resolve-identity');
+                Route::post('repoint-identity', 'repointIdentity')->name('repoint-identity');
                 Route::put('exam-session', 'examSession')->name('exam-session');
                 Route::put('scores', 'scores')->name('scores');
             });
+
+            Route::get('exams', [ExamController::class, 'index'])->name('exams.index');
+            Route::get('exams/sessions/{session}', [ExamController::class, 'show'])->name('exams.sessions.show');
+            Route::get('exams/sessions/{session}/ekspor', [ExamController::class, 'export'])->name('exams.sessions.export');
+            Route::get('exams/sessions/{session}/nilai', [ExamScoreGridController::class, 'edit'])->name('exams.sessions.scores.edit');
+            Route::put('exams/sessions/{session}/nilai', [ExamScoreGridController::class, 'update'])->name('exams.sessions.scores.update');
 
             Route::get('admission/settings', [AdmissionSettingController::class, 'edit'])->name('admission-settings.edit');
             Route::put('admission/settings', [AdmissionSettingController::class, 'update'])->name('admission-settings.update');
 
             Route::get('payments/open-items', [AdminPaymentController::class, 'openItems'])->name('payments.open-items');
             Route::get('payments/ekspor', [AdminPaymentController::class, 'export'])->name('payments.export');
+            Route::get('payments/tunggakan', [ArrearsController::class, 'index'])->name('payments.arrears');
+            Route::get('payments/tunggakan/ekspor', [ArrearsController::class, 'export'])->name('payments.arrears.export');
             Route::get('payments/rekonsiliasi', [PaymentReconciliationController::class, 'index'])->name('payments.reconciliation');
             Route::get('payments/rekonsiliasi/ekspor', [PaymentReconciliationController::class, 'export'])->name('payments.reconciliation.export');
             Route::post('payments/verifikasi-massal', [AdminPaymentController::class, 'bulkVerify'])->name('payments.bulk-verify');

@@ -2,6 +2,7 @@
 
 namespace App\Actions\Portal;
 
+use App\Actions\Notes\WritePersonAuditNote;
 use App\Actions\People\LinkParent;
 use App\Actions\People\SavePerson;
 use App\Enums\ParentKind;
@@ -9,6 +10,9 @@ use App\Enums\ParentRelation;
 use App\Models\Parentship;
 use App\Models\Person;
 use App\Models\Registrant;
+use App\Models\User;
+use BackedEnum;
+use DateTimeInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +23,7 @@ class SaveRegistrantData
     public function __construct(
         private SavePerson $savePerson,
         private LinkParent $linkParent,
+        private WritePersonAuditNote $writePersonAuditNote,
     ) {}
 
     /**
@@ -26,6 +31,9 @@ class SaveRegistrantData
      *
      * Existing people are never overwritten by strangers: a NIK can only be set while blank, and a person
      * who is already known is linked with their blanks filled in rather than replaced.
+     *
+     * When a committee member does it on the family's behalf (`$auditedBy`), the fields they changed are
+     * written down in a private note on the child; parents editing their own draft leave no such trace.
      *
      * @param  array<string, mixed>  $child
      * @param  array<string, array<string, mixed>>  $parents  keyed by relation (father, mother, guardian)
@@ -38,9 +46,12 @@ class SaveRegistrantData
         array $parents,
         ?UploadedFile $photo = null,
         bool $removePhoto = false,
+        ?User $auditedBy = null,
     ): void {
-        DB::transaction(function () use ($registrant, $child, $parents, $photo, $removePhoto): void {
+        DB::transaction(function () use ($registrant, $child, $parents, $photo, $removePhoto, $auditedBy): void {
             $person = $registrant->person;
+            $hadPhoto = $person->photo_path !== null;
+            $before = $auditedBy === null ? [] : $this->snapshot($person);
 
             $this->savePerson->handle($person, $child, $photo, $removePhoto);
 
@@ -53,7 +64,112 @@ class SaveRegistrantData
 
                 $this->saveParent($person, $relation, $fields);
             }
+
+            if ($auditedBy !== null) {
+                $photoChange = match (true) {
+                    $photo !== null => 'Foto',
+                    $removePhoto && $hadPhoto => 'Foto (dihapus)',
+                    default => null,
+                };
+
+                $this->writeAuditNote($person, $auditedBy, $before, $this->snapshot($person), $photoChange);
+            }
         });
+    }
+
+    /** @var array<string, string> */
+    private const CHILD_LABELS = [
+        'gender' => 'Jenis kelamin',
+        'birth_place' => 'Tempat lahir',
+        'birth_date' => 'Tanggal lahir',
+        'nisn' => 'NISN',
+        'family_card_number' => 'Nomor KK',
+        'religion' => 'Agama',
+        'blood_type' => 'Golongan darah',
+        'child_order' => 'Anak ke',
+        'siblings_count' => 'Jumlah saudara',
+        'address' => 'Alamat',
+    ];
+
+    /** @var array<string, string> */
+    private const PARENT_LABELS = [
+        'name' => 'nama',
+        'nik' => 'NIK',
+        'phone' => 'nomor HP',
+        'job' => 'pekerjaan',
+        'last_education' => 'pendidikan terakhir',
+        'monthly_income' => 'penghasilan',
+        'address' => 'alamat',
+        'is_alive' => 'status hidup',
+        'kind' => 'hubungan',
+    ];
+
+    /**
+     * The values the committee can change on this form, as plain strings: the child's, and each parent's.
+     *
+     * @return array{child: array<string, string>, parents: array<string, array<string, string>>}
+     */
+    private function snapshot(Person $child): array
+    {
+        $value = fn (mixed $raw): string => match (true) {
+            $raw instanceof BackedEnum => (string) $raw->value,
+            $raw instanceof DateTimeInterface => $raw->format('Y-m-d'),
+            is_bool($raw) => $raw ? '1' : '0',
+            default => (string) ($raw ?? ''),
+        };
+
+        $parents = [];
+
+        foreach ($child->parentships()->with('relatedPerson')->get() as $parentship) {
+            $parents[$parentship->relation->value] = collect(array_keys(self::PARENT_LABELS))
+                ->mapWithKeys(fn (string $field): array => [$field => $value($field === 'kind' ? $parentship->kind : $parentship->relatedPerson->getAttribute($field))])
+                ->all();
+        }
+
+        return [
+            'child' => collect(array_keys(self::CHILD_LABELS))->mapWithKeys(fn (string $field): array => [$field => $value($child->getAttribute($field))])->all(),
+            'parents' => $parents,
+        ];
+    }
+
+    /**
+     * @param  array{child?: array<string, string>, parents?: array<string, array<string, string>>}  $before
+     * @param  array{child: array<string, string>, parents: array<string, array<string, string>>}  $after
+     */
+    private function writeAuditNote(Person $child, User $by, array $before, array $after, ?string $photo): void
+    {
+        $changes = [];
+
+        foreach (self::CHILD_LABELS as $field => $label) {
+            if (($before['child'][$field] ?? '') !== $after['child'][$field]) {
+                $changes[] = $label;
+            }
+        }
+
+        if ($photo !== null) {
+            $changes[] = $photo;
+        }
+
+        foreach (ParentRelation::cases() as $relation) {
+            $old = $before['parents'][$relation->value] ?? null;
+            $new = $after['parents'][$relation->value] ?? null;
+
+            if ($new === null || $old === $new) {
+                continue;
+            }
+
+            $changed = $old === null
+                ? ['ditambahkan']
+                : array_values(array_filter(self::PARENT_LABELS, fn (string $label, string $field): bool => $old[$field] !== $new[$field], ARRAY_FILTER_USE_BOTH));
+
+            $changes[] = "{$relation->label()} (".implode(', ', $changed).')';
+        }
+
+        if ($changes === []) {
+            return;
+        }
+
+        $this->writePersonAuditNote->handle($child, $by, 'Data pendaftaran diubah panitia: '.implode(', ', $changes).'.');
     }
 
     /** @var list<string> */

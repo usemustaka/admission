@@ -1,10 +1,13 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { ExternalLink } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { FormField } from '@/components/form-field';
+import { DuplicateCandidates } from '@/components/people/duplicate-candidates';
 import { NikInput } from '@/components/nik-input';
 import { PageHeader } from '@/components/page-header';
 import { PhotoUpload } from '@/components/photo-upload';
 import { SectionCard } from '@/components/section-card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -16,9 +19,17 @@ import {
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
+import { digitsOnly } from '@/lib/format';
 import { dashboard } from '@/routes';
 import { index, show, store, update } from '@/routes/admin/people';
-import type { Option, PersonDetail } from '@/types/people';
+import type { DuplicateCandidate, Option, PersonDetail } from '@/types/people';
+
+type ExistingPerson = {
+    id: number;
+    name: string;
+    typed_name: string;
+    name_differs: boolean;
+};
 
 export default function PersonForm({
     person,
@@ -28,6 +39,10 @@ export default function PersonForm({
     genders: Option[];
 }) {
     const isEditing = person !== null;
+    const flash = usePage().flash as {
+        duplicates?: DuplicateCandidate[];
+        existing_person?: ExistingPerson;
+    };
 
     const form = useForm<{
         nik: string;
@@ -37,6 +52,7 @@ export default function PersonForm({
         birth_date: string;
         phone: string;
         email: string;
+        family_card_number: string;
         is_alive: boolean;
         photo: File | null;
         remove_photo: boolean;
@@ -49,6 +65,7 @@ export default function PersonForm({
         birth_date: person?.birth_date ?? '',
         phone: person?.phone ?? '',
         email: person?.email ?? '',
+        family_card_number: person?.family_card_number ?? '',
         is_alive: person?.is_alive ?? true,
         photo: null,
         remove_photo: false,
@@ -56,7 +73,7 @@ export default function PersonForm({
         ...(person ? { _method: 'put' } : {}),
     });
 
-    function submit(event: FormEvent) {
+    function submit(event: FormEvent, confirmDuplicate = false) {
         event.preventDefault();
 
         if (isEditing) {
@@ -65,8 +82,16 @@ export default function PersonForm({
             return;
         }
 
+        form.transform((data) => ({
+            ...data,
+            confirm_duplicate: confirmDuplicate,
+        }));
         form.post(store().url, { forceFormData: true });
     }
+
+    const duplicates = isEditing ? [] : (flash.duplicates ?? []);
+    const existing =
+        !isEditing && form.errors.nik ? flash.existing_person : undefined;
 
     const title = isEditing ? `Ubah ${person.name}` : 'Tambah orang';
 
@@ -82,9 +107,59 @@ export default function PersonForm({
                     description={
                         isEditing
                             ? 'Perbarui data diri, lalu simpan.'
-                            : 'Kalau NIK sudah pernah tercatat, kamu akan diarahkan ke datanya.'
+                            : 'Kalau NIK atau datanya mirip orang yang sudah tercatat, kamu akan diberi tahu sebelum menambah.'
                     }
                 />
+
+                {existing && (
+                    <Alert variant="warning" className="grid-cols-[1rem_1fr]">
+                        <ExternalLink />
+                        <AlertTitle className="line-clamp-none">
+                            NIK ini sudah tercatat atas nama {existing.name}
+                        </AlertTitle>
+                        <AlertDescription className="col-start-2 grid gap-3">
+                            <p>
+                                {existing.name_differs
+                                    ? `Nama yang kamu ketik (${existing.typed_name}) berbeda dari yang tercatat. Cek NIK-nya dulu. Data yang sudah ada tidak diubah, dan isianmu tetap ada di formulir ini.`
+                                    : 'Datanya sudah ada, jadi tidak perlu menambah lagi.'}
+                            </p>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-fit"
+                                asChild
+                            >
+                                <Link href={show(existing.id)}>
+                                    Buka data {existing.name}
+                                </Link>
+                            </Button>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {duplicates.length > 0 && (
+                    <DuplicateCandidates
+                        message="Data yang kamu isi mirip dengan orang di bawah. Kalau orangnya sama, pakai yang sudah ada supaya datanya tidak ganda."
+                        candidates={duplicates}
+                        action={(candidate) => (
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href={show(candidate.id)}>
+                                    Pakai yang ini
+                                </Link>
+                            </Button>
+                        )}
+                    >
+                        <Button
+                            type="button"
+                            size="sm"
+                            className="w-fit"
+                            disabled={form.processing}
+                            onClick={(event) => submit(event, true)}
+                        >
+                            Tetap tambah
+                        </Button>
+                    </DuplicateCandidates>
+                )}
 
                 <SectionCard title="Data diri">
                     <div className="grid gap-6 sm:grid-cols-2">
@@ -191,7 +266,7 @@ export default function PersonForm({
 
                         <FormField
                             label="Nomor HP"
-                            hint="Contoh: 081234567890"
+                            hint="Contoh: 081234567890. Spasi dan tanda hubung dibuang otomatis"
                             error={form.errors.phone}
                         >
                             {(control) => (
@@ -214,6 +289,32 @@ export default function PersonForm({
                                     value={form.data.email}
                                     onChange={(e) =>
                                         form.setData('email', e.target.value)
+                                    }
+                                    {...control}
+                                />
+                            )}
+                        </FormField>
+
+                        <FormField
+                            label="Nomor KK"
+                            hint="16 digit, opsional. Membantu mengenali anggota keluarga yang sama"
+                            error={form.errors.family_card_number}
+                        >
+                            {(control) => (
+                                <Input
+                                    inputMode="numeric"
+                                    autoComplete="off"
+                                    maxLength={16}
+                                    className="tabular-nums"
+                                    value={form.data.family_card_number}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'family_card_number',
+                                            digitsOnly(e.target.value).slice(
+                                                0,
+                                                16,
+                                            ),
+                                        )
                                     }
                                     {...control}
                                 />

@@ -12,6 +12,7 @@ export type PersonDetail = PersonSummary & {
     birth_place: string | null;
     birth_date: string | null;
     email: string | null;
+    family_card_number: string | null;
     is_alive: boolean;
 };
 
@@ -125,4 +126,15 @@ export type Paginated<T> = {
     total: number;
     prev_page_url: string | null;
     next_page_url: string | null;
+};
+
+/** Someone who looks like the person being added or linked, shown for the "Kemungkinan sudah ada" check. */
+export type DuplicateCandidate = {
+    id: number;
+    name: string;
+    birth_date: string | null;
+    phone_masked: string | null;
+    has_nik: boolean;
+    has_family_card: boolean;
+    reasons: string[];
 };

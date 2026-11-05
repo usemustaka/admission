@@ -7,6 +7,7 @@ use App\Actions\Admission\AnnounceRegistrant;
 use App\Actions\Admission\BypassRegistrantStatus;
 use App\Actions\Admission\ChooseExamSession;
 use App\Actions\Admission\PlaceRegistrant;
+use App\Actions\Admission\RepointRegistrantIdentity;
 use App\Actions\Admission\RequestRevision;
 use App\Actions\Admission\ResolveIdentityReview;
 use App\Actions\Admission\SaveExamScores;
@@ -60,7 +61,13 @@ class RegistrantWorkflowController extends Controller
 
     public function examSession(ChooseExamSessionRequest $request, Registrant $registrant, ChooseExamSession $chooseExamSession): RedirectResponse
     {
-        $chooseExamSession->handle($registrant, ExamSession::query()->findOrFail($request->integer('exam_session_id')));
+        $chooseExamSession->handle(
+            $registrant,
+            ExamSession::query()->findOrFail($request->integer('exam_session_id')),
+            by: $request->user(),
+            overrideFull: $request->boolean('override_full'),
+            overrideReason: $request->input('override_reason'),
+        );
 
         return $this->done('Jadwal ujian sudah diubah.');
     }
@@ -72,9 +79,10 @@ class RegistrantWorkflowController extends Controller
         $validated = $request->validate([
             'scores' => ['present', 'array'],
             'scores.*' => ['nullable', 'integer', 'between:0,100'],
+            'confirm_after_announce' => ['sometimes', 'boolean'],
         ], [], ['scores.*' => 'Nilai']);
 
-        $saveExamScores->handle($registrant, array_values($validated['scores']));
+        $saveExamScores->handle($registrant, $validated['scores'], $request->user(), $request->boolean('confirm_after_announce'));
 
         return $this->done('Nilai ujian sudah disimpan.');
     }
@@ -102,13 +110,27 @@ class RegistrantWorkflowController extends Controller
         return $this->done('Siswa sudah ditempatkan.');
     }
 
-    public function resolveIdentity(Registrant $registrant, ResolveIdentityReview $resolveIdentityReview): RedirectResponse
+    public function resolveIdentity(Request $request, Registrant $registrant, ResolveIdentityReview $resolveIdentityReview): RedirectResponse
     {
         Gate::authorize('manage', $registrant);
 
-        $resolveIdentityReview->handle($registrant);
+        $resolveIdentityReview->handle($registrant, $request->user());
 
         return $this->done('Penandaan selesai. Orang tua sekarang tertaut ke anak ini.');
+    }
+
+    public function repointIdentity(Request $request, Registrant $registrant, RepointRegistrantIdentity $repointRegistrantIdentity): RedirectResponse
+    {
+        Gate::authorize('manage', $registrant);
+
+        $validated = $request->validate([
+            'nik' => ['required', 'digits:16'],
+            'reason' => ['required', 'string', 'max:1000'],
+        ], [], ['nik' => 'NIK', 'reason' => 'Alasan']);
+
+        $repointRegistrantIdentity->handle($registrant, $request->user(), $validated['nik'], $validated['reason']);
+
+        return $this->done('Pendaftaran sudah dialihkan ke NIK yang benar.');
     }
 
     private function done(string $message): RedirectResponse

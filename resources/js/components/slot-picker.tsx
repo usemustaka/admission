@@ -1,4 +1,6 @@
-import { Check } from 'lucide-react';
+import { Check, TriangleAlert } from 'lucide-react';
+import { FormField } from '@/components/form-field';
+import { Textarea } from '@/components/ui/textarea';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -20,15 +22,29 @@ export type SlotDay = {
  * Lets a parent pick an exam date and session. Sessions that are full stay
  * visible but cannot be chosen. The date row scrolls sideways; sessions are a
  * list of full-width rows that grow to two columns only in a wide container.
+ *
+ * With `allowFull` (for the committee) full sessions can be chosen too, marked
+ * "Kuota penuh". Choosing one other than `currentValue` asks for the reason
+ * through `overrideReason`, which the caller sends along.
  */
 export function SlotPicker({
     days,
     value,
     onValueChange,
+    allowFull = false,
+    currentValue,
+    overrideReason = '',
+    onOverrideReasonChange,
+    overrideError,
 }: {
     days: SlotDay[];
     value?: string;
     onValueChange: (sessionId: string) => void;
+    allowFull?: boolean;
+    currentValue?: string;
+    overrideReason?: string;
+    onOverrideReasonChange?: (reason: string) => void;
+    overrideError?: string;
 }) {
     const selectedDate = days.find((day) =>
         day.sessions.some((session) => session.id === value),
@@ -38,13 +54,20 @@ export function SlotPicker({
         const firstOpen = day.sessions.find(
             (session) => session.taken < session.quota,
         );
+        const first = firstOpen ?? (allowFull ? day.sessions[0] : undefined);
 
-        if (firstOpen) {
-            onValueChange(firstOpen.id);
+        if (first) {
+            onValueChange(first.id);
         }
     }
 
     const activeDay = days.find((day) => day.date === selectedDate);
+    const chosen = activeDay?.sessions.find((session) => session.id === value);
+    const askReason =
+        allowFull &&
+        chosen !== undefined &&
+        chosen.taken >= chosen.quota &&
+        chosen.id !== currentValue;
 
     return (
         <div className="grid gap-5">
@@ -65,7 +88,7 @@ export function SlotPicker({
                             <button
                                 key={day.date}
                                 type="button"
-                                disabled={isFull}
+                                disabled={isFull && !allowFull}
                                 aria-pressed={isActive}
                                 onClick={() => pickDate(day)}
                                 className={cn(
@@ -74,6 +97,7 @@ export function SlotPicker({
                                         ? 'border-neutral-900 bg-primary text-primary-foreground ring-1 ring-neutral-900'
                                         : 'border-input bg-card hover:border-neutral-500',
                                     isFull &&
+                                        !allowFull &&
                                         'cursor-not-allowed opacity-50 hover:border-input',
                                 )}
                             >
@@ -97,7 +121,7 @@ export function SlotPicker({
                                 </span>
                                 {isFull && (
                                     <span className="text-xs font-semibold">
-                                        Penuh
+                                        {allowFull ? 'Kuota penuh' : 'Penuh'}
                                     </span>
                                 )}
                             </button>
@@ -125,7 +149,7 @@ export function SlotPicker({
                                     type="button"
                                     role="radio"
                                     aria-checked={isActive}
-                                    disabled={isFull}
+                                    disabled={isFull && !allowFull}
                                     onClick={() => onValueChange(session.id)}
                                     className={cn(
                                         'flex min-h-14 items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3 text-left transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
@@ -133,6 +157,7 @@ export function SlotPicker({
                                             ? 'border-neutral-900 bg-lime-50 ring-1 ring-neutral-900 dark:border-lime-400 dark:bg-lime-400/10 dark:ring-lime-400'
                                             : 'border-input hover:border-neutral-500',
                                         isFull &&
+                                            !allowFull &&
                                             'cursor-not-allowed opacity-50 hover:border-input',
                                     )}
                                 >
@@ -147,16 +172,23 @@ export function SlotPicker({
                                     </span>
                                     <span
                                         className={cn(
-                                            'shrink-0 text-sm font-medium',
+                                            'inline-flex shrink-0 items-center gap-1 text-sm font-medium',
                                             isFull
-                                                ? 'text-destructive-foreground'
+                                                ? allowFull
+                                                    ? 'font-semibold text-warning'
+                                                    : 'text-destructive-foreground'
                                                 : left <= 5
                                                   ? 'text-warning'
                                                   : 'text-muted-foreground',
                                         )}
                                     >
+                                        {isFull && allowFull && (
+                                            <TriangleAlert className="size-4" />
+                                        )}
                                         {isFull
-                                            ? 'Penuh'
+                                            ? allowFull
+                                                ? `Kuota penuh (${session.taken}/${session.quota})`
+                                                : 'Penuh'
                                             : `Sisa ${left} kursi`}
                                     </span>
                                 </button>
@@ -164,6 +196,27 @@ export function SlotPicker({
                         })}
                     </div>
                 </div>
+            )}
+
+            {askReason && (
+                <FormField
+                    label="Alasan memakai sesi yang sudah penuh"
+                    hint="Kuota sesi ini sudah terpenuhi. Alasanmu dicatat di catatan pribadi anak."
+                    error={overrideError}
+                    required
+                >
+                    {(control) => (
+                        <Textarea
+                            {...control}
+                            value={overrideReason}
+                            onChange={(event) =>
+                                onOverrideReasonChange?.(event.target.value)
+                            }
+                            maxLength={500}
+                            placeholder="Misalnya: titipan kepala sekolah, atau pindah dari sesi yang dibatalkan"
+                        />
+                    )}
+                </FormField>
             )}
         </div>
     );

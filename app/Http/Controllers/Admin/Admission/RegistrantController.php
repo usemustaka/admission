@@ -9,12 +9,14 @@ use App\Enums\RegistrantStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Admission\SaveRegistrantDataRequest;
 use App\Models\Bill;
+use App\Models\Note;
 use App\Models\Organization;
 use App\Models\Parentship;
 use App\Models\Registrant;
 use App\Models\Wave;
 use App\Models\Year;
 use App\Support\Announcement;
+use App\Support\AnnouncementReadiness;
 use App\Support\BillPresenter;
 use App\Support\ExamResult;
 use App\Support\ExamSchedulePresenter;
@@ -59,7 +61,7 @@ class RegistrantController extends Controller
         $overall = Registrant::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
 
         return Inertia::render('admin/registrants/index', [
-            'registrants' => $registrants->paginate(25)->withQueryString()->through(fn (Registrant $registrant): array => [
+            'registrants' => $registrants->paginate($filters->perPage)->withQueryString()->through(fn (Registrant $registrant): array => [
                 'id' => $registrant->id,
                 'child' => [
                     'name' => $registrant->person->name,
@@ -75,12 +77,15 @@ class RegistrantController extends Controller
                 'exam_date' => $registrant->examSession?->day->date->toDateString(),
                 'passed' => ExamResult::for($registrant)['passed'],
                 'payment' => RegistrantBillSummary::status($registrant->bills),
+                'payment_pending' => RegistrantBillSummary::totals($registrant->bills)['pending'],
                 'contact' => RegistrantPresenter::contact($registrant),
                 'registered_at' => $registrant->created_at?->toIso8601String(),
+                'submitted_at' => $registrant->submitted_at?->toIso8601String(),
                 'can' => RegistrantPresenter::abilities($registrant, $user),
             ]),
             'filters' => $filters->toArray(),
             'options' => [
+                'per_page' => RegistrantListFilters::PER_PAGE_OPTIONS,
                 'statuses' => array_map(fn (RegistrantStatus $case): array => ['value' => $case->value, 'label' => $case->label()], RegistrantStatus::cases()),
                 'organizations' => Organization::query()->orderBy('sort_order')->orderBy('name')->get()->map(fn (Organization $organization): array => ['value' => $organization->id, 'label' => $organization->name])->values(),
                 'waves' => Wave::query()->orderByDesc('id')->get()->map(fn (Wave $wave): array => ['value' => $wave->id, 'label' => $wave->name])->values(),
@@ -110,8 +115,11 @@ class RegistrantController extends Controller
         $registrant->load(['person.parentships.relatedPerson', 'organization', 'wave', 'registeredBy', 'student.year']);
         $person = $registrant->person;
         $status = $registrant->status;
-        $can = RegistrantPresenter::abilities($registrant, $request->user());
+        $user = $request->user();
+        $can = RegistrantPresenter::abilities($registrant, $user);
         $canManage = $can['manage'];
+        $canViewNotes = $user->can(Ability::NoteView->value);
+        $canCreateNote = $user->can('create', Note::class);
 
         $filters = RegistrantListFilters::fromRequest($request);
         $followListSort = $request->hasAny(['urut', 'arah']);
@@ -141,15 +149,11 @@ class RegistrantController extends Controller
                     'id' => $person->id,
                     'name' => $person->name,
                     'nik' => $person->nik,
-                    'gender' => $person->gender?->label(),
-                    'birth' => collect([$person->birth_place, $person->birth_date?->translatedFormat('j F Y')])->filter()->implode(', ') ?: null,
-                    'religion' => $person->religion,
-                    'address' => $person->address,
-                    'family_card_number' => $person->family_card_number,
-                    'photo_url' => $person->photo_url,
+                    'photo_url' => RegistrantPresenter::childPhotoUrl($registrant),
                 ],
             ],
-            'family' => $person->parentships->map(fn (Parentship $parentship): array => [
+            'data' => RegistrantPresenter::detail($registrant),
+            'family' => $registrant->needs_identity_review ? [] : $person->parentships->map(fn (Parentship $parentship): array => [
                 'id' => $parentship->id,
                 'person_id' => $parentship->related_person_id,
                 'name' => $parentship->relatedPerson->name,
@@ -157,13 +161,16 @@ class RegistrantController extends Controller
                 'phone' => $parentship->relatedPerson->phone,
                 'is_primary_contact' => $parentship->is_primary_contact,
             ])->values(),
+            'contact' => RegistrantPresenter::contact($registrant),
+            'messages' => RegistrantPresenter::messages($registrant),
             'examSession' => ExamSchedulePresenter::chosen($registrant),
             'examDays' => $canManage ? ExamSchedulePresenter::days($registrant) : [],
             'selectedSession' => $registrant->exam_session_id === null ? null : (string) $registrant->exam_session_id,
             'bills' => $bills->map(fn (Bill $bill): array => BillPresenter::bill($bill))->values(),
+            'announceWarnings' => $can['announce'] ? AnnouncementReadiness::for($registrant)['messages'] : [],
             'result' => ExamResult::for($registrant),
             'scores' => collect($registrant->ruleset_snapshot['exam_aspects'] ?? [])->keys()->map(fn (int $index): ?int => $registrant->exam_scores[$index] ?? null)->values(),
-            'readiness' => $status->isEditableByParent() ? RegistrantReadiness::missing($registrant) : [],
+            'readiness' => RegistrantReadiness::forCommittee($registrant),
             'timeline' => RegistrantPresenter::timeline($registrant, forParent: false),
             'announcement' => ! $registrant->needs_identity_review && in_array($status, [RegistrantStatus::Validated, RegistrantStatus::Announced, RegistrantStatus::Placed], true) ? [
                 'text' => Announcement::text($registrant),
@@ -184,6 +191,14 @@ class RegistrantController extends Controller
                 ->values(),
             'settlement' => ['has_bill' => $hasSettlement, 'paid' => $settlementPaid],
             'can' => $can,
+            'access' => [
+                'person' => $user->can(Ability::PersonView->value),
+                'payments' => $user->can(Ability::PaymentView->value),
+                'notes' => $canViewNotes,
+                'createNote' => $canCreateNote,
+            ],
+            'notes' => $canViewNotes ? RegistrantPresenter::notes($person, $user) : [],
+            'noteOptions' => $canCreateNote ? RegistrantPresenter::noteOptions($user) : null,
             'queue' => $this->queue($registrant, $filters, $followListSort),
             'queueContext' => [
                 'query' => $listQuery === [] ? (object) [] : $listQuery,
@@ -289,6 +304,7 @@ class RegistrantController extends Controller
             $parents,
             $request->file('photo'),
             $request->boolean('remove_photo'),
+            auditedBy: $request->user(),
         );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Data pendaftar sudah disimpan.']);

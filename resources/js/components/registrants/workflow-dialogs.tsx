@@ -15,8 +15,14 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { toastFirstError } from '@/hooks/use-flash-toast';
+import { digitsOnly, NIK_LENGTH } from '@/lib/format';
 import { index as yearsIndex } from '@/routes/admin/years';
-import { bypass, place, revise } from '@/routes/admin/registrants';
+import {
+    bypass,
+    place,
+    repointIdentity,
+    revise,
+} from '@/routes/admin/registrants';
 import type { Option } from '@/types/people';
 
 function DialogShell({
@@ -280,6 +286,78 @@ export function PlaceDialog({
                     {errors.status}
                 </p>
             )}
+        </DialogShell>
+    );
+}
+
+/**
+ * The parent typed a NIK that belongs to someone else. The committee enters the right one and the registration
+ * moves to the child who owns it (or to a new person with the name the parent typed).
+ */
+export function RepointIdentityDialog({
+    registrantId,
+    open,
+    onOpenChange,
+    typedName,
+}: DialogProps & { typedName: string }) {
+    const form = useForm({ nik: '', reason: '' });
+    const errors = form.errors as Record<string, string>;
+
+    return (
+        <DialogShell
+            open={open}
+            onOpenChange={onOpenChange}
+            title="Ganti NIK pendaftaran"
+            description={`Pendaftaran ini akan dipindah ke anak yang punya NIK yang benar. Kalau belum ada orangnya, dibuat orang baru dengan nama "${typedName}".`}
+            submitLabel="Ganti NIK"
+            processing={form.processing}
+            onSubmit={(event) => {
+                event.preventDefault();
+                form.post(repointIdentity(registrantId).url, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        form.reset();
+                        onOpenChange(false);
+                    },
+                    onError: (errors) =>
+                        toastFirstError(
+                            errors,
+                            (key) => key === 'nik' || key === 'reason',
+                        ),
+                });
+            }}
+        >
+            <FormField
+                label="NIK yang benar"
+                required
+                error={errors.nik}
+                hint={`${NIK_LENGTH} digit angka.`}
+            >
+                {(control) => (
+                    <Input
+                        inputMode="numeric"
+                        maxLength={NIK_LENGTH}
+                        value={form.data.nik}
+                        onChange={(event) =>
+                            form.setData('nik', digitsOnly(event.target.value))
+                        }
+                        {...control}
+                    />
+                )}
+            </FormField>
+            <FormField label="Alasan" required error={errors.reason}>
+                {(control) => (
+                    <Textarea
+                        className="min-h-24"
+                        placeholder="Misalnya: orang tua salah ketik NIK, sudah dikonfirmasi lewat telepon."
+                        value={form.data.reason}
+                        onChange={(event) =>
+                            form.setData('reason', event.target.value)
+                        }
+                        {...control}
+                    />
+                )}
+            </FormField>
         </DialogShell>
     );
 }

@@ -3,15 +3,22 @@
 namespace App\Support;
 
 use App\Enums\Ability;
+use App\Enums\DefaultRole;
 use App\Enums\Gender;
+use App\Enums\NoteUrgency;
+use App\Enums\NoteVisibility;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
 use App\Enums\RegistrantStatus;
+use App\Models\Note;
+use App\Models\NoteShare;
 use App\Models\Parentship;
 use App\Models\Person;
 use App\Models\Registrant;
 use App\Models\RegistrantStatusChange;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Spatie\Permission\Models\Role;
 
 class RegistrantPresenter
 {
@@ -92,6 +99,55 @@ class RegistrantPresenter
             'label' => $label,
             'whatsapp_url' => 'https://wa.me/'.Announcement::whatsappNumber($contact->phone),
         ];
+    }
+
+    /**
+     * WhatsApp messages the committee can send to the family right now, each with its template already filled in.
+     * Only the ones that apply to the registration's situation are listed: a revision reminder while the parent has
+     * to correct data, a payment reminder while a bill is open, an exam reminder once a session is chosen, and the
+     * result message after the data is valid. Nothing is offered while the NIK is unconfirmed, because the family on
+     * record may be someone else's. A kind without anybody to message is left out.
+     *
+     * @return list<array{kind: string, label: string, url: string}>
+     */
+    public static function messages(Registrant $registrant): array
+    {
+        if ($registrant->needs_identity_review) {
+            return [];
+        }
+
+        $registrant->loadMissing(['bills.items' => fn ($items) => $items->withPaymentTotals()]);
+
+        $status = $registrant->status;
+        $kinds = [];
+
+        if ($status === RegistrantStatus::Revision) {
+            $kinds[MessageTemplates::REVISION] = 'Pengingat revisi data';
+        }
+
+        if ($status !== RegistrantStatus::Placed && $registrant->bills->contains(fn ($bill): bool => $bill->outstandingAmount() > 0)) {
+            $kinds[MessageTemplates::PAYMENT] = 'Pengingat pembayaran';
+        }
+
+        if (! in_array($status, [RegistrantStatus::Announced, RegistrantStatus::Placed], true) && $registrant->exam_session_id !== null) {
+            $kinds[MessageTemplates::EXAM] = 'Pengingat jadwal ujian';
+        }
+
+        if (in_array($status, [RegistrantStatus::Validated, RegistrantStatus::Announced], true)) {
+            $kinds[MessageTemplates::ANNOUNCEMENT] = 'Pengumuman hasil';
+        }
+
+        $messages = [];
+
+        foreach ($kinds as $kind => $label) {
+            $url = Announcement::whatsappUrlFor($registrant, $kind);
+
+            if ($url !== null) {
+                $messages[] = ['kind' => $kind, 'label' => $label, 'url' => $url];
+            }
+        }
+
+        return $messages;
     }
 
     /**
@@ -185,6 +241,23 @@ class RegistrantPresenter
      */
     public static function dataForm(Registrant $registrant): array
     {
+        return [
+            ...self::profile($registrant),
+            'options' => [
+                ...PersonOptions::all(),
+                'genders' => array_map(fn (Gender $case): array => ['value' => $case->value, 'label' => $case->label()], Gender::cases()),
+                'kinds' => array_map(fn (ParentKind $case): array => ['value' => $case->value, 'label' => $case->label()], ParentKind::cases()),
+            ],
+        ];
+    }
+
+    /**
+     * Everything on record about the child and the parents by relation: the fields of the data form.
+     *
+     * @return array{child: array<string, mixed>, parents: array<string, array<string, mixed>|null>}
+     */
+    public static function profile(Registrant $registrant): array
+    {
         $registrant->loadMissing(['person.parentships.relatedPerson']);
         $child = $registrant->person;
 
@@ -209,11 +282,115 @@ class RegistrantPresenter
 
                 return [$relation->value => $parentship === null ? null : self::parent($parentship)];
             })->all(),
-            'options' => [
-                ...PersonOptions::all(),
-                'genders' => array_map(fn (Gender $case): array => ['value' => $case->value, 'label' => $case->label()], Gender::cases()),
-                'kinds' => array_map(fn (ParentKind $case): array => ['value' => $case->value, 'label' => $case->label()], ParentKind::cases()),
+        ];
+    }
+
+    /**
+     * The read-only view of everything on the data form, for the committee's detail page. While the NIK is
+     * unconfirmed the person on record may be someone else's child, so nothing of them is shown: only the name the
+     * parent typed.
+     *
+     * @return array{restricted: bool, child: array<string, mixed>, parents: list<array<string, mixed>>}
+     */
+    public static function detail(Registrant $registrant): array
+    {
+        if ($registrant->needs_identity_review) {
+            return ['restricted' => true, 'child' => ['name' => $registrant->submitted_name], 'parents' => []];
+        }
+
+        $registrant->loadMissing(['person.parentships.relatedPerson']);
+        $child = $registrant->person;
+
+        return [
+            'restricted' => false,
+            'child' => [
+                ...self::profile($registrant)['child'],
+                'person_id' => $child->id,
+                'gender_label' => $child->gender?->label(),
+                'birth' => collect([$child->birth_place, $child->birth_date?->translatedFormat('j F Y')])->filter()->implode(', ') ?: null,
             ],
+            'parents' => collect(ParentRelation::cases())
+                ->map(fn (ParentRelation $relation): ?Parentship => $child->parentships->first(fn (Parentship $link): bool => $link->relation === $relation))
+                ->filter()
+                ->map(fn (Parentship $parentship): array => [
+                    ...self::parent($parentship),
+                    'relation' => $parentship->relation->value,
+                    'relation_label' => $parentship->relation->label(),
+                    'kind_label' => $parentship->kind?->label(),
+                    'is_primary_contact' => $parentship->is_primary_contact,
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * The notes on the child that this staff member may read, the urgent ones first and the newest first within
+     * the same urgency. System notes (such as the NIK check) are in there too.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function notes(Person $child, User $user): array
+    {
+        $rank = collect([NoteUrgency::Critical, NoteUrgency::High, NoteUrgency::Normal, NoteUrgency::Low])
+            ->map(fn (NoteUrgency $urgency, int $index): string => "when '{$urgency->value}' then {$index}")
+            ->implode(' ');
+
+        return $child->notes()
+            ->visibleTo($user)
+            ->with([
+                'author.person',
+                'shares.shareable' => fn (MorphTo $morph) => $morph->morphWith([User::class => ['person']]),
+            ])
+            ->orderByRaw("case urgency {$rank} else 4 end")
+            ->latest()
+            ->latest('id')
+            ->limit(50)
+            ->get()
+            ->map(fn (Note $note): array => [
+                'id' => $note->id,
+                'body' => $note->body,
+                'urgency' => $note->urgency->value,
+                'visibility' => $note->visibility->value,
+                'shared_with_family' => $note->shared_with_family,
+                'created_at' => $note->created_at?->translatedFormat('j M Y, H:i'),
+                'author' => $note->author_id === null
+                    ? ['name' => 'Sistem', 'photo_url' => null]
+                    : ['name' => $note->author->name, 'photo_url' => $note->author->avatar],
+                'shared_with' => $note->shares->map(fn (NoteShare $share): string => match (true) {
+                    $share->shareable instanceof User, $share->shareable instanceof Role => $share->shareable->name,
+                    default => '—',
+                })->values()->all(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * What the note form offers: how urgent, who can read it, and who to share it with.
+     *
+     * @return array{urgencies: list<array{value: string, label: string}>, visibilities: list<array{value: string, label: string}>, users: list<array{value: int, label: string}>, roles: list<array{value: int, label: string}>}
+     */
+    public static function noteOptions(User $user): array
+    {
+        return [
+            'urgencies' => array_map(fn (NoteUrgency $case): array => ['value' => $case->value, 'label' => $case->label()], NoteUrgency::cases()),
+            'visibilities' => array_map(fn (NoteVisibility $case): array => ['value' => $case->value, 'label' => $case->label()], NoteVisibility::cases()),
+            'users' => User::query()
+                ->with('person')
+                ->whereHas('roles', fn ($roles) => $roles->whereIn('name', [DefaultRole::SuperAdmin->value, DefaultRole::Admin->value, DefaultRole::Operator->value]))
+                ->whereKeyNot($user->id)
+                ->get()
+                ->map(fn (User $staff): array => ['value' => $staff->id, 'label' => $staff->name])
+                ->sortBy('label')
+                ->values()
+                ->all(),
+            'roles' => Role::query()
+                ->where('name', '!=', DefaultRole::User->value)
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Role $role): array => ['value' => $role->id, 'label' => $role->name])
+                ->all(),
         ];
     }
 
@@ -226,6 +403,7 @@ class RegistrantPresenter
         $person = $parentship->relatedPerson;
 
         return [
+            'person_id' => $person->id,
             'name' => $person->name,
             'nik' => $person->nik,
             'phone' => $person->phone,

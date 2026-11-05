@@ -15,10 +15,12 @@ import type { ReactNode } from 'react';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { PersonAvatar } from '@/components/person-avatar';
 import { QuickView } from '@/components/quick-view';
+import { AnnounceWarnings } from '@/components/registrants/announce-warnings';
 import { RelativeTime } from '@/components/registrants/relative-time';
 import { StatusBadge } from '@/components/status-badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { MessageLinks } from '@/components/registrants/message-links';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
@@ -207,6 +209,8 @@ function QuickViewBody({ data }: { data: RegistrantQuickViewData }) {
                     </ul>
                 )}
             </Section>
+
+            <MessageLinks messages={data.messages} />
 
             <Section title="Tagihan">
                 {bills.status === 'none' ? (
@@ -547,7 +551,11 @@ export function RegistrantQuickView({
                 }
                 processing={processing !== null}
                 onConfirm={() => confirming && run(confirming)}
-            />
+            >
+                {confirming === 'announce' && data && (
+                    <AnnounceWarnings warnings={data.announce_warnings} />
+                )}
+            </ConfirmDialog>
         </>
     );
 }

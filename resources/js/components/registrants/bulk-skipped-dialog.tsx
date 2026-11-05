@@ -16,10 +16,13 @@ import type { BulkSkipped } from '@/types/registrant';
  */
 export function BulkSkippedDialog({
     skipped,
+    skippedTotal,
     done,
     onClose,
 }: {
     skipped: BulkSkipped[] | null;
+    /** How many were skipped in all; the list may show only the first of them. */
+    skippedTotal: number;
     done: number;
     onClose: () => void;
 }) {
@@ -31,7 +34,7 @@ export function BulkSkippedDialog({
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>
-                        {done} berhasil, {skipped?.length ?? 0} dilewati
+                        {done} berhasil, {skippedTotal} dilewati
                     </DialogTitle>
                     <DialogDescription>
                         Yang dilewati tidak diubah sama sekali. Buka satu per
@@ -61,6 +64,12 @@ export function BulkSkippedDialog({
                         </li>
                     ))}
                 </ul>
+                {skipped && skippedTotal > skipped.length && (
+                    <p className="text-sm text-muted-foreground">
+                        Menampilkan {skipped.length} pertama dari {skippedTotal}{' '}
+                        yang dilewati.
+                    </p>
+                )}
                 <DialogFooter>
                     <Button onClick={onClose}>Mengerti</Button>
                 </DialogFooter>

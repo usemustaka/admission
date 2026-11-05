@@ -7,6 +7,7 @@ use App\Models\Bill;
 use App\Models\Parentship;
 use App\Models\Registrant;
 use App\Support\Announcement;
+use App\Support\AnnouncementReadiness;
 use App\Support\ExamResult;
 use App\Support\ExamSchedulePresenter;
 use App\Support\RegistrantBillSummary;
@@ -36,6 +37,7 @@ class RegistrantQuickViewController extends Controller
 
         $person = $registrant->person;
         $status = $registrant->status;
+        $can = RegistrantPresenter::abilities($registrant, $request->user());
 
         return response()->json([
             'id' => $registrant->id,
@@ -61,6 +63,7 @@ class RegistrantQuickViewController extends Controller
                 'is_primary_contact' => $parentship->is_primary_contact,
             ])->values(),
             'contact' => RegistrantPresenter::contact($registrant),
+            'messages' => RegistrantPresenter::messages($registrant),
             'bills' => [
                 ...RegistrantBillSummary::totals($registrant->bills),
                 'items' => $registrant->bills->map(fn (Bill $bill): array => [
@@ -75,9 +78,10 @@ class RegistrantQuickViewController extends Controller
                 'session' => ExamSchedulePresenter::chosen($registrant),
                 'result' => ExamResult::for($registrant),
             ],
-            'readiness' => $status->isEditableByParent() ? RegistrantReadiness::missing($registrant) : [],
+            'readiness' => RegistrantReadiness::forCommittee($registrant),
+            'announce_warnings' => $can['announce'] ? AnnouncementReadiness::for($registrant)['messages'] : [],
             'timeline' => array_reverse(array_slice(RegistrantPresenter::timeline($registrant, forParent: false), -4)),
-            'can' => RegistrantPresenter::abilities($registrant, $request->user()),
+            'can' => $can,
         ]);
     }
 }

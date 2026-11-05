@@ -16,7 +16,14 @@ class StorePersonRequest extends FormRequest
         return $this->user()->can('create', Person::class);
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->normalizePersonInput();
+    }
+
     /**
+     * `confirm_duplicate` means "yes, I saw the people who look the same and this is another person".
+     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -24,6 +31,7 @@ class StorePersonRequest extends FormRequest
         return [
             'nik' => ['nullable', 'digits:16'],
             ...$this->personRules(),
+            'confirm_duplicate' => ['nullable', 'boolean'],
         ];
     }
 }

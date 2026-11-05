@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import {
     ArrowLeftRight,
+    ArrowRightLeft,
     BadgeCheck,
     CheckCircle2,
     CircleAlert,
@@ -70,6 +71,7 @@ export function NextStepCard({
     onPlace,
     onBypass,
     onResolveIdentity,
+    onRepointIdentity,
     correctIdentityHref,
 }: {
     status: string;
@@ -87,9 +89,16 @@ export function NextStepCard({
     onPlace: () => void;
     onBypass: () => void;
     onResolveIdentity: () => void;
+    onRepointIdentity: () => void;
     correctIdentityHref: string;
 }) {
-    const checklistVisible = status === 'draft' || status === 'revision';
+    const checklistVisible = [
+        'draft',
+        'revision',
+        'review',
+        'validated',
+    ].includes(status);
+    const parentFills = status === 'draft' || status === 'revision';
 
     return (
         <SectionCard
@@ -109,9 +118,17 @@ export function NextStepCard({
                         <BadgeCheck />
                         NIK sudah cocok
                     </Button>
-                    <Button variant="outline" className="w-full" asChild>
+                    <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={onRepointIdentity}
+                    >
+                        <ArrowRightLeft />
+                        Ganti NIK pendaftaran
+                    </Button>
+                    <Button variant="ghost" className="w-full" asChild>
                         <Link href={correctIdentityHref}>
-                            Koreksi nama atau NIK
+                            Koreksi nama atau NIK anak
                         </Link>
                     </Button>
                 </>
@@ -213,17 +230,29 @@ export function NextStepCard({
                     {readiness.length === 0 ? (
                         <p className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
                             <CheckCircle2 className="size-4 shrink-0" />
-                            Data sudah lengkap, siap dikirim orang tua.
+                            {parentFills
+                                ? 'Data sudah lengkap, siap dikirim orang tua.'
+                                : 'Data sudah lengkap.'}
                         </p>
                     ) : (
-                        <ul className="grid gap-1.5 text-sm">
-                            {readiness.map((gap) => (
-                                <li key={gap} className="flex gap-2">
-                                    <CircleAlert className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-300" />
-                                    {gap}
-                                </li>
-                            ))}
-                        </ul>
+                        <>
+                            <ul className="grid gap-1.5 text-sm">
+                                {readiness.map((gap) => (
+                                    <li key={gap} className="flex gap-2">
+                                        <CircleAlert className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-300" />
+                                        {gap}
+                                    </li>
+                                ))}
+                            </ul>
+                            {can.manage && !needsIdentityReview && (
+                                <Link
+                                    href={editHref}
+                                    className="w-fit text-sm font-semibold underline underline-offset-4"
+                                >
+                                    Lengkapi lewat Ubah data
+                                </Link>
+                            )}
+                        </>
                     )}
                 </div>
             )}

@@ -182,7 +182,7 @@ export function RegistrantDataForm({
                     <div className="grid gap-4">
                         <PhotoUpload
                             label="Foto profil"
-                            hint="Foto biasa anak. Format JPG atau PNG, maksimal 2 MB."
+                            hint="Foto biasa anak. Format JPG atau PNG, maksimal 1 MB."
                             value={
                                 form.data.remove_photo ? null : child.photo_url
                             }

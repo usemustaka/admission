@@ -41,6 +41,7 @@ class StoreParentshipRequest extends FormRequest
                 Rule::enum(ParentKind::class),
             ],
             'is_primary_contact' => ['boolean'],
+            'confirm_duplicate' => ['nullable', 'boolean'],
         ];
     }
 

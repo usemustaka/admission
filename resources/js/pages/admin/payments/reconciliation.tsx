@@ -109,6 +109,7 @@ export default function PaymentReconciliation({
                         size="icon"
                         aria-label="Hari sebelumnya"
                         onClick={() => goTo(shiftDay(date, -1))}
+                        className="size-11"
                     >
                         <ChevronLeft />
                     </Button>
@@ -134,6 +135,7 @@ export default function PaymentReconciliation({
                         aria-label="Hari berikutnya"
                         disabled={isToday}
                         onClick={() => goTo(shiftDay(date, 1))}
+                        className="size-11"
                     >
                         <ChevronRight />
                     </Button>

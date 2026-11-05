@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Models\Year;
 use App\Support\Announcement;
+use App\Support\MessageTemplates;
 use Database\Seeders\RolesAndPermissionsSeeder;
 
 /**
@@ -99,13 +100,13 @@ describe('announcement template', function () {
         $this->actingAs(staffWithAbilities(Ability::RegistrantView, Ability::RegistrantManage));
 
         $this->get(route('admin.admission-settings.edit'))->assertForbidden();
-        $this->put(route('admin.admission-settings.update'), ['template' => 'Hasil {nama}'])->assertForbidden();
-        expect(Setting::query()->where('key', Announcement::SETTING_KEY)->exists())->toBeFalse();
+        $this->put(route('admin.admission-settings.update'), ['templates' => ['announcement-incomplete' => 'Hasil {nama}']])->assertForbidden();
+        expect(Setting::query()->where('key', MessageTemplates::settingKey(MessageTemplates::ANNOUNCEMENT_INCOMPLETE))->exists())->toBeFalse();
 
         $this->actingAs(staffWithAbilities(Ability::AnnouncementManage));
 
         $this->get(route('admin.admission-settings.edit'))->assertOk();
-        $this->put(route('admin.admission-settings.update'), ['template' => 'Hasil {nama}'])->assertSessionHasNoErrors();
+        $this->put(route('admin.admission-settings.update'), ['templates' => ['announcement-incomplete' => 'Hasil {nama}']])->assertSessionHasNoErrors();
         expect(Announcement::template())->toBe('Hasil {nama}');
     });
 });

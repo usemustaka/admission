@@ -12,17 +12,31 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreParentshipRequest;
 use App\Models\Parentship;
 use App\Models\Person;
+use App\Support\PersonDuplicates;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class ParentshipController extends Controller
 {
     public function store(StoreParentshipRequest $request, Person $person, LinkParent $linkParent): RedirectResponse
     {
+        $parent = Person::findOrFail($request->integer('related_person_id'));
+
+        if (! $request->boolean('confirm_duplicate')) {
+            $duplicates = PersonDuplicates::of($parent);
+
+            if ($duplicates->isNotEmpty()) {
+                Inertia::flash('duplicates', PersonDuplicates::present($duplicates));
+
+                throw ValidationException::withMessages(['duplicate' => "Ada orang lain yang datanya mirip dengan {$parent->name}. Pastikan kamu menautkan orang yang benar, atau pilih \"Tetap pakai\" kalau memang yang ini."]);
+            }
+        }
+
         $linkParent->handle(
             $person,
-            Person::findOrFail($request->integer('related_person_id')),
+            $parent,
             ParentRelation::from($request->string('relation')->toString()),
             ParentKind::tryFrom($request->string('kind')->toString()),
             $request->boolean('is_primary_contact'),

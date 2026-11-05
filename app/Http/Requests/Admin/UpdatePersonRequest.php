@@ -17,6 +17,11 @@ class UpdatePersonRequest extends FormRequest
         return $this->user()->can('update', $this->route('person'));
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->normalizePersonInput();
+    }
+
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */

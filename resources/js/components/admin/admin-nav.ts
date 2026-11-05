@@ -1,7 +1,9 @@
 import type { InertiaLinkProps } from '@inertiajs/react';
 import {
+    CalendarClock,
     CalendarDays,
     CalendarRange,
+    ClipboardCheck,
     ClipboardList,
     GraduationCap,
     House,
@@ -24,8 +26,13 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { dashboard } from '@/routes';
 import { edit as admissionSettings } from '@/routes/admin/admission-settings';
+import { index as exams } from '@/routes/admin/exams';
 import { index as organizations } from '@/routes/admin/organizations';
-import { index as payments, reconciliation } from '@/routes/admin/payments';
+import {
+    arrears,
+    index as payments,
+    reconciliation,
+} from '@/routes/admin/payments';
 import { index as people } from '@/routes/admin/people';
 import { index as registrants } from '@/routes/admin/registrants';
 import { index as roles } from '@/routes/admin/roles';
@@ -71,6 +78,12 @@ export const adminSections: AdminSection[] = [
                 ability: 'admission::registrant.view',
             },
             {
+                title: 'Ujian',
+                href: exams(),
+                icon: ClipboardCheck,
+                ability: 'admission::registrant.view',
+            },
+            {
                 title: 'Gelombang',
                 href: waves(),
                 icon: CalendarRange,
@@ -83,7 +96,7 @@ export const adminSections: AdminSection[] = [
                 ability: 'admission::ruleset.view',
             },
             {
-                title: 'Templat pengumuman',
+                title: 'Templat pesan',
                 href: admissionSettings(),
                 icon: Megaphone,
                 ability: 'admission::announcement.manage',
@@ -98,6 +111,12 @@ export const adminSections: AdminSection[] = [
                 title: 'Pembayaran',
                 href: payments(),
                 icon: Wallet,
+                ability: 'admission::payment.view',
+            },
+            {
+                title: 'Tunggakan',
+                href: arrears(),
+                icon: CalendarClock,
                 ability: 'admission::payment.view',
             },
             {
