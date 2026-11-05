@@ -267,6 +267,12 @@ export default function PaymentsIndex({
                                     {formatRelativeDay(payment.paid_on)} ·{' '}
                                     {payment.method}
                                 </span>
+                                <span className="mt-1 flex flex-wrap items-center gap-1.5 md:hidden">
+                                    <span className="font-semibold tabular-nums">
+                                        {formatRupiah(payment.amount)}
+                                    </span>
+                                    <PaymentStatusBadges payment={payment} />
+                                </span>
                             </span>
                         </div>
                     );
@@ -315,7 +321,10 @@ export default function PaymentsIndex({
                 id: 'amount',
                 header: 'Nominal',
                 enableSorting: true,
-                meta: { className: 'text-right whitespace-nowrap' },
+                meta: {
+                    className:
+                        'hidden text-right whitespace-nowrap md:table-cell',
+                },
                 cell: ({ row }) => (
                     <span className="font-semibold tabular-nums">
                         {formatRupiah(row.original.amount)}
@@ -326,21 +335,10 @@ export default function PaymentsIndex({
                 id: 'status',
                 header: 'Status',
                 enableSorting: false,
-                meta: { className: 'whitespace-nowrap' },
-                cell: ({ row }) => {
-                    const payment = row.original;
-
-                    return (
-                        <span className="flex flex-wrap items-center gap-1.5">
-                            <StatusBadge status={payment.status} />
-                            {payment.status === 'pending' &&
-                                payment.method_value === 'transfer' &&
-                                !payment.has_proof && (
-                                    <Badge variant="warning">Tanpa bukti</Badge>
-                                )}
-                        </span>
-                    );
-                },
+                meta: { className: 'hidden whitespace-nowrap md:table-cell' },
+                cell: ({ row }) => (
+                    <PaymentStatusBadges payment={row.original} />
+                ),
             },
             {
                 id: 'open',
@@ -663,12 +661,7 @@ export default function PaymentsIndex({
                     Verifikasi
                 </Button>
                 {can.export && (
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        asChild
-                        className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white dark:border-black/20 dark:text-neutral-900 dark:hover:bg-black/10 dark:hover:text-neutral-900"
-                    >
+                    <Button size="sm" variant="outline" asChild>
                         <a href={exportMethod({ query: exportQuery }).url}>
                             <Download />
                             Ekspor CSV
@@ -704,3 +697,17 @@ PaymentsIndex.layout = {
         { title: 'Pembayaran', href: index() },
     ],
 };
+
+/** Status of a payment, plus a warning while a transfer has no proof yet. */
+function PaymentStatusBadges({ payment }: { payment: PaymentRow }) {
+    return (
+        <span className="flex flex-wrap items-center gap-1.5">
+            <StatusBadge status={payment.status} />
+            {payment.status === 'pending' &&
+                payment.method_value === 'transfer' &&
+                !payment.has_proof && (
+                    <Badge variant="warning">Tanpa bukti</Badge>
+                )}
+        </span>
+    );
+}

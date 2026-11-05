@@ -273,11 +273,12 @@ export default function RegistrantShow({
         <>
             <Head title={registrant.child.name} />
             <div className="grid gap-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="flex items-center gap-4">
                     <PersonAvatar
                         name={registrant.child.name}
                         src={registrant.child.photo_url}
                         size="xl"
+                        className="size-14 shrink-0 text-base sm:size-24 sm:text-2xl"
                     />
                     <PageHeader
                         title={registrant.child.name}
@@ -329,7 +330,7 @@ export default function RegistrantShow({
                     </Alert>
                 )}
 
-                <div className="grid gap-6 @5xl:grid-cols-[minmax(0,1fr)_24rem] @5xl:items-start">
+                <div className="grid gap-6 @5xl:grid-cols-[minmax(0,1fr)_24rem] @5xl:grid-rows-[auto_1fr] @5xl:items-start">
                     <div className="@5xl:col-start-2 @5xl:row-start-1">
                         <NextStepCard
                             status={registrant.status}

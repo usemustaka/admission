@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import {
     Select,
     SelectContent,
@@ -18,6 +19,7 @@ export function OptionSelect({
     options,
     anyLabel,
     placeholder = 'Pilih',
+    className,
     ...props
 }: {
     value: string;
@@ -32,7 +34,7 @@ export function OptionSelect({
             value={value === '' && anyLabel ? ANY : value || undefined}
             onValueChange={(next) => onValueChange(next === ANY ? '' : next)}
         >
-            <SelectTrigger className="w-full" {...props}>
+            <SelectTrigger className={cn('w-full', className)} {...props}>
                 <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>

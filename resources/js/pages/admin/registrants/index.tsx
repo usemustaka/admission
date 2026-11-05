@@ -290,212 +290,233 @@ export default function RegistrantsIndex({
         [filters, term],
     );
 
+    /** Waiting time only means something while registrants are in review, so it gets a column there. */
+    const showWaiting =
+        filters.status === 'review' || filters.urut === 'dikirim';
+
     const columns = useMemo<ColumnDef<RegistrantRow>[]>(
-        () => [
-            {
-                id: 'child',
-                header: 'Calon siswa',
-                accessorFn: (row) => row.child.name,
-                enableSorting: true,
-                cell: ({ row }) => {
-                    const registrant = row.original;
+        () =>
+            (
+                [
+                    {
+                        id: 'child',
+                        header: 'Calon siswa',
+                        accessorFn: (row) => row.child.name,
+                        enableSorting: true,
+                        cell: ({ row }) => {
+                            const registrant = row.original;
 
-                    return (
-                        <button
-                            type="button"
-                            onClick={() => openQuickView(registrant)}
-                            className="flex min-h-10 items-center gap-3 rounded-lg text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                        >
-                            <PersonAvatar
-                                name={registrant.child.name}
-                                src={registrant.child.photo_url}
-                                size="sm"
-                            />
-                            <span className="grid">
-                                <span className="font-semibold">
-                                    {registrant.child.name}
-                                </span>
-                                <span className="text-xs text-muted-foreground tabular-nums">
-                                    {registrant.child.nik ?? 'Belum ada NIK'}
-                                </span>
-                            </span>
-                        </button>
-                    );
-                },
-            },
-            {
-                id: 'program',
-                header: 'Lembaga',
-                enableSorting: false,
-                meta: { className: 'hidden md:table-cell' },
-                cell: ({ row }) => (
-                    <span className="grid">
-                        <span>{row.original.organization}</span>
-                        <span className="text-xs text-muted-foreground">
-                            {row.original.wave}
-                        </span>
-                    </span>
-                ),
-            },
-            {
-                id: 'status',
-                header: 'Status',
-                enableSorting: false,
-                cell: ({ row }) => (
-                    <span className="flex flex-wrap items-center gap-1.5">
-                        <StatusBadge status={row.original.status} />
-                        {row.original.needs_identity_review && (
-                            <Badge variant="danger">
-                                <ShieldAlert />
-                                Cek NIK
-                            </Badge>
-                        )}
-                    </span>
-                ),
-            },
-            {
-                id: 'payment',
-                header: 'Pembayaran',
-                enableSorting: false,
-                meta: { className: 'hidden lg:table-cell' },
-                cell: ({ row }) => (
-                    <span className="flex flex-wrap items-center gap-1.5">
-                        {row.original.payment === 'none' ? (
-                            <span className="text-sm text-muted-foreground">
-                                Tanpa tagihan
-                            </span>
-                        ) : (
-                            <StatusBadge status={row.original.payment} />
-                        )}
-                        {row.original.payment_pending > 0 && (
-                            <Badge variant="warning">
-                                <Clock />
-                                Menunggu verifikasi
-                            </Badge>
-                        )}
-                    </span>
-                ),
-            },
-            {
-                id: 'exam',
-                header: 'Ujian',
-                enableSorting: false,
-                meta: { className: 'hidden whitespace-nowrap xl:table-cell' },
-                cell: ({ row }) => {
-                    const { exam_session, exam_date, passed } = row.original;
-
-                    return (
-                        <span className="grid text-sm">
-                            {exam_session && exam_date ? (
-                                <>
-                                    <span>{formatDate(exam_date)}</span>
-                                    <span className="text-xs text-muted-foreground">
-                                        {exam_session}
+                            return (
+                                <button
+                                    type="button"
+                                    onClick={() => openQuickView(registrant)}
+                                    className="flex min-h-10 items-center gap-3 rounded-lg text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                                >
+                                    <PersonAvatar
+                                        name={registrant.child.name}
+                                        src={registrant.child.photo_url}
+                                        size="sm"
+                                    />
+                                    <span className="grid">
+                                        <span className="font-semibold">
+                                            {registrant.child.name}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground tabular-nums">
+                                            {registrant.child.nik ??
+                                                'Belum ada NIK'}
+                                        </span>
+                                        <span className="mt-1.5 md:hidden">
+                                            <RowStatus
+                                                registrant={registrant}
+                                            />
+                                        </span>
                                     </span>
-                                </>
-                            ) : (
-                                <span className="text-muted-foreground">
-                                    Belum memilih
+                                </button>
+                            );
+                        },
+                    },
+                    {
+                        id: 'program',
+                        header: 'Lembaga',
+                        enableSorting: false,
+                        meta: { className: 'hidden md:table-cell' },
+                        cell: ({ row }) => (
+                            <span className="grid">
+                                <span>{row.original.organization}</span>
+                                <span className="text-xs whitespace-nowrap text-muted-foreground">
+                                    {row.original.wave}
                                 </span>
-                            )}
-                            {passed !== null && (
-                                <span
-                                    className={cn(
-                                        'text-xs font-semibold',
-                                        passed
-                                            ? 'text-emerald-700 dark:text-emerald-300'
-                                            : 'text-red-700 dark:text-red-300',
-                                    )}
-                                >
-                                    {passed ? 'Tuntas' : 'Belum tuntas'}
-                                </span>
-                            )}
-                        </span>
-                    );
-                },
-            },
-            {
-                id: 'registered_at',
-                header: 'Mendaftar',
-                accessorFn: (row) => row.registered_at,
-                enableSorting: true,
-                meta: { className: 'hidden whitespace-nowrap md:table-cell' },
-                cell: ({ row }) => (
-                    <span className="text-sm">
-                        <RelativeTime value={row.original.registered_at} />
-                    </span>
-                ),
-            },
-            {
-                id: 'waiting',
-                header: 'Menunggu sejak',
-                accessorFn: (row) => row.submitted_at,
-                enableSorting: true,
-                sortDescFirst: false,
-                meta: { className: 'hidden whitespace-nowrap lg:table-cell' },
-                cell: ({ row }) => (
-                    <span className="text-sm">
-                        <WaitingSince
-                            value={row.original.submitted_at}
-                            waiting={row.original.status === 'review'}
-                        />
-                    </span>
-                ),
-            },
-            {
-                id: 'actions',
-                header: () => <span className="sr-only">Aksi</span>,
-                enableSorting: false,
-                meta: { className: 'text-right' },
-                cell: ({ row }) => {
-                    const { contact, child } = row.original;
+                            </span>
+                        ),
+                    },
+                    {
+                        id: 'status',
+                        header: 'Status',
+                        enableSorting: false,
+                        meta: { className: 'hidden md:table-cell' },
+                        cell: ({ row }) => (
+                            <RowStatus registrant={row.original} />
+                        ),
+                    },
+                    {
+                        id: 'payment',
+                        header: 'Pembayaran',
+                        enableSorting: false,
+                        meta: { className: 'hidden lg:table-cell' },
+                        cell: ({ row }) => (
+                            <span className="flex flex-wrap items-center gap-1.5">
+                                {row.original.payment === 'none' ? (
+                                    <span className="text-sm text-muted-foreground">
+                                        Tanpa tagihan
+                                    </span>
+                                ) : (
+                                    <StatusBadge
+                                        status={row.original.payment}
+                                    />
+                                )}
+                                {row.original.payment_pending > 0 && (
+                                    <Badge variant="warning">
+                                        <Clock />
+                                        Menunggu verifikasi
+                                    </Badge>
+                                )}
+                            </span>
+                        ),
+                    },
+                    {
+                        id: 'exam',
+                        header: 'Ujian',
+                        enableSorting: false,
+                        meta: {
+                            className: 'hidden whitespace-nowrap xl:table-cell',
+                        },
+                        cell: ({ row }) => {
+                            const { exam_session, exam_date, passed } =
+                                row.original;
 
-                    return (
-                        <span className="flex items-center justify-end gap-1.5">
-                            {contact ? (
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="size-10 md:size-8"
-                                    asChild
-                                >
-                                    <a
-                                        href={contact.whatsapp_url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        aria-label={`WhatsApp ${contact.name} (${contact.label.toLowerCase()} ${child.name})`}
-                                        title={`WhatsApp ${contact.name} · ${contact.label}`}
+                            return (
+                                <span className="grid text-sm">
+                                    {exam_session && exam_date ? (
+                                        <>
+                                            <span>{formatDate(exam_date)}</span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {exam_session}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <span className="text-muted-foreground">
+                                            Belum memilih
+                                        </span>
+                                    )}
+                                    {passed !== null && (
+                                        <span
+                                            className={cn(
+                                                'text-xs font-semibold',
+                                                passed
+                                                    ? 'text-emerald-700 dark:text-emerald-300'
+                                                    : 'text-red-700 dark:text-red-300',
+                                            )}
+                                        >
+                                            {passed ? 'Tuntas' : 'Belum tuntas'}
+                                        </span>
+                                    )}
+                                </span>
+                            );
+                        },
+                    },
+                    {
+                        id: 'registered_at',
+                        header: 'Mendaftar',
+                        accessorFn: (row) => row.registered_at,
+                        enableSorting: true,
+                        meta: {
+                            className: 'hidden whitespace-nowrap md:table-cell',
+                        },
+                        cell: ({ row }) => (
+                            <span className="text-sm">
+                                <RelativeTime
+                                    value={row.original.registered_at}
+                                />
+                            </span>
+                        ),
+                    },
+                    {
+                        id: 'waiting',
+                        header: 'Menunggu sejak',
+                        accessorFn: (row) => row.submitted_at,
+                        enableSorting: true,
+                        sortDescFirst: false,
+                        meta: {
+                            className: 'hidden whitespace-nowrap lg:table-cell',
+                        },
+                        cell: ({ row }) => (
+                            <span className="text-sm">
+                                <WaitingSince
+                                    value={row.original.submitted_at}
+                                    waiting={row.original.status === 'review'}
+                                />
+                            </span>
+                        ),
+                    },
+                    {
+                        id: 'actions',
+                        header: () => <span className="sr-only">Aksi</span>,
+                        enableSorting: false,
+                        meta: { className: 'hidden text-right md:table-cell' },
+                        cell: ({ row }) => {
+                            const { contact, child } = row.original;
+
+                            return (
+                                <span className="flex items-center justify-end gap-1.5">
+                                    {contact ? (
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="size-10 md:size-8"
+                                            asChild
+                                        >
+                                            <a
+                                                href={contact.whatsapp_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                aria-label={`WhatsApp ${contact.name} (${contact.label.toLowerCase()} ${child.name})`}
+                                                title={`WhatsApp ${contact.name} · ${contact.label}`}
+                                            >
+                                                <MessageCircle />
+                                            </a>
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="size-10 md:size-8"
+                                            disabled
+                                            aria-label={`Belum ada nomor HP untuk ${child.name}`}
+                                            title="Belum ada nomor HP kontak"
+                                        >
+                                            <MessageCircle />
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="ghost"
+                                        className="md:h-8"
+                                        asChild
                                     >
-                                        <MessageCircle />
-                                    </a>
-                                </Button>
-                            ) : (
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="size-10 md:size-8"
-                                    disabled
-                                    aria-label={`Belum ada nomor HP untuk ${child.name}`}
-                                    title="Belum ada nomor HP kontak"
-                                >
-                                    <MessageCircle />
-                                </Button>
-                            )}
-                            <Button variant="ghost" className="md:h-8" asChild>
-                                <Link
-                                    href={show(row.original.id, {
-                                        query: detailQuery,
-                                    })}
-                                >
-                                    Detail
-                                </Link>
-                            </Button>
-                        </span>
-                    );
-                },
-            },
-        ],
-        [detailQuery],
+                                        <Link
+                                            href={show(row.original.id, {
+                                                query: detailQuery,
+                                            })}
+                                        >
+                                            Detail
+                                        </Link>
+                                    </Button>
+                                </span>
+                            );
+                        },
+                    },
+                ] satisfies ColumnDef<RegistrantRow>[]
+            ).filter((column) => showWaiting || column.id !== 'waiting'),
+        [detailQuery, showWaiting],
     );
 
     const hasFilter =
@@ -640,13 +661,13 @@ export default function RegistrantsIndex({
                         items={statusItems}
                     />
 
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]">
                         <SearchInput
                             value={term}
                             onValueChange={setTerm}
                             placeholder="Cari nama anak, orang tua, HP, atau NIK…"
                             aria-label="Cari pendaftar"
-                            className="md:col-span-2 xl:col-span-1"
+                            className="sm:col-span-2 xl:col-span-1"
                         />
                         <OptionSelect
                             aria-label="Lembaga"
@@ -680,6 +701,7 @@ export default function RegistrantsIndex({
                             }
                             options={paymentOptions}
                             anyLabel="Semua pembayaran"
+                            className="sm:col-span-2 xl:col-span-1"
                         />
                     </div>
 
@@ -951,3 +973,18 @@ RegistrantsIndex.layout = {
         { title: 'Pendaftar', href: index() },
     ],
 };
+
+/** Status of a registration, with the NIK flag next to it. Shown under the name on phones. */
+function RowStatus({ registrant }: { registrant: RegistrantRow }) {
+    return (
+        <span className="flex flex-wrap items-center gap-1.5">
+            <StatusBadge status={registrant.status} />
+            {registrant.needs_identity_review && (
+                <Badge variant="danger">
+                    <ShieldAlert />
+                    Cek NIK
+                </Badge>
+            )}
+        </span>
+    );
+}

@@ -215,6 +215,22 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
+    /*
+     * Inside a table cell a grid is only a small stack of labels. A zero
+     * minimum track would tell the table the cell can shrink to nothing, and
+     * the text then spills into the next column. Let the content size it.
+     */
+    td .grid,
+    th .grid {
+        grid-template-columns: auto;
+    }
+
+    /* Badges clip their overflow, which lets a grid item shrink to zero; keep their words whole. */
+    td .grid > *,
+    th .grid > * {
+        min-width: min-content;
+    }
+
     ::selection {
         color: #1a2e05;
         background: #d9f99d;
