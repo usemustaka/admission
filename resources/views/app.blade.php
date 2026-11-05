@@ -36,7 +36,6 @@
             <link rel="apple-touch-icon" href="{{ $brandFavicon }}">
         @else
             <link rel="icon" href="/favicon.ico" sizes="any">
-            <link rel="icon" href="/favicon.svg" type="image/svg+xml">
             <link rel="apple-touch-icon" href="/apple-touch-icon.png">
         @endif
         <meta name="app-name" content="{{ \App\Support\Brand::name() }}">
