@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Admin\Finance;
 
-use App\Enums\Ability;
 use App\Enums\PaymentMethod;
+use App\Models\Payment;
 use App\Models\Person;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -13,7 +13,7 @@ class RecordPaymentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can(Ability::PaymentVerify->value);
+        return $this->user()->can('record', Payment::class);
     }
 
     /**

@@ -80,7 +80,7 @@ export default function PaymentsIndex({
     summary: PaymentSummary;
     statuses: Option[];
     methods: Option[];
-    can: { verify: boolean };
+    can: { verify: boolean; record: boolean; export: boolean };
 }) {
     const [term, setTerm] = useState(filters.cari);
     const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -378,17 +378,20 @@ export default function PaymentsIndex({
                     description="Cek bukti transfer dari orang tua dan catat pembayaran tunai. Hanya yang sudah diverifikasi yang dihitung ke tagihan."
                     actions={
                         <>
-                            <Button variant="outline" asChild>
-                                <a
-                                    href={
-                                        exportMethod({ query: exportQuery }).url
-                                    }
-                                >
-                                    <Download />
-                                    Ekspor CSV
-                                </a>
-                            </Button>
-                            {can.verify && (
+                            {can.export && (
+                                <Button variant="outline" asChild>
+                                    <a
+                                        href={
+                                            exportMethod({ query: exportQuery })
+                                                .url
+                                        }
+                                    >
+                                        <Download />
+                                        Ekspor CSV
+                                    </a>
+                                </Button>
+                            )}
+                            {can.record && (
                                 <Button asChild>
                                     <Link href={create()}>
                                         <Plus />
@@ -643,17 +646,19 @@ export default function PaymentsIndex({
                     <Check />
                     Verifikasi
                 </Button>
-                <Button
-                    size="sm"
-                    variant="outline"
-                    asChild
-                    className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white dark:border-black/20 dark:text-neutral-900 dark:hover:bg-black/10 dark:hover:text-neutral-900"
-                >
-                    <a href={exportMethod({ query: exportQuery }).url}>
-                        <Download />
-                        Ekspor CSV
-                    </a>
-                </Button>
+                {can.export && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        asChild
+                        className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white dark:border-black/20 dark:text-neutral-900 dark:hover:bg-black/10 dark:hover:text-neutral-900"
+                    >
+                        <a href={exportMethod({ query: exportQuery }).url}>
+                            <Download />
+                            Ekspor CSV
+                        </a>
+                    </Button>
+                )}
             </BulkBar>
 
             <BulkVerifyDialog

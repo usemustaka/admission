@@ -1,9 +1,13 @@
 import { Form, Head } from '@inertiajs/react';
+import { CircleAlert } from 'lucide-react';
 import { useRef } from 'react';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
 import { FormField } from '@/components/form-field';
 import PasswordInput from '@/components/password-input';
 import { SectionCard } from '@/components/section-card';
+import ActiveSessions from '@/components/settings/active-sessions';
+import type { ActiveSession } from '@/components/settings/active-sessions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { edit } from '@/routes/security';
@@ -13,6 +17,9 @@ import ManageTwoFactor from '@/components/manage-two-factor';
 // oxfmt-ignore
 type Props = {
     passwordRules: string;
+    passwordChangeRequired: boolean;
+    twoFactorRequired: boolean;
+    sessions: ActiveSession[] | null;
 } &
     ManageTwoFactorProps;
 
@@ -23,6 +30,26 @@ export default function Security(props: Props) {
     return (
         <>
             <Head title="Pengaturan keamanan" />
+
+            {props.passwordChangeRequired && (
+                <Alert variant="warning">
+                    <CircleAlert />
+                    <AlertDescription>
+                        Admin meminta kamu mengganti kata sandi. Ganti dulu
+                        sebelum melanjutkan.
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            {props.twoFactorRequired && (
+                <Alert variant="warning">
+                    <CircleAlert />
+                    <AlertDescription>
+                        Akun staf wajib mengaktifkan autentikasi dua langkah.
+                        Aktifkan dulu sebelum membuka halaman admin.
+                    </AlertDescription>
+                </Alert>
+            )}
 
             <SectionCard
                 title="Ganti kata sandi"
@@ -114,6 +141,8 @@ export default function Security(props: Props) {
                 requiresConfirmation={props.requiresConfirmation}
                 twoFactorEnabled={props.twoFactorEnabled}
             />
+
+            <ActiveSessions sessions={props.sessions} />
         </>
     );
 }

@@ -38,11 +38,13 @@ export default function PeopleIndex({
     filters,
     options,
     counts,
+    can,
 }: {
     people: Paginated<PersonRow>;
     filters: Filters;
     options: { kinds: Option[] };
     counts: Counts;
+    can: { create: boolean };
 }) {
     const [term, setTerm] = useState(filters.cari);
     const [loading, setLoading] = useState(false);
@@ -221,12 +223,14 @@ export default function PeopleIndex({
                     title="Orang"
                     description="Semua orang yang tercatat: calon siswa, siswa, orang tua, wali, dan pegawai."
                     actions={
-                        <Button asChild>
-                            <Link href={create()}>
-                                <Plus />
-                                Tambah orang
-                            </Link>
-                        </Button>
+                        can.create && (
+                            <Button asChild>
+                                <Link href={create()}>
+                                    <Plus />
+                                    Tambah orang
+                                </Link>
+                            </Button>
+                        )
                     }
                 />
 
@@ -290,7 +294,9 @@ export default function PeopleIndex({
                         description={
                             hasFilter
                                 ? 'Coba kata kunci lain atau longgarkan filternya.'
-                                : 'Mulai dengan menambahkan orang pertama.'
+                                : can.create
+                                  ? 'Mulai dengan menambahkan orang pertama.'
+                                  : 'Belum ada orang yang tercatat.'
                         }
                         action={
                             hasFilter ? (
@@ -307,11 +313,11 @@ export default function PeopleIndex({
                                 >
                                     Hapus semua filter
                                 </Button>
-                            ) : (
+                            ) : can.create ? (
                                 <Button asChild>
                                     <Link href={create()}>Tambah orang</Link>
                                 </Button>
-                            )
+                            ) : undefined
                         }
                     />
                 ) : (

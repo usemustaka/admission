@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Ability;
 use App\Enums\BillType;
 use App\Enums\DefaultRole;
 use App\Enums\RegistrantStatus;
@@ -68,8 +69,8 @@ test('announcing in bulk only takes validated registrants', function () {
     expect(bulkFlash('toast')['message'])->toContain('1 berhasil, 1 dilewati')->toContain('bukan Data valid');
 });
 
-test('staff who may only view skip everything and change nothing', function () {
-    $this->actingAs(registrantViewer());
+test('staff who may bulk-process but not manage skip everything and change nothing', function () {
+    $this->actingAs(tap(registrantViewer())->givePermissionTo(Ability::RegistrantBulk->value));
     $registrant = admissionRegistrant();
 
     $this->post(route('admin.registrants.bulk'), ['action' => 'accept', 'ids' => [$registrant->id]]);

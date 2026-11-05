@@ -53,3 +53,30 @@ export function whatsappUrl(phone: string, text?: string): string {
 
     return text ? `${base}?text=${encodeURIComponent(text)}` : base;
 }
+
+const relativeTimeFormatter = new Intl.RelativeTimeFormat('id-ID', {
+    numeric: 'auto',
+});
+
+const relativeTimeUnits: [Intl.RelativeTimeFormatUnit, number][] = [
+    ['day', 86_400],
+    ['hour', 3_600],
+    ['minute', 60],
+];
+
+/** "5 menit yang lalu", "kemarin": how long ago a moment was. */
+export function formatRelativeTime(value: string | Date): string {
+    const date = typeof value === 'string' ? new Date(value) : value;
+    const seconds = Math.round((date.getTime() - Date.now()) / 1000);
+
+    for (const [unit, size] of relativeTimeUnits) {
+        if (Math.abs(seconds) >= size) {
+            return relativeTimeFormatter.format(
+                Math.round(seconds / size),
+                unit,
+            );
+        }
+    }
+
+    return 'baru saja';
+}

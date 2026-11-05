@@ -25,6 +25,6 @@ class NotePolicy
 
     public function delete(User $user, Note $note): bool
     {
-        return $this->update($user, $note);
+        return $note->author_id === $user->id || $user->can(Ability::NoteDelete->value);
     }
 }

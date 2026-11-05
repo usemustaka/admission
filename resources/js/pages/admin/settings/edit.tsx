@@ -484,6 +484,45 @@ export default function SettingsEdit({
                             </>
                         )}
 
+                        {group === 'keamanan' && (
+                            <label className="flex min-h-11 items-start justify-between gap-4 text-[15px]">
+                                <span className="grid gap-1">
+                                    <span className="font-medium">
+                                        Wajib autentikasi dua langkah untuk staf
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                        Staf yang belum mengaktifkannya
+                                        diarahkan ke pengaturan keamanan sampai
+                                        selesai. Orang tua tidak terpengaruh.
+                                    </span>
+                                    {errors[
+                                        'security.require_two_factor_staff'
+                                    ] && (
+                                        <span className="font-medium text-destructive-foreground">
+                                            {
+                                                errors[
+                                                    'security.require_two_factor_staff'
+                                                ]
+                                            }
+                                        </span>
+                                    )}
+                                </span>
+                                <Switch
+                                    checked={
+                                        read(
+                                            'security.require_two_factor_staff',
+                                        ) === true
+                                    }
+                                    onCheckedChange={(checked) =>
+                                        set(
+                                            'security.require_two_factor_staff',
+                                            checked,
+                                        )
+                                    }
+                                />
+                            </label>
+                        )}
+
                         <div className="flex justify-end">
                             <Button type="submit" disabled={form.processing}>
                                 {form.processing && <Spinner />}

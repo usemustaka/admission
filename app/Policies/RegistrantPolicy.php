@@ -25,6 +25,38 @@ class RegistrantPolicy
     }
 
     /**
+     * Exporting needs the right to see the list as well as the right to export it.
+     */
+    public function export(User $user): bool
+    {
+        return $this->viewAny($user) && $user->can(Ability::RegistrantExport->value);
+    }
+
+    /**
+     * Running a step over many applicants at once; each one still needs `manage`.
+     */
+    public function bulk(User $user): bool
+    {
+        return $this->viewAny($user) && $user->can(Ability::RegistrantBulk->value);
+    }
+
+    /**
+     * Turning an announced applicant into a student.
+     */
+    public function place(User $user): bool
+    {
+        return $this->manage($user) && $user->can(Ability::RegistrantPlace->value);
+    }
+
+    /**
+     * Jumping over the usual flow of statuses, with a note.
+     */
+    public function bypass(User $user): bool
+    {
+        return $this->manage($user) && $user->can(Ability::RegistrantBypass->value);
+    }
+
+    /**
      * Parents and guardians of the child can follow the registration.
      */
     public function view(User $user, Registrant $registrant): bool

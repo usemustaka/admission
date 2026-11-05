@@ -22,7 +22,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->configureSuperAdmin();
     }
 
     /**
@@ -32,16 +32,23 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureMorphMap();
-        $this->configureSuperAdmin();
         Brand::applyToConfig();
     }
 
     /**
-     * Super admins pass every permission check.
+     * Deactivated accounts pass nothing; super admins pass every permission check. This runs while registering so
+     * it comes before the permission package's own check, which is added when it boots and would otherwise grant
+     * a deactivated account its role permissions.
      */
     protected function configureSuperAdmin(): void
     {
-        Gate::before(fn (User $user): ?bool => $user->hasRole(DefaultRole::SuperAdmin->value) ? true : null);
+        Gate::before(function (User $user): ?bool {
+            if ($user->hasRole(DefaultRole::Inactive->value)) {
+                return false;
+            }
+
+            return $user->hasRole(DefaultRole::SuperAdmin->value) ? true : null;
+        });
     }
 
     /**

@@ -373,43 +373,45 @@ export function PersonQuickView({
                         )}
                     </Section>
 
-                    <Section title="Pendaftaran terkait">
-                        {data.registrations.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                                Belum ada pendaftaran.
-                            </p>
-                        ) : (
-                            <ul className="grid gap-2">
-                                {data.registrations.map((registration) => (
-                                    <li key={registration.id}>
-                                        <Link
-                                            href={showRegistrant(
-                                                registration.id,
-                                            )}
-                                            className="-mx-2 flex min-h-10 items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-none"
-                                        >
-                                            <span className="grid min-w-0 leading-tight">
-                                                <span className="truncate font-semibold">
-                                                    {registration.is_self
-                                                        ? registration.organization
-                                                        : `${registration.child_name} · ${registration.organization}`}
+                    {data.can_view_registrations && (
+                        <Section title="Pendaftaran terkait">
+                            {data.registrations.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Belum ada pendaftaran.
+                                </p>
+                            ) : (
+                                <ul className="grid gap-2">
+                                    {data.registrations.map((registration) => (
+                                        <li key={registration.id}>
+                                            <Link
+                                                href={showRegistrant(
+                                                    registration.id,
+                                                )}
+                                                className="-mx-2 flex min-h-10 items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-none"
+                                            >
+                                                <span className="grid min-w-0 leading-tight">
+                                                    <span className="truncate font-semibold">
+                                                        {registration.is_self
+                                                            ? registration.organization
+                                                            : `${registration.child_name} · ${registration.organization}`}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {registration.wave}
+                                                    </span>
                                                 </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {registration.wave}
-                                                </span>
-                                            </span>
-                                            <StatusBadge
-                                                status={registration.status}
-                                                label={
-                                                    registration.status_label
-                                                }
-                                            />
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </Section>
+                                                <StatusBadge
+                                                    status={registration.status}
+                                                    label={
+                                                        registration.status_label
+                                                    }
+                                                />
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </Section>
+                    )}
                 </div>
             )}
         </QuickView>

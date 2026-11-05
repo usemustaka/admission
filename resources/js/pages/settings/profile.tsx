@@ -1,9 +1,12 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
-import { CircleCheck } from 'lucide-react';
+import { CircleAlert, CircleCheck } from 'lucide-react';
+import { useState } from 'react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
-import DeleteUser from '@/components/delete-user';
+import DeactivateAccount from '@/components/deactivate-account';
 import { FormField } from '@/components/form-field';
+import PasswordInput from '@/components/password-input';
 import { SectionCard } from '@/components/section-card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
@@ -18,13 +21,15 @@ type PageProps = {
 export default function Profile({
     mustVerifyEmail,
     status,
-    canDeleteAccount,
+    canDeactivateAccount,
 }: {
     mustVerifyEmail: boolean;
     status?: string;
-    canDeleteAccount: boolean;
+    canDeactivateAccount: boolean;
 }) {
     const { auth } = usePage<PageProps>().props;
+    const [email, setEmail] = useState(auth.user.email);
+    const emailChanged = email !== auth.user.email;
 
     return (
         <>
@@ -66,10 +71,40 @@ export default function Profile({
                                         name="email"
                                         required
                                         autoComplete="username"
+                                        onChange={(event) =>
+                                            setEmail(event.target.value)
+                                        }
                                         {...control}
                                     />
                                 )}
                             </FormField>
+
+                            {emailChanged && (
+                                <>
+                                    <Alert variant="warning">
+                                        <CircleAlert />
+                                        <AlertDescription>
+                                            Setelah email diganti, kamu perlu
+                                            memverifikasinya lagi lewat tautan
+                                            yang kami kirim ke alamat baru.
+                                        </AlertDescription>
+                                    </Alert>
+
+                                    <FormField
+                                        label="Kata sandi saat ini"
+                                        hint="Diperlukan untuk mengganti alamat email."
+                                        error={errors.current_password}
+                                    >
+                                        {(control) => (
+                                            <PasswordInput
+                                                name="current_password"
+                                                autoComplete="current-password"
+                                                {...control}
+                                            />
+                                        )}
+                                    </FormField>
+                                </>
+                            )}
 
                             {mustVerifyEmail &&
                                 auth.user.email_verified_at === null && (
@@ -110,7 +145,7 @@ export default function Profile({
                 </Form>
             </SectionCard>
 
-            {canDeleteAccount && <DeleteUser />}
+            {canDeactivateAccount && <DeactivateAccount />}
         </>
     );
 }

@@ -27,7 +27,7 @@ class RegistrantBulkController extends Controller
      */
     public function __invoke(Request $request, AcceptRegistrant $acceptRegistrant, AnnounceRegistrant $announceRegistrant): RedirectResponse
     {
-        Gate::authorize('viewAny', Registrant::class);
+        Gate::authorize('bulk', Registrant::class);
 
         $validated = $request->validate([
             'action' => ['required', Rule::in(['accept', 'announce'])],

@@ -63,6 +63,7 @@ test('the system seeder can run again without duplicating anything', function ()
 test('the admin command creates a verified account with the chosen role', function () {
     $this->artisan('app:create-admin', ['email' => 'admin@example.com', 'name' => 'Admin Utama', '--role' => 'admin'])
         ->expectsQuestion('Kata sandi', 'rahasia-banget')
+        ->expectsQuestion('Ulangi kata sandi', 'rahasia-banget')
         ->assertSuccessful();
 
     $user = User::where('email', 'admin@example.com')->firstOrFail();

@@ -3,6 +3,7 @@
 namespace App\Enums;
 
 use App\Contracts\HasLabel;
+use App\Support\StaffTwoFactor;
 
 /**
  * The tabs of the white-label settings page. Each group owns a set of setting keys, so a tab saves on its own.
@@ -14,6 +15,7 @@ enum SettingGroup: string implements HasLabel
     case Contact = 'kontak';
     case Payment = 'pembayaran';
     case Public = 'halaman-depan';
+    case Security = 'keamanan';
 
     public function label(): string
     {
@@ -23,6 +25,7 @@ enum SettingGroup: string implements HasLabel
             self::Contact => 'Kontak',
             self::Payment => 'Rekening',
             self::Public => 'Halaman depan',
+            self::Security => 'Keamanan',
         };
     }
 
@@ -34,6 +37,7 @@ enum SettingGroup: string implements HasLabel
             self::Contact => 'Cara orang tua menghubungi sekolah. Tampil di halaman bantuan dan halaman depan.',
             self::Payment => 'Rekening tujuan transfer yang ditampilkan ke orang tua saat membayar.',
             self::Public => 'Teks sambutan di halaman depan dan baris kaki yang dilihat orang tua.',
+            self::Security => 'Aturan keamanan untuk akun staf.',
         };
     }
 
@@ -72,6 +76,9 @@ enum SettingGroup: string implements HasLabel
                 'brand.welcome_description' => ['nullable', 'string', 'max:300'],
                 'brand.footer_text' => ['nullable', 'string', 'max:200'],
             ],
+            self::Security => [
+                StaffTwoFactor::SETTING_KEY => ['boolean'],
+            ],
         };
     }
 
@@ -98,6 +105,7 @@ enum SettingGroup: string implements HasLabel
             'brand.welcome_title' => 'Judul sambutan',
             'brand.welcome_description' => 'Teks sambutan',
             'brand.footer_text' => 'Teks kaki halaman',
+            StaffTwoFactor::SETTING_KEY => 'Wajib autentikasi dua langkah untuk staf',
             'logo' => 'Logo',
             'favicon' => 'Ikon tab',
         ];

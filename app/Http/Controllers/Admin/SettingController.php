@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SaveSettingsRequest;
 use App\Models\Setting;
 use App\Support\Brand;
+use App\Support\StaffTwoFactor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
@@ -43,7 +44,7 @@ class SettingController extends Controller
             ])->values(),
             'values' => Arr::undot(collect($current->rules())
                 ->keys()
-                ->mapWithKeys(fn (string $key): array => [$key => Brand::get($key)])
+                ->mapWithKeys(fn (string $key): array => [$key => $key === StaffTwoFactor::SETTING_KEY ? StaffTwoFactor::isRequired() : Brand::get($key)])
                 ->all()),
             'files' => ['logo_url' => Brand::logoUrl(), 'favicon_url' => Brand::faviconUrl()],
             'defaults' => [

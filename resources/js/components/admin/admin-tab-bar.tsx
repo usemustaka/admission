@@ -25,12 +25,15 @@ const pillClass = (selected: boolean) =>
 export function AdminTabBar() {
     const { sections: allSections, active } = useAdminNavigation();
     const sections = allSections.filter(
-        (section) => section.title !== 'Pengaturan',
+        (section) =>
+            section.title !== 'Pengaturan' && section.title !== 'Akses',
     );
     const { isCurrentOrParentUrl } = useCurrentUrl();
     const [menuOpen, setMenuOpen] = useState(false);
     const onSettings =
-        isCurrentOrParentUrl('/settings') || active?.title === 'Pengaturan';
+        isCurrentOrParentUrl('/settings') ||
+        active?.title === 'Pengaturan' ||
+        active?.title === 'Akses';
 
     return (
         <>

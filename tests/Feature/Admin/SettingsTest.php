@@ -53,7 +53,7 @@ test('a tab shows its current values and the defaults', function () {
         ->component('admin/settings/edit')
         ->where('group', 'kontak')
         ->where('values.contact.phone', '021 555 0100')
-        ->has('groups', 5));
+        ->has('groups', 6));
 });
 
 test('the identity tab saves the names and the logo', function () {

@@ -18,7 +18,9 @@ use App\Http\Controllers\Admin\ParentshipController;
 use App\Http\Controllers\Admin\PersonController;
 use App\Http\Controllers\Admin\PersonQuickViewController;
 use App\Http\Controllers\Admin\PersonSearchController;
+use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentProofController;
 use App\Http\Controllers\Portal\BillController;
@@ -28,6 +30,7 @@ use App\Http\Controllers\Portal\ChildExamController;
 use App\Http\Controllers\Portal\ChildSubmissionController;
 use App\Http\Controllers\Portal\PaymentController;
 use App\Http\Controllers\PortalController;
+use App\Http\Middleware\RequireStaffTwoFactor;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
@@ -58,7 +61,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('payments/{payment}/bukti', PaymentProofController::class)->name('payments.proof');
 
-    Route::middleware('can:'.Ability::AdminAccess->value)
+    Route::middleware(['can:'.Ability::AdminAccess->value, RequireStaffTwoFactor::class])
         ->prefix('admin')
         ->name('admin.')
         ->group(function () {
@@ -105,6 +108,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::resource('payments', AdminPaymentController::class)->only(['index', 'create', 'store', 'show']);
             Route::put('payments/{payment}/verify', [AdminPaymentController::class, 'verify'])->name('payments.verify');
             Route::put('payments/{payment}/reject', [AdminPaymentController::class, 'reject'])->name('payments.reject');
+
+            Route::resource('users', UserController::class)->only(['index', 'create', 'store', 'show', 'update']);
+            Route::prefix('users/{user}')->name('users.')->controller(UserController::class)->group(function () {
+                Route::post('deactivate', 'deactivate')->name('deactivate');
+                Route::post('reactivate', 'reactivate')->name('reactivate');
+                Route::post('password-change', 'requirePasswordChange')->name('password-change');
+                Route::post('setup-link', 'sendSetupLink')->name('setup-link');
+            });
+
+            Route::resource('roles', RoleController::class)->except('show');
+            Route::post('roles/{role}/duplicate', [RoleController::class, 'duplicate'])->name('roles.duplicate');
 
             Route::resource('waves', WaveController::class)->only(['index', 'store', 'update']);
 

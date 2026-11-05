@@ -373,7 +373,7 @@ export default function Dashboard({
                     }
                     actions={
                         <>
-                            {can('admission::payment.verify') && (
+                            {can('admission::payment.record') && (
                                 <Button variant="outline" asChild>
                                     <Link href={createPayment()}>
                                         <Plus />

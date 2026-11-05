@@ -13,7 +13,7 @@ test('staff see the admin dashboard', function () {
 
     $this->get(route('dashboard'))
         ->assertOk()
-        ->assertInertia(fn ($page) => $page->component('admin/dashboard')->has('stats.people'));
+        ->assertInertia(fn ($page) => $page->component('admin/dashboard')->has('attention')->missing('stats'));
 });
 
 test('users without staff access are sent to the parent portal', function () {

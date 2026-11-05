@@ -1,5 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { LogOut, Settings, SlidersHorizontal } from 'lucide-react';
+import { LogOut, Settings, SlidersHorizontal, UserCog } from 'lucide-react';
 import { PersonAvatar } from '@/components/person-avatar';
 import {
     Sheet,
@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/sheet';
 import { logout } from '@/routes';
 import { edit as editSetting } from '@/routes/admin/settings';
+import { index as staff } from '@/routes/admin/users';
 import { edit as editProfile } from '@/routes/profile';
 
 /**
@@ -65,6 +66,16 @@ export function AccountSheet({
                     >
                         <SlidersHorizontal className="size-6 text-muted-foreground" />
                         Pengaturan aplikasi
+                    </Link>
+                )}
+                {auth.abilities.includes('core::user.manage') && (
+                    <Link
+                        href={staff()}
+                        onClick={() => onOpenChange(false)}
+                        className="flex items-center gap-4 rounded-xl px-2 py-3 text-base font-semibold active:bg-accent"
+                    >
+                        <UserCog className="size-6 text-muted-foreground" />
+                        Staf dan peran
                     </Link>
                 )}
                 <Link

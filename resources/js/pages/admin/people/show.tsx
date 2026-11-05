@@ -71,7 +71,12 @@ export default function PersonShow({
     notes: NoteItem[];
     roles: string[];
     registrations: PersonRegistration[];
-    can: { update: boolean; manageFamily: boolean; createNote: boolean };
+    can: {
+        update: boolean;
+        manageFamily: boolean;
+        createNote: boolean;
+        viewRegistrations: boolean;
+    };
     options: {
         relations: Option[];
         kinds: Option[];
@@ -521,37 +526,42 @@ export default function PersonShow({
                                                     note.shared_with_family
                                                 }
                                                 actions={
-                                                    note.can_update && (
+                                                    (note.can_update ||
+                                                        note.can_delete) && (
                                                         <>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="max-md:h-10"
-                                                                onClick={() =>
-                                                                    toggleFamilyShare(
-                                                                        note,
-                                                                    )
-                                                                }
-                                                            >
-                                                                {note.shared_with_family
-                                                                    ? 'Berhenti share ke keluarga'
-                                                                    : 'Share ke keluarga anak'}
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                aria-label="Hapus catatan"
-                                                                onClick={() =>
-                                                                    setPendingDelete(
-                                                                        {
-                                                                            kind: 'note',
-                                                                            id: note.id,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Trash2 />
-                                                            </Button>
+                                                            {note.can_update && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="max-md:h-10"
+                                                                    onClick={() =>
+                                                                        toggleFamilyShare(
+                                                                            note,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    {note.shared_with_family
+                                                                        ? 'Berhenti share ke keluarga'
+                                                                        : 'Share ke keluarga anak'}
+                                                                </Button>
+                                                            )}
+                                                            {note.can_delete && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    aria-label="Hapus catatan"
+                                                                    onClick={() =>
+                                                                        setPendingDelete(
+                                                                            {
+                                                                                kind: 'note',
+                                                                                id: note.id,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Trash2 />
+                                                                </Button>
+                                                            )}
                                                         </>
                                                     )
                                                 }
@@ -678,46 +688,50 @@ export default function PersonShow({
                             </div>
                         </SectionCard>
 
-                        <SectionCard
-                            title="Pendaftaran terkait"
-                            icon={ClipboardList}
-                        >
-                            {registrations.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">
-                                    Belum ada pendaftaran.
-                                </p>
-                            ) : (
-                                <ul className="grid gap-1">
-                                    {registrations.map((registration) => (
-                                        <li key={registration.id}>
-                                            <Link
-                                                href={showRegistrant(
-                                                    registration.id,
-                                                )}
-                                                className="-mx-2 flex min-h-12 items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-none"
-                                            >
-                                                <span className="grid min-w-0 leading-tight">
-                                                    <span className="truncate font-semibold">
-                                                        {registration.is_self
-                                                            ? registration.organization
-                                                            : `${registration.child_name} · ${registration.organization}`}
+                        {can.viewRegistrations && (
+                            <SectionCard
+                                title="Pendaftaran terkait"
+                                icon={ClipboardList}
+                            >
+                                {registrations.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        Belum ada pendaftaran.
+                                    </p>
+                                ) : (
+                                    <ul className="grid gap-1">
+                                        {registrations.map((registration) => (
+                                            <li key={registration.id}>
+                                                <Link
+                                                    href={showRegistrant(
+                                                        registration.id,
+                                                    )}
+                                                    className="-mx-2 flex min-h-12 items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-none"
+                                                >
+                                                    <span className="grid min-w-0 leading-tight">
+                                                        <span className="truncate font-semibold">
+                                                            {registration.is_self
+                                                                ? registration.organization
+                                                                : `${registration.child_name} · ${registration.organization}`}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {registration.wave}
+                                                        </span>
                                                     </span>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {registration.wave}
-                                                    </span>
-                                                </span>
-                                                <StatusBadge
-                                                    status={registration.status}
-                                                    label={
-                                                        registration.status_label
-                                                    }
-                                                />
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </SectionCard>
+                                                    <StatusBadge
+                                                        status={
+                                                            registration.status
+                                                        }
+                                                        label={
+                                                            registration.status_label
+                                                        }
+                                                    />
+                                                </Link>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </SectionCard>
+                        )}
                     </aside>
                 </div>
             </div>

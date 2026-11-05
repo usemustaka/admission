@@ -75,6 +75,7 @@ export type PersonQuickViewData = {
         created_at: string | null;
     }[];
     registrations: PersonRegistration[];
+    can_view_registrations: boolean;
 };
 
 export type Option<T extends string | number = string> = {
@@ -110,6 +111,7 @@ export type NoteItem = {
     user_ids: number[];
     role_ids: number[];
     can_update: boolean;
+    can_delete: boolean;
 };
 
 export type Paginated<T> = {

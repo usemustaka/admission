@@ -18,20 +18,21 @@ import {
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
 
-export default function DeleteUser() {
+export default function DeactivateAccount() {
     const passwordInput = useRef<HTMLInputElement>(null);
 
     return (
         <SectionCard
-            title="Hapus akun"
-            description="Hapus akunmu beserta semua datanya."
+            title="Nonaktifkan akun"
+            description="Matikan akun stafmu. Catatan dan data yang pernah kamu tulis tetap tersimpan."
         >
             <div className="grid gap-4">
                 <Alert variant="destructive">
                     <CircleAlert />
                     <AlertTitle>Hati-hati</AlertTitle>
                     <AlertDescription>
-                        Akun yang sudah dihapus tidak bisa dikembalikan.
+                        Kamu langsung keluar dan tidak bisa masuk lagi. Hanya
+                        admin yang bisa mengaktifkan akunmu kembali.
                     </AlertDescription>
                 </Alert>
 
@@ -41,17 +42,19 @@ export default function DeleteUser() {
                             variant="destructive"
                             size="lg"
                             className="w-full @2xl:w-fit"
-                            data-test="delete-user-button"
+                            data-test="deactivate-account-button"
                         >
-                            Hapus akun
+                            Nonaktifkan akun saya
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
-                        <DialogTitle>Yakin mau menghapus akunmu?</DialogTitle>
+                        <DialogTitle>
+                            Yakin mau menonaktifkan akunmu?
+                        </DialogTitle>
                         <DialogDescription>
-                            Setelah dihapus, akun dan semua datanya hilang
-                            selamanya. Masukkan kata sandimu untuk memastikan
-                            ini memang kamu.
+                            Akunmu akan dimatikan dan kamu langsung keluar.
+                            Masukkan kata sandimu untuk memastikan ini memang
+                            kamu.
                         </DialogDescription>
 
                         <Form
@@ -79,6 +82,15 @@ export default function DeleteUser() {
                                         )}
                                     </FormField>
 
+                                    {errors.user && (
+                                        <p
+                                            role="alert"
+                                            className="text-[15px] font-medium text-destructive-foreground"
+                                        >
+                                            {errors.user}
+                                        </p>
+                                    )}
+
                                     <DialogFooter className="gap-2">
                                         <DialogClose asChild>
                                             <Button
@@ -100,10 +112,10 @@ export default function DeleteUser() {
                                         >
                                             <button
                                                 type="submit"
-                                                data-test="confirm-delete-user-button"
+                                                data-test="confirm-deactivate-account-button"
                                             >
                                                 {processing && <Spinner />}
-                                                Hapus akun
+                                                Nonaktifkan akun
                                             </button>
                                         </Button>
                                     </DialogFooter>

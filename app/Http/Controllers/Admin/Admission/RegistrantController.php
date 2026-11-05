@@ -95,7 +95,11 @@ class RegistrantController extends Controller
                 'all' => (int) $statusCounts->sum(),
                 ...collect(RegistrantStatus::cases())->mapWithKeys(fn (RegistrantStatus $case): array => [$case->value => (int) ($statusCounts[$case->value] ?? 0)])->all(),
             ],
-            'canManage' => $user->can(Ability::RegistrantManage->value),
+            'can' => [
+                'bulk' => $user->can(Ability::RegistrantManage->value) && $user->can('bulk', Registrant::class),
+                'export' => $user->can('export', Registrant::class),
+                'editAnnouncement' => $user->can(Ability::AnnouncementManage->value),
+            ],
         ]);
     }
 

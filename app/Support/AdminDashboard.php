@@ -6,9 +6,7 @@ use App\Enums\Ability;
 use App\Enums\PaymentStatus;
 use App\Enums\RegistrantStatus;
 use App\Models\ExamSession;
-use App\Models\Organization;
 use App\Models\Payment;
-use App\Models\Person;
 use App\Models\Registrant;
 use App\Models\RegistrantStatusChange;
 use App\Models\User;
@@ -31,11 +29,6 @@ class AdminDashboard
         $canSeeWaves = $user->can(Ability::WaveView->value);
 
         return [
-            'stats' => [
-                'people' => Person::count(),
-                'organizations' => Organization::active()->count(),
-                'users' => User::count(),
-            ],
             'attention' => self::attention($canSeeRegistrants, $canSeePayments),
             'flow' => $canSeeRegistrants ? self::flow() : null,
             'registrations' => $canSeeRegistrants ? self::registrations() : null,

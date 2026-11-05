@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Actions\Users\DeactivateUser;
 use App\Enums\Ability;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
@@ -10,6 +11,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,41 +25,53 @@ class ProfileController extends Controller
         return Inertia::render('settings/profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
-            'canDeleteAccount' => $request->user()->can(Ability::AdminAccess->value),
+            'canDeactivateAccount' => $request->user()->can(Ability::AdminAccess->value),
         ]);
     }
 
     /**
-     * Update the user's profile information.
+     * Update the user's profile information. A new email address has to be verified again.
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
         $user = $request->user();
+        $emailChanged = $request->emailIsChanging();
 
-        $user->person?->update(['name' => $request->validated('name')]);
-        $user->fill(['email' => $request->validated('email')]);
+        DB::transaction(function () use ($request, $user, $emailChanged): void {
+            $user->person?->update([
+                'name' => $request->validated('name'),
+                ...($emailChanged ? ['email' => $request->validated('email')] : []),
+            ]);
 
-        if ($user->isDirty('email')) {
-            $user->email_verified_at = null;
+            $user->fill(['email' => $request->validated('email')]);
+
+            if ($emailChanged) {
+                $user->email_verified_at = null;
+            }
+
+            $user->save();
+        });
+
+        if ($emailChanged) {
+            $user->sendEmailVerificationNotification();
         }
 
-        $user->save();
-
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile updated.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => $emailChanged
+            ? 'Profil diperbarui. Kami kirim tautan verifikasi ke alamat email barumu.'
+            : __('Profile updated.')]);
 
         return to_route('profile.edit');
     }
 
     /**
-     * Delete the user's account. Only staff may do this; parents ask the school.
+     * Deactivate the user's own account. Only staff may do this; parents ask the school. The account stays, so the
+     * notes and records it wrote keep their author.
      */
-    public function destroy(ProfileDeleteRequest $request): RedirectResponse
+    public function destroy(ProfileDeleteRequest $request, DeactivateUser $deactivateUser): RedirectResponse
     {
-        $user = $request->user();
+        $deactivateUser->handle($request->user());
 
         Auth::logout();
-
-        $user->delete();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

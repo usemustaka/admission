@@ -65,7 +65,11 @@ class PaymentController extends Controller
             'summary' => $this->summary(),
             'statuses' => array_map(fn (PaymentStatus $case): array => ['value' => $case->value, 'label' => $case->label()], PaymentStatus::cases()),
             'methods' => array_map(fn (PaymentMethod $method): array => ['value' => $method->value, 'label' => $method->label()], PaymentMethod::cases()),
-            'can' => ['verify' => $request->user()->can(Ability::PaymentVerify->value)],
+            'can' => [
+                'verify' => $request->user()->can(Ability::PaymentVerify->value),
+                'record' => $request->user()->can(Ability::PaymentRecord->value),
+                'export' => $request->user()->can('export', Payment::class),
+            ],
         ]);
     }
 
@@ -117,7 +121,7 @@ class PaymentController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
-        Gate::authorize('viewAny', Payment::class);
+        Gate::authorize('export', Payment::class);
 
         $filters = PaymentFilters::fromRequest($request);
 
@@ -215,7 +219,7 @@ class PaymentController extends Controller
 
     public function create(): Response
     {
-        Gate::authorize(Ability::PaymentVerify->value);
+        Gate::authorize('record', Payment::class);
 
         return Inertia::render('admin/payments/create', [
             'methods' => array_map(fn (PaymentMethod $method): array => ['value' => $method->value, 'label' => $method->label()], PaymentMethod::cases()),
@@ -227,7 +231,7 @@ class PaymentController extends Controller
      */
     public function openItems(Request $request): JsonResponse
     {
-        Gate::authorize(Ability::PaymentVerify->value);
+        Gate::authorize('record', Payment::class);
 
         $payer = $request->integer('payer');
 

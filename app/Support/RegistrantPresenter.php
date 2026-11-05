@@ -49,6 +49,8 @@ class RegistrantPresenter
     public static function abilities(Registrant $registrant, User $user): array
     {
         $canManage = $user->can(Ability::RegistrantManage->value);
+        $canPlace = $canManage && $user->can(Ability::RegistrantPlace->value);
+        $canBypass = $canManage && $user->can(Ability::RegistrantBypass->value);
         $status = $registrant->status;
 
         return [
@@ -56,8 +58,8 @@ class RegistrantPresenter
             'accept' => $canManage && $status === RegistrantStatus::Review && ! $registrant->needs_identity_review,
             'revise' => $canManage && $status === RegistrantStatus::Review && ! $registrant->needs_identity_review,
             'announce' => $canManage && $status === RegistrantStatus::Validated && ! $registrant->needs_identity_review,
-            'place' => $canManage && $status === RegistrantStatus::Announced && ! $registrant->needs_identity_review,
-            'bypass' => $canManage && $status !== RegistrantStatus::Placed,
+            'place' => $canPlace && $status === RegistrantStatus::Announced && ! $registrant->needs_identity_review,
+            'bypass' => $canBypass && $status !== RegistrantStatus::Placed,
         ];
     }
 

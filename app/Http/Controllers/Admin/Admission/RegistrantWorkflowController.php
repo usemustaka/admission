@@ -46,7 +46,7 @@ class RegistrantWorkflowController extends Controller
 
     public function bypass(Request $request, Registrant $registrant, BypassRegistrantStatus $bypassRegistrantStatus): RedirectResponse
     {
-        Gate::authorize('manage', $registrant);
+        Gate::authorize('bypass', Registrant::class);
 
         $validated = $request->validate([
             'status' => ['required', Rule::enum(RegistrantStatus::class)],
@@ -90,7 +90,7 @@ class RegistrantWorkflowController extends Controller
 
     public function place(Request $request, Registrant $registrant, PlaceRegistrant $placeRegistrant): RedirectResponse
     {
-        Gate::authorize('manage', $registrant);
+        Gate::authorize('place', Registrant::class);
 
         $validated = $request->validate([
             'year_id' => ['required', 'integer', 'exists:years,id'],

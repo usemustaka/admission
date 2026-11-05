@@ -8,4 +8,9 @@ enum DefaultRole: string
     case Admin = 'admin';
     case Operator = 'operator';
     case User = 'user';
+
+    /**
+     * Marks a deactivated account. It keeps the login but is refused everywhere.
+     */
+    case Inactive = 'nonaktif';
 }

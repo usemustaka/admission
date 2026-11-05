@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\Ability;
 use App\Http\Controllers\Controller;
 use App\Models\Note;
 use App\Models\Parentship;
@@ -75,7 +76,8 @@ class PersonQuickViewController extends Controller
                 'author' => $note->author_id === null ? 'Sistem' : $note->author->name,
                 'created_at' => $note->created_at?->translatedFormat('j M Y, H:i'),
             ])->values(),
-            'registrations' => PersonOverview::registrations($person, 5),
+            'registrations' => $user->can(Ability::RegistrantView->value) ? PersonOverview::registrations($person, 5) : [],
+            'can_view_registrations' => $user->can(Ability::RegistrantView->value),
         ]]);
     }
 }

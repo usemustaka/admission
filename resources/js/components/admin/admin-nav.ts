@@ -3,6 +3,7 @@ import {
     CalendarRange,
     ClipboardList,
     House,
+    KeyRound,
     Landmark,
     ListChecks,
     Megaphone,
@@ -10,7 +11,9 @@ import {
     Palette,
     Phone,
     Settings,
+    ShieldCheck,
     Store,
+    UserCog,
     Users,
     Wallet,
 } from 'lucide-react';
@@ -20,8 +23,10 @@ import { edit as admissionSettings } from '@/routes/admin/admission-settings';
 import { index as payments } from '@/routes/admin/payments';
 import { index as people } from '@/routes/admin/people';
 import { index as registrants } from '@/routes/admin/registrants';
+import { index as roles } from '@/routes/admin/roles';
 import { index as rulesets } from '@/routes/admin/rulesets';
 import { edit as editSetting } from '@/routes/admin/settings';
+import { index as users } from '@/routes/admin/users';
 import { index as waves } from '@/routes/admin/waves';
 
 export type AdminPage = {
@@ -74,7 +79,7 @@ export const adminSections: AdminSection[] = [
                 title: 'Templat pengumuman',
                 href: admissionSettings(),
                 icon: Megaphone,
-                ability: 'admission::registrant.manage',
+                ability: 'admission::announcement.manage',
             },
         ],
     },
@@ -99,6 +104,24 @@ export const adminSections: AdminSection[] = [
                 href: people(),
                 icon: Users,
                 ability: 'core::person.view',
+            },
+        ],
+    },
+    {
+        title: 'Akses',
+        icon: ShieldCheck,
+        pages: [
+            {
+                title: 'Staf',
+                href: users(),
+                icon: UserCog,
+                ability: 'core::user.manage',
+            },
+            {
+                title: 'Peran',
+                href: roles(),
+                icon: ShieldCheck,
+                ability: 'core::role.manage',
             },
         ],
     },
@@ -134,6 +157,12 @@ export const adminSections: AdminSection[] = [
                 title: 'Halaman depan',
                 href: editSetting({ group: 'halaman-depan' }),
                 icon: PanelTop,
+                ability: 'core::setting.manage',
+            },
+            {
+                title: 'Keamanan',
+                href: editSetting({ group: 'keamanan' }),
+                icon: KeyRound,
                 ability: 'core::setting.manage',
             },
         ],

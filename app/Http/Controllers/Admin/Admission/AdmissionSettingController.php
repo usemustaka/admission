@@ -16,7 +16,7 @@ class AdmissionSettingController extends Controller
 {
     public function edit(): Response
     {
-        Gate::authorize(Ability::RegistrantManage->value);
+        Gate::authorize(Ability::AnnouncementManage->value);
 
         return Inertia::render('admin/admission-settings', [
             'template' => Announcement::template(),
@@ -27,7 +27,7 @@ class AdmissionSettingController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
-        Gate::authorize(Ability::RegistrantManage->value);
+        Gate::authorize(Ability::AnnouncementManage->value);
 
         $validated = $request->validate(['template' => ['required', 'string', 'max:2000']], [], ['template' => 'Templat pengumuman']);
 

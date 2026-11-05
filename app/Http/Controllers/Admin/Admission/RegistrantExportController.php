@@ -28,7 +28,7 @@ class RegistrantExportController extends Controller
      */
     public function __invoke(Request $request): StreamedResponse
     {
-        Gate::authorize('viewAny', Registrant::class);
+        Gate::authorize('export', Registrant::class);
 
         $filters = RegistrantListFilters::fromRequest($request);
 

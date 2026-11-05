@@ -87,6 +87,7 @@ class PersonController extends Controller
                 'arah' => $direction,
             ],
             'options' => ['kinds' => $this->options(PersonKind::cases())],
+            'can' => ['create' => $request->user()->can('create', Person::class)],
             'counts' => [
                 'kinds' => [
                     'all' => $matching(null, $quality)->count(),
@@ -162,8 +163,9 @@ class PersonController extends Controller
             ])->values(),
             'notes' => $notes->map(fn (Note $note): array => $this->note($note, $user))->values(),
             'roles' => PersonOverview::rolesOf($person),
-            'registrations' => PersonOverview::registrations($person),
+            'registrations' => $user->can(Ability::RegistrantView->value) ? PersonOverview::registrations($person) : [],
             'can' => [
+                'viewRegistrations' => $user->can(Ability::RegistrantView->value),
                 'update' => $user->can('update', $person),
                 'manageFamily' => $user->can(Ability::FamilyManage->value),
                 'createNote' => $user->can('create', Note::class),
@@ -271,6 +273,7 @@ class PersonController extends Controller
             'user_ids' => $note->shares->where('shareable_type', 'user')->pluck('shareable_id')->values(),
             'role_ids' => $note->shares->where('shareable_type', 'role')->pluck('shareable_id')->values(),
             'can_update' => $user->can('update', $note),
+            'can_delete' => $user->can('delete', $note),
         ];
     }
 

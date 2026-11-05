@@ -23,6 +23,22 @@ class PaymentPolicy
             || $payment->created_by_user_id === $user->id;
     }
 
+    /**
+     * Writing down a payment the staff received directly, which counts as verified right away.
+     */
+    public function record(User $user): bool
+    {
+        return $user->can(Ability::PaymentRecord->value);
+    }
+
+    /**
+     * Exporting needs the right to see payments as well as the right to export them.
+     */
+    public function export(User $user): bool
+    {
+        return $this->viewAny($user) && $user->can(Ability::PaymentExport->value);
+    }
+
     public function verify(User $user): bool
     {
         return $user->can(Ability::PaymentVerify->value);

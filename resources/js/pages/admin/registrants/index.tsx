@@ -110,7 +110,7 @@ export default function RegistrantsIndex({
     options,
     counts,
     statusCounts,
-    canManage,
+    can,
 }: {
     registrants: Paginated<RegistrantRow>;
     filters: Filters;
@@ -126,7 +126,7 @@ export default function RegistrantsIndex({
         announced: number;
     };
     statusCounts: StatusCounts;
-    canManage: boolean;
+    can: { bulk: boolean; export: boolean; editAnnouncement: boolean };
 }) {
     const [term, setTerm] = useState(filters.cari);
     const [loading, setLoading] = useState(false);
@@ -487,18 +487,22 @@ export default function RegistrantsIndex({
                     description="Semua pendaftaran siswa baru. Klik satu baris untuk melihat ringkasannya tanpa meninggalkan daftar."
                     actions={
                         <>
-                            <Button variant="outline" asChild>
-                                <a href={exportUrl}>
-                                    <Download />
-                                    Ekspor CSV
-                                </a>
-                            </Button>
-                            <Button variant="outline" asChild>
-                                <Link href={admissionSettings()}>
-                                    <Settings2 />
-                                    Templat pengumuman
-                                </Link>
-                            </Button>
+                            {can.export && (
+                                <Button variant="outline" asChild>
+                                    <a href={exportUrl}>
+                                        <Download />
+                                        Ekspor CSV
+                                    </a>
+                                </Button>
+                            )}
+                            {can.editAnnouncement && (
+                                <Button variant="outline" asChild>
+                                    <Link href={admissionSettings()}>
+                                        <Settings2 />
+                                        Templat pengumuman
+                                    </Link>
+                                </Button>
+                            )}
                         </>
                     }
                 />
@@ -654,7 +658,7 @@ export default function RegistrantsIndex({
                             getRowId={(row) => String(row.id)}
                             sorting={sorting}
                             selection={
-                                canManage
+                                can.bulk
                                     ? { selected, onChange: setSelected }
                                     : undefined
                             }
