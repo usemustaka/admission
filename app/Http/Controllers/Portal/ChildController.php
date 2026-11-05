@@ -62,12 +62,16 @@ class ChildController extends Controller
     {
         Gate::authorize('view', $registrant);
 
-        $registrant->loadMissing(['person.parentships.relatedPerson']);
+        $pending = $registrant->needs_identity_review;
+
+        if (! $pending) {
+            $registrant->loadMissing(['person.parentships.relatedPerson']);
+        }
 
         return Inertia::render('portal/children/show', [
             'registrant' => RegistrantPresenter::summary($registrant),
-            'completeness' => RegistrantPresenter::completeness($registrant),
-            'family' => $registrant->person->parentships->map(fn (Parentship $parentship): array => [
+            'completeness' => $pending ? ['filled' => 0, 'total' => 0] : RegistrantPresenter::completeness($registrant),
+            'family' => $pending ? [] : $registrant->person->parentships->map(fn (Parentship $parentship): array => [
                 'id' => $parentship->id,
                 'name' => $parentship->relatedPerson->name,
                 'relation' => $parentship->relation->label(),

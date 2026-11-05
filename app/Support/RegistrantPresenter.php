@@ -12,6 +12,20 @@ class RegistrantPresenter
     private const CHILD_REQUIRED = ['gender', 'birth_place', 'birth_date', 'religion', 'address', 'family_card_number'];
 
     /**
+     * The child's name as a parent may see it. While the committee confirms the NIK, that is only the name the
+     * parent typed, never the one already on record.
+     */
+    public static function childName(Registrant $registrant): string
+    {
+        return $registrant->needs_identity_review ? $registrant->submitted_name : $registrant->person->name;
+    }
+
+    public static function childPhotoUrl(Registrant $registrant): ?string
+    {
+        return $registrant->needs_identity_review ? null : $registrant->person->photo_url;
+    }
+
+    /**
      * What a parent sees of a registration on the portal.
      *
      * @return array<string, mixed>
@@ -24,16 +38,17 @@ class RegistrantPresenter
             'id' => $registrant->id,
             'child' => [
                 'id' => $registrant->person->id,
-                'name' => $registrant->person->name,
-                'photo_url' => $registrant->person->photo_url,
+                'name' => self::childName($registrant),
+                'photo_url' => self::childPhotoUrl($registrant),
             ],
+            'identity_pending' => $registrant->needs_identity_review,
             'organization' => $registrant->organization->name,
             'wave' => $registrant->wave->name,
             'status' => $registrant->status->value,
             'status_label' => $registrant->status->label(),
             'steps' => $registrant->steps(),
             'current_step' => $registrant->currentStep(),
-            'can_edit' => $registrant->status->isEditableByParent(),
+            'can_edit' => $registrant->status->isEditableByParent() && ! $registrant->needs_identity_review,
         ];
     }
 

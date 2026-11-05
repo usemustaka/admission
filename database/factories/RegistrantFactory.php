@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Enums\ParentKind;
+use App\Enums\ParentRelation;
 use App\Enums\RegistrantStatus;
 use App\Models\Organization;
 use App\Models\Person;
@@ -26,6 +28,9 @@ class RegistrantFactory extends Factory
             'ruleset_id' => null,
             'ruleset_snapshot' => null,
             'registered_by_person_id' => Person::factory(),
+            'submitted_name' => fake()->name(),
+            'registered_as_relation' => ParentRelation::Father,
+            'registered_as_kind' => ParentKind::Biological,
             'status' => RegistrantStatus::Draft,
             'needs_identity_review' => false,
         ];

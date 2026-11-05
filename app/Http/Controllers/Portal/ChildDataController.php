@@ -20,9 +20,15 @@ use Inertia\Response;
 
 class ChildDataController extends Controller
 {
-    public function edit(Registrant $registrant): Response
+    public function edit(Registrant $registrant): Response|RedirectResponse
     {
         Gate::authorize('view', $registrant);
+
+        if ($registrant->needs_identity_review) {
+            Inertia::flash('toast', ['type' => 'info', 'message' => 'Data anak ini sedang dicocokkan panitia dulu, jadi belum bisa dibuka.']);
+
+            return to_route('portal.children.show', $registrant);
+        }
 
         $registrant->loadMissing(['person.parentships.relatedPerson']);
         $child = $registrant->person;

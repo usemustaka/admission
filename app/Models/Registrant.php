@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\BillType;
+use App\Enums\ParentKind;
+use App\Enums\ParentRelation;
 use App\Enums\RegistrantStatus;
 use Database\Factories\RegistrantFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -25,13 +27,16 @@ use Illuminate\Support\Facades\Storage;
  * @property int|null $ruleset_id
  * @property array{ruleset_id: int, name: string, bills: list<array{type: string, items: list<array{name: string, amount: int}>}>, exam_aspects: list<array{name: string, passing_score: int}>}|null $ruleset_snapshot
  * @property int $registered_by_person_id
+ * @property string $submitted_name the child's name as the parent typed it
+ * @property ParentRelation $registered_as_relation
+ * @property ParentKind|null $registered_as_kind
  * @property RegistrantStatus $status
  * @property bool $needs_identity_review
  * @property string|null $formal_photo_path
  * @property-read string|null $formal_photo_url
  * @property Carbon|null $created_at
  */
-#[Fillable(['person_id', 'organization_id', 'wave_id', 'ruleset_id', 'ruleset_snapshot', 'registered_by_person_id', 'status', 'needs_identity_review', 'formal_photo_path'])]
+#[Fillable(['person_id', 'organization_id', 'wave_id', 'ruleset_id', 'ruleset_snapshot', 'registered_by_person_id', 'submitted_name', 'registered_as_relation', 'registered_as_kind', 'status', 'needs_identity_review', 'formal_photo_path'])]
 class Registrant extends Model
 {
     /** @use HasFactory<RegistrantFactory> */
@@ -44,6 +49,8 @@ class Registrant extends Model
     {
         return [
             'ruleset_snapshot' => 'array',
+            'registered_as_relation' => ParentRelation::class,
+            'registered_as_kind' => ParentKind::class,
             'status' => RegistrantStatus::class,
             'needs_identity_review' => 'boolean',
         ];
@@ -86,16 +93,21 @@ class Registrant extends Model
     }
 
     /**
-     * Registrations of the children the user is a parent or guardian of.
+     * Registrations a parent may follow: of the children they are a parent or guardian of, and the ones they
+     * registered themselves. The latter covers registrations that wait for the committee to confirm the NIK,
+     * where the parent is not linked to the child yet.
      *
      * @param  Builder<Registrant>  $query
      */
     #[Scope]
     protected function forParent(Builder $query, User $user): void
     {
-        $query->whereIn('person_id', Parentship::query()
-            ->where('related_person_id', $user->person_id)
-            ->select('person_id'));
+        $query->where(function (Builder $query) use ($user): void {
+            $query->whereIn('person_id', Parentship::query()
+                ->where('related_person_id', $user->person_id)
+                ->select('person_id'))
+                ->orWhere('registered_by_person_id', $user->person_id);
+        });
     }
 
     public function getFormalPhotoUrlAttribute(): ?string

@@ -8,6 +8,8 @@ export type PortalRegistrant = {
     steps: string[];
     current_step: string;
     can_edit: boolean;
+    /** The committee is still confirming the child's NIK, so no details are shown. */
+    identity_pending: boolean;
 };
 
 export type Completeness = { filled: number; total: number };

@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\Ability;
 use App\Models\Registrant;
+use App\Support\RegistrantPresenter;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -50,7 +51,7 @@ class HandleInertiaRequests extends Middleware
                     ->with('person')
                     ->latest()
                     ->get()
-                    ->map(fn (Registrant $registrant): array => ['id' => $registrant->id, 'name' => $registrant->person->name, 'photo_url' => $registrant->person->photo_url])
+                    ->map(fn (Registrant $registrant): array => ['id' => $registrant->id, 'name' => RegistrantPresenter::childName($registrant), 'photo_url' => RegistrantPresenter::childPhotoUrl($registrant)])
                     ->values()
                     ->all(),
             ] : null,

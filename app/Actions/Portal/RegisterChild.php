@@ -3,7 +3,6 @@
 namespace App\Actions\Portal;
 
 use App\Actions\Admission\ResolveRuleset;
-use App\Actions\People\LinkParent;
 use App\Enums\NoteUrgency;
 use App\Enums\NoteVisibility;
 use App\Enums\ParentKind;
@@ -20,12 +19,13 @@ class RegisterChild
 {
     public function __construct(
         private ResolveRuleset $resolveRuleset,
-        private LinkParent $linkParent,
+        private LinkRegisteringParent $linkRegisteringParent,
     ) {}
 
     /**
      * Register a child for admission on behalf of a parent. A NIK that is already known is linked to the same
-     * person; when the name differs, the registration is flagged and the committee gets a note.
+     * person. When the name differs, the registration is flagged and the committee gets a note; until they
+     * confirm, the parent is not linked to the child and sees none of the child's data.
      *
      * @throws ValidationException
      */
@@ -53,7 +53,9 @@ class RegisterChild
                 'birth_date' => $data->birthDate,
             ]);
 
-            if ($existing !== null) {
+            $needsIdentityReview = $existing !== null && ! PersonName::same($existing->name, $data->name);
+
+            if ($existing !== null && ! $needsIdentityReview) {
                 $child->fill(array_filter([
                     'gender' => $child->gender === null ? $data->gender : null,
                     'birth_date' => $child->birth_date === null ? $data->birthDate : null,
@@ -64,9 +66,7 @@ class RegisterChild
                 throw ValidationException::withMessages(['nik' => 'Anak ini sudah didaftarkan di lembaga dan gelombang tersebut.']);
             }
 
-            if (! $child->parentships()->where('related_person_id', $parentPerson->id)->exists()) {
-                $this->linkParent->handle($child, $parentPerson, $data->relation, $data->relation->hasKind() ? ($data->kind ?? ParentKind::Biological) : null);
-            }
+            $kind = $data->relation->hasKind() ? ($data->kind ?? ParentKind::Biological) : null;
 
             $registrant = Registrant::create([
                 'person_id' => $child->id,
@@ -75,12 +75,17 @@ class RegisterChild
                 'ruleset_id' => $ruleset->id,
                 'ruleset_snapshot' => $ruleset->toSnapshot(),
                 'registered_by_person_id' => $parentPerson->id,
+                'submitted_name' => $data->name,
+                'registered_as_relation' => $data->relation,
+                'registered_as_kind' => $kind,
                 'status' => RegistrantStatus::Draft,
-                'needs_identity_review' => $existing !== null && ! PersonName::same($existing->name, $data->name),
+                'needs_identity_review' => $needsIdentityReview,
             ]);
 
-            if ($registrant->needs_identity_review) {
+            if ($needsIdentityReview) {
                 $this->flagNameMismatch($child, $data);
+            } else {
+                $this->linkRegisteringParent->handle($registrant);
             }
 
             return $registrant;

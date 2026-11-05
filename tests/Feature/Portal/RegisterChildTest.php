@@ -138,6 +138,8 @@ describe('a NIK that is already known', function () {
         expect($registrant->person_id)->toBe($existing->id)
             ->and($registrant->needs_identity_review)->toBeTrue()
             ->and($existing->refresh()->name)->toBe('Budi Santoso')
+            ->and($registrant->submitted_name)->toBe('Ahmad Fauzi')
+            ->and(Parentship::count())->toBe(0)
             ->and($note->noteable_id)->toBe($existing->id)
             ->and($note->person_id)->toBe($existing->id)
             ->and($note->author_id)->toBeNull()
