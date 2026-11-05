@@ -1,5 +1,11 @@
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarRange, LayoutGrid, ListChecks, Users } from 'lucide-react';
+import {
+    CalendarRange,
+    LayoutGrid,
+    ListChecks,
+    Users,
+    Wallet,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -13,6 +19,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as payments } from '@/routes/admin/payments';
 import { index as people } from '@/routes/admin/people';
 import { index as rulesets } from '@/routes/admin/rulesets';
 import { index as waves } from '@/routes/admin/waves';
@@ -53,6 +60,17 @@ const navGroups: NavGroup[] = [
                 href: rulesets(),
                 icon: ListChecks,
                 ability: 'admission::ruleset.view',
+            },
+        ],
+    },
+    {
+        label: 'Keuangan',
+        items: [
+            {
+                title: 'Pembayaran',
+                href: payments(),
+                icon: Wallet,
+                ability: 'admission::payment.view',
             },
         ],
     },

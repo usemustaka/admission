@@ -19,6 +19,8 @@ enum Ability: string
     case WaveManage = 'admission::wave.manage';
     case RulesetView = 'admission::ruleset.view';
     case RulesetManage = 'admission::ruleset.manage';
+    case PaymentView = 'admission::payment.view';
+    case PaymentVerify = 'admission::payment.verify';
 
     public function label(): string
     {
@@ -35,6 +37,8 @@ enum Ability: string
             self::WaveManage => 'Mengatur gelombang pendaftaran',
             self::RulesetView => 'Melihat aturan pendaftaran',
             self::RulesetManage => 'Mengatur aturan pendaftaran',
+            self::PaymentView => 'Melihat pembayaran',
+            self::PaymentVerify => 'Memverifikasi, menolak, dan mencatat pembayaran',
         };
     }
 }

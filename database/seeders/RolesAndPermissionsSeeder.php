@@ -36,6 +36,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 Ability::NoteCreate->value,
                 Ability::WaveView->value,
                 Ability::RulesetView->value,
+                Ability::PaymentView->value,
+                Ability::PaymentVerify->value,
             ]);
     }
 }

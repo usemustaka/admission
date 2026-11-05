@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowRight, Hourglass, Users } from 'lucide-react';
+import { ArrowRight, Hourglass, Users, Wallet } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { PersonAvatar } from '@/components/person-avatar';
 import { SectionCard } from '@/components/section-card';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { currentStepIndex, stepsFor } from '@/lib/admission-steps';
 import { portal } from '@/routes';
+import { bills } from '@/routes/portal/children';
 import { edit } from '@/routes/portal/children/data';
 import type { Completeness, PortalRegistrant } from '@/types/portal';
 
@@ -86,6 +87,21 @@ export default function ChildShow({
                             </p>
                         </AlertDescription>
                     </Alert>
+                )}
+
+                {registrant.current_step === 'registration-bill' && (
+                    <SectionCard
+                        title="Bayar tagihan pendaftaran"
+                        description="Selesaikan dulu supaya pendaftaran bisa lanjut ke tahap berikutnya. Datanya boleh diisi sambil menunggu."
+                        icon={Wallet}
+                    >
+                        <Button asChild>
+                            <Link href={bills(registrant.id)}>
+                                Lihat tagihan
+                                <ArrowRight />
+                            </Link>
+                        </Button>
+                    </SectionCard>
                 )}
 
                 {registrant.can_edit && (

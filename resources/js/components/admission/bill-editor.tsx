@@ -116,7 +116,6 @@ export function BillEditor({
                                             type="number"
                                             inputMode="numeric"
                                             min={0}
-                                            step={1000}
                                             placeholder="Nominal (Rp)"
                                             value={item.amount}
                                             disabled={!canEdit}

@@ -3,6 +3,8 @@
 namespace App\Actions\Portal;
 
 use App\Actions\Admission\ResolveRuleset;
+use App\Actions\Billing\IssueBill;
+use App\Enums\BillType;
 use App\Enums\NoteUrgency;
 use App\Enums\NoteVisibility;
 use App\Enums\ParentKind;
@@ -20,6 +22,7 @@ class RegisterChild
     public function __construct(
         private ResolveRuleset $resolveRuleset,
         private LinkRegisteringParent $linkRegisteringParent,
+        private IssueBill $issueBill,
     ) {}
 
     /**
@@ -81,6 +84,8 @@ class RegisterChild
                 'status' => RegistrantStatus::Draft,
                 'needs_identity_review' => $needsIdentityReview,
             ]);
+
+            $this->issueBill->handle($registrant, BillType::Registration);
 
             if ($needsIdentityReview) {
                 $this->flagNameMismatch($child, $data);

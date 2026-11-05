@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BillStatus;
 use App\Enums\BillType;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
@@ -93,6 +95,14 @@ class Registrant extends Model
     }
 
     /**
+     * @return HasMany<Bill, $this>
+     */
+    public function bills(): HasMany
+    {
+        return $this->hasMany(Bill::class);
+    }
+
+    /**
      * Registrations a parent may follow: of the children they are a parent or guardian of, and the ones they
      * registered themselves. The latter covers registrations that wait for the committee to confirm the NIK,
      * where the parent is not linked to the child yet.
@@ -102,11 +112,22 @@ class Registrant extends Model
     #[Scope]
     protected function forParent(Builder $query, User $user): void
     {
-        $query->where(function (Builder $query) use ($user): void {
+        $this->forParentPerson($query, $user->person_id);
+    }
+
+    /**
+     * The same, for a parent given as a person (who may have no account).
+     *
+     * @param  Builder<Registrant>  $query
+     */
+    #[Scope]
+    protected function forParentPerson(Builder $query, ?int $personId): void
+    {
+        $query->where(function (Builder $query) use ($personId): void {
             $query->whereIn('person_id', Parentship::query()
-                ->where('related_person_id', $user->person_id)
+                ->where('related_person_id', $personId)
                 ->select('person_id'))
-                ->orWhere('registered_by_person_id', $user->person_id);
+                ->orWhere('registered_by_person_id', $personId);
         });
     }
 
@@ -152,12 +173,17 @@ class Registrant extends Model
     }
 
     /**
-     * Whether the registration bill is out of the way: there is none, or it has been paid.
-     * Payments are not recorded yet, so a registration bill always counts as unpaid.
+     * Whether the registration bill is out of the way: the ruleset has none, or it has been paid in full.
      */
     public function isRegistrationBillSettled(): bool
     {
-        return ! $this->hasBill(BillType::Registration);
+        if (! $this->hasBill(BillType::Registration)) {
+            return true;
+        }
+
+        $bill = $this->bills()->where('type', BillType::Registration)->first();
+
+        return $bill !== null && $bill->loadTotals()->status() === BillStatus::Paid;
     }
 
     /**

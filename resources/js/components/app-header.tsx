@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { House, Menu } from 'lucide-react';
+import { House, Menu, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { Breadcrumbs } from '@/components/breadcrumbs';
@@ -29,6 +29,7 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { portal } from '@/routes';
+import { index as portalBills } from '@/routes/portal/bills';
 import type { BreadcrumbItem, NavItem } from '@/types';
 
 type Props = {
@@ -40,6 +41,11 @@ const mainNavItems: NavItem[] = [
         title: 'Beranda',
         href: portal(),
         icon: House,
+    },
+    {
+        title: 'Tagihan',
+        href: portalBills(),
+        icon: Wallet,
     },
 ];
 

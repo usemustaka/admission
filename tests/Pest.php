@@ -1,6 +1,14 @@
 <?php
 
+use App\Enums\BillType;
 use App\Enums\DefaultRole;
+use App\Enums\PaymentStatus;
+use App\Models\Bill;
+use App\Models\BillItem;
+use App\Models\Parentship;
+use App\Models\Payment;
+use App\Models\PaymentAllocation;
+use App\Models\Registrant;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -52,4 +60,31 @@ function userWithRole(DefaultRole $role): User
     test()->seed(RolesAndPermissionsSeeder::class);
 
     return tap(User::factory()->create())->assignRole($role->value);
+}
+
+/**
+ * A parent with a registered child who has a bill of the given item amounts.
+ *
+ * @param  list<int>  $amounts
+ * @return array{0: Registrant, 1: Bill}
+ */
+function billedChild(User $parent, array $amounts = [150000], BillType $type = BillType::Registration): array
+{
+    $registrant = Registrant::factory()->create();
+    Parentship::factory()->create(['person_id' => $registrant->person_id, 'related_person_id' => $parent->person_id]);
+    $bill = Bill::factory()->create(['registrant_id' => $registrant->id, 'type' => $type]);
+
+    foreach ($amounts as $index => $amount) {
+        BillItem::factory()->create(['bill_id' => $bill->id, 'name' => "Rincian {$index}", 'amount' => $amount, 'sort_order' => $index]);
+    }
+
+    return [$registrant, $bill->refresh()];
+}
+
+function verifiedPayment(BillItem $item, int $amount): Payment
+{
+    $payment = Payment::factory()->create(['amount' => $amount, 'status' => PaymentStatus::Verified]);
+    PaymentAllocation::factory()->create(['payment_id' => $payment->id, 'bill_item_id' => $item->id, 'amount' => $amount]);
+
+    return $payment;
 }

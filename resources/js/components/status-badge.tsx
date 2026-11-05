@@ -2,6 +2,7 @@ import {
     BadgeCheck,
     CircleCheck,
     CircleDashed,
+    CircleX,
     ClipboardList,
     Clock,
     Megaphone,
@@ -48,6 +49,9 @@ export const statusMeta: Record<string, StatusMeta> = {
     unpaid: { label: 'Belum dibayar', tone: 'warning', icon: Wallet },
     partial: { label: 'Dibayar sebagian', tone: 'info', icon: Wallet },
     paid: { label: 'Lunas', tone: 'success', icon: CircleCheck },
+    pending: { label: 'Menunggu verifikasi', tone: 'info', icon: Clock },
+    verified: { label: 'Terverifikasi', tone: 'success', icon: CircleCheck },
+    rejected: { label: 'Ditolak', tone: 'danger', icon: CircleX },
 };
 
 export function StatusBadge({
