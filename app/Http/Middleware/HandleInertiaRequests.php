@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\Ability;
+use App\Models\Registrant;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -43,6 +44,16 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user()?->loadMissing('person'),
                 'abilities' => $this->abilities($request),
             ],
+            'portal' => fn (): ?array => $request->user() !== null && $request->routeIs('portal*') ? [
+                'children' => Registrant::query()
+                    ->forParent($request->user())
+                    ->with('person')
+                    ->latest()
+                    ->get()
+                    ->map(fn (Registrant $registrant): array => ['id' => $registrant->id, 'name' => $registrant->person->name, 'photo_url' => $registrant->person->photo_url])
+                    ->values()
+                    ->all(),
+            ] : null,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

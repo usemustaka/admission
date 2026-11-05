@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Storage;
  *
  * @property int $id
  * @property string|null $nik
+ * @property string|null $nisn
+ * @property string|null $family_card_number
  * @property string $name
  * @property Gender|null $gender
  * @property string|null $birth_place
@@ -29,9 +31,17 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $email
  * @property string|null $photo_path
  * @property bool $is_alive
+ * @property string|null $religion
+ * @property string|null $blood_type
+ * @property int|null $child_order
+ * @property int|null $siblings_count
+ * @property string|null $address
+ * @property string|null $last_education
+ * @property string|null $job
+ * @property string|null $monthly_income
  * @property-read string|null $photo_url
  */
-#[Fillable(['nik', 'name', 'gender', 'birth_place', 'birth_date', 'phone', 'email', 'photo_path', 'is_alive'])]
+#[Fillable(['nik', 'nisn', 'family_card_number', 'name', 'gender', 'birth_place', 'birth_date', 'phone', 'email', 'photo_path', 'is_alive', 'religion', 'blood_type', 'child_order', 'siblings_count', 'address', 'last_education', 'job', 'monthly_income'])]
 class Person extends Model implements HasNoteSubject
 {
     /** @use HasFactory<PersonFactory> */
@@ -85,6 +95,14 @@ class Person extends Model implements HasNoteSubject
     public function childrenParentships(): HasMany
     {
         return $this->hasMany(Parentship::class, 'related_person_id');
+    }
+
+    /**
+     * @return HasMany<Registrant, $this>
+     */
+    public function registrants(): HasMany
+    {
+        return $this->hasMany(Registrant::class);
     }
 
     /**

@@ -14,7 +14,7 @@ export function ChildCard({
     name,
     photo,
     organizationName,
-    yearName,
+    waveName,
     status,
     stepIndex,
     stepCount,
@@ -25,7 +25,7 @@ export function ChildCard({
     name: string;
     photo?: string | null;
     organizationName: string;
-    yearName?: string;
+    waveName?: string;
     status: string;
     stepIndex: number;
     stepCount: number;
@@ -48,7 +48,7 @@ export function ChildCard({
                         {name}
                     </p>
                     <p className="truncate text-sm text-muted-foreground">
-                        {[organizationName, yearName]
+                        {[organizationName, waveName]
                             .filter(Boolean)
                             .join(' · ')}
                     </p>

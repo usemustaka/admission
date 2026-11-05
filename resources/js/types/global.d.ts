@@ -12,6 +12,13 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             sidebarOpen: boolean;
+            portal: {
+                children: {
+                    id: number;
+                    name: string;
+                    photo_url: string | null;
+                }[];
+            } | null;
             [key: string]: unknown;
         };
     }

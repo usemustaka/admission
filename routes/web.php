@@ -10,6 +10,8 @@ use App\Http\Controllers\Admin\ParentshipController;
 use App\Http\Controllers\Admin\PersonController;
 use App\Http\Controllers\Admin\PersonSearchController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Portal\ChildController;
+use App\Http\Controllers\Portal\ChildDataController;
 use App\Http\Controllers\PortalController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +24,14 @@ if (app()->isLocal()) {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('portal', PortalController::class)->name('portal');
+
+    Route::prefix('portal/anak')->name('portal.children.')->group(function () {
+        Route::get('daftar', [ChildController::class, 'create'])->name('create');
+        Route::post('/', [ChildController::class, 'store'])->name('store');
+        Route::get('{registrant}', [ChildController::class, 'show'])->name('show');
+        Route::get('{registrant}/data', [ChildDataController::class, 'edit'])->name('data.edit');
+        Route::post('{registrant}/data', [ChildDataController::class, 'update'])->name('data.update');
+    });
 
     Route::middleware('can:'.Ability::AdminAccess->value)
         ->prefix('admin')

@@ -201,7 +201,9 @@ class PersonController extends Controller
             'visibility' => $note->visibility->value,
             'shared_with_family' => $note->shared_with_family,
             'created_at' => $note->created_at?->translatedFormat('j M Y, H:i'),
-            'author' => ['name' => $note->author->name, 'photo_url' => $note->author->avatar],
+            'author' => $note->author_id === null
+                ? ['name' => 'Sistem', 'photo_url' => null]
+                : ['name' => $note->author->name, 'photo_url' => $note->author->avatar],
             'is_mine' => $note->author_id === $user->id,
             'shared_with' => $note->shares->map(fn (NoteShare $share): array => [
                 'type' => $share->shareable_type,

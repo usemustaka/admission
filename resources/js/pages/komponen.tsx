@@ -264,7 +264,7 @@ export default function Komponen() {
                     <ChildCard
                         name="Ahmad Fauzi Rahman"
                         organizationName="SMP Mustaka"
-                        yearName="2026/2027"
+                        waveName="Gelombang 1"
                         status="draft"
                         stepIndex={2}
                         stepCount={admissionSteps.length}
@@ -274,7 +274,7 @@ export default function Komponen() {
                     <ChildCard
                         name="Siti Aisyah"
                         organizationName="Pesantren Mustaka"
-                        yearName="2026/2027"
+                        waveName="Gelombang 1"
                         status="revision"
                         stepIndex={3}
                         stepCount={admissionSteps.length}

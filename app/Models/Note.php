@@ -22,7 +22,8 @@ use Illuminate\Support\Carbon;
  * @property string $noteable_type
  * @property int $noteable_id
  * @property int|null $person_id
- * @property int $author_id
+ * @property int|null $author_id
+ *                               (a null author means the system wrote the note)
  * @property string $body
  * @property NoteUrgency $urgency
  * @property NoteVisibility $visibility

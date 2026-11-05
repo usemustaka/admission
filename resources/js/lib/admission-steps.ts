@@ -45,3 +45,17 @@ export const admissionSteps: AdmissionStep[] = [
         description: 'Ditempatkan di tahun ajaran & kelas',
     },
 ];
+
+/**
+ * The steps that apply to one registration, in order. Bill steps are left out
+ * when the ruleset has no bill of that type.
+ */
+export function stepsFor(keys: string[]): AdmissionStep[] {
+    return keys
+        .map((key) => admissionSteps.find((step) => step.key === key))
+        .filter((step): step is AdmissionStep => step !== undefined);
+}
+
+export function currentStepIndex(keys: string[], current: string): number {
+    return Math.max(keys.indexOf(current), 0);
+}
