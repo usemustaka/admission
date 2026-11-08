@@ -82,6 +82,16 @@ class Person extends Model implements HasNoteSubject
     }
 
     /**
+     * The schools this person attended before, in the order they were entered.
+     *
+     * @return HasMany<EducationHistory, $this>
+     */
+    public function educationHistories(): HasMany
+    {
+        return $this->hasMany(EducationHistory::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
      * The parents and guardians of this person.
      *
      * @return HasMany<Parentship, $this>

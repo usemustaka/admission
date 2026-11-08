@@ -3,13 +3,16 @@
 namespace App\Http\Controllers\Admin\Admission;
 
 use App\Enums\ParentRelation;
+use App\Enums\ScholarshipKind;
 use App\Http\Controllers\Controller;
+use App\Models\EducationHistory;
 use App\Models\Parentship;
 use App\Models\Registrant;
 use App\Support\CsvCell;
 use App\Support\ExamResult;
 use App\Support\ExamSchedulePresenter;
 use App\Support\RegistrantBillSummary;
+use App\Support\RegistrantDocuments;
 use App\Support\RegistrantListFilters;
 use App\Support\RegistrantPresenter;
 use Illuminate\Database\Eloquent\Builder;
@@ -59,6 +62,8 @@ class RegistrantExportController extends Controller
 
         $registrants = $filters->applySort($matching()->with([
             'person.parentships.relatedPerson',
+            'person.educationHistories',
+            'documents',
             'registeredBy',
             'organization',
             'wave',
@@ -74,7 +79,7 @@ class RegistrantExportController extends Controller
                 'Nama', 'NIK', 'Lembaga', 'Gelombang', 'Status', 'Perlu cek NIK', 'Pembayaran', 'Total tagihan', 'Sudah dibayar', 'Jadwal ujian', 'Hasil ujian', 'Nama kontak', 'Nomor HP kontak', 'Tanggal daftar',
                 'Nama diketik orang tua', 'Tempat lahir', 'Tanggal lahir', 'NISN', 'Alamat',
                 'Nama ayah', 'HP ayah', 'Nama ibu', 'HP ibu', 'Nama wali', 'HP wali',
-                'Tanggal kirim',
+                'Tanggal kirim', 'Status pendaftar', 'Riwayat pendidikan', 'Berkas wajib', 'Potensi beasiswa',
                 ...array_map(fn (string $name): string => CsvCell::safe("Nilai {$name}"), $aspectNames),
             ], escape: '');
 
@@ -113,6 +118,10 @@ class RegistrantExportController extends Controller
                     ...$this->parentCells($registrant, ParentRelation::Mother),
                     ...$this->parentCells($registrant, ParentRelation::Guardian),
                     $registrant->submitted_at?->timezone(self::TIMEZONE)->format('Y-m-d H:i') ?? '',
+                    $registrant->admission_type->label(),
+                    CsvCell::safe($person->educationHistories->map(fn (EducationHistory $history): string => "{$history->level->label()}: {$history->school_name}".($history->npsn === null ? '' : " (NPSN {$history->npsn})"))->implode('; ')),
+                    $this->documentCell($registrant),
+                    CsvCell::safe(collect(RegistrantDocuments::scholarshipKinds($registrant))->map(fn (ScholarshipKind $kind): string => $kind->label())->implode('; ')),
                     ...array_map(fn (string $name): mixed => $scores[$name] ?? '', $aspectNames),
                 ], escape: '');
             });
@@ -160,6 +169,20 @@ class RegistrantExportController extends Controller
      * text formula it keeps them as typed. Only values made of digits and phone punctuation are written this way, so
      * nothing can be injected; any other value goes through `CsvCell::safe` like every other text cell.
      */
+    /**
+     * Whether the required files are all there: "Tidak diminta", "Lengkap", or "Kurang: ..." with what is missing.
+     */
+    private function documentCell(Registrant $registrant): string
+    {
+        if (collect(RegistrantDocuments::requirements($registrant))->doesntContain(fn (array $row): bool => $row['required'])) {
+            return 'Tidak diminta';
+        }
+
+        $missing = RegistrantDocuments::missing($registrant);
+
+        return $missing === [] ? 'Lengkap' : CsvCell::safe('Kurang: '.implode(', ', $missing));
+    }
+
     private function asText(?string $value): string
     {
         if ($value === null || $value === '') {

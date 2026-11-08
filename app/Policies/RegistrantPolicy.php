@@ -3,6 +3,8 @@
 namespace App\Policies;
 
 use App\Enums\Ability;
+use App\Enums\DocumentType;
+use App\Enums\RegistrantStatus;
 use App\Models\Registrant;
 use App\Models\User;
 
@@ -43,9 +45,27 @@ class RegistrantPolicy
     /**
      * Turning an announced applicant into a student.
      */
+    public function announce(User $user): bool
+    {
+        return $this->viewAny($user) && $user->can(Ability::RegistrantAnnounce->value);
+    }
+
+    public function score(User $user): bool
+    {
+        return $this->viewAny($user) && $user->can(Ability::ExamScore->value);
+    }
+
+    /**
+     * Grant a scholarship, or see who might get one.
+     */
+    public function grantScholarship(User $user): bool
+    {
+        return $this->viewAny($user) && $user->can(Ability::ScholarshipGrant->value);
+    }
+
     public function place(User $user): bool
     {
-        return $this->manage($user) && $user->can(Ability::RegistrantPlace->value);
+        return $this->viewAny($user) && $user->can(Ability::RegistrantPlace->value);
     }
 
     /**
@@ -81,5 +101,28 @@ class RegistrantPolicy
     public function submit(User $user, Registrant $registrant): bool
     {
         return $this->update($user, $registrant);
+    }
+
+    /**
+     * Upload or remove a file. The files a ruleset asks for follow the data: they can change while the parent may
+     * still edit. Supporting files for a scholarship can be added until the child is placed.
+     */
+    public function manageDocument(User $user, Registrant $registrant, DocumentType $type): bool
+    {
+        if ($registrant->needs_identity_review || ! $this->view($user, $registrant)) {
+            return false;
+        }
+
+        return $type->isSupporting()
+            ? $registrant->status !== RegistrantStatus::Placed
+            : $registrant->status->isEditableByParent();
+    }
+
+    /**
+     * Open an uploaded file: the committee, and the parent of the child.
+     */
+    public function viewDocument(User $user, Registrant $registrant): bool
+    {
+        return $this->viewAny($user) || $this->view($user, $registrant);
     }
 }

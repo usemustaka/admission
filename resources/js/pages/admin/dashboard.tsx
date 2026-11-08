@@ -6,6 +6,7 @@ import {
     CheckCircle2,
     ChevronRight,
     ClipboardCheck,
+    HandHeart,
     History,
     Megaphone,
     Plus,
@@ -91,6 +92,7 @@ const queueIcon: Record<string, LucideIcon> = {
     needs_identity_review: ShieldAlert,
     to_announce: Megaphone,
     to_place: CheckCircle2,
+    scholarship_candidates: HandHeart,
 };
 
 const toneChip: Record<Tone, string> = {
@@ -120,6 +122,8 @@ function queueHref(key: string) {
             return registrants({ query: { status: 'review' } });
         case 'needs_identity_review':
             return registrants({ query: { perlu_dicek: 1 } });
+        case 'scholarship_candidates':
+            return registrants({ query: { beasiswa: 'semua' } });
         case 'to_announce':
             return registrants({ query: { status: 'validated' } });
         default:

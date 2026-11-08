@@ -39,6 +39,54 @@ class RolesAndPermissionsSeeder extends Seeder
             Ability::RegistrantExport,
             Ability::RegistrantBulk,
             Ability::RegistrantPlace,
+            Ability::RegistrantAnnounce,
+            Ability::ExamScore,
+            Ability::ParentPasswordReset,
+            Ability::StudentView,
+            Ability::PaymentView,
+            Ability::PaymentRecord,
+            Ability::PaymentVerify,
+            Ability::PaymentExport,
+        ];
+    }
+
+    /**
+     * Default abilities of the test committee: sees registrants, enters scores, announces results.
+     *
+     * @return list<Ability>
+     */
+    public static function testCommitteeAbilities(): array
+    {
+        return [
+            Ability::AdminAccess,
+            Ability::PersonView,
+            Ability::NoteView,
+            Ability::NoteCreate,
+            Ability::WaveView,
+            Ability::RulesetView,
+            Ability::RegistrantView,
+            Ability::RegistrantBulk,
+            Ability::RegistrantExport,
+            Ability::RegistrantAnnounce,
+            Ability::ExamScore,
+        ];
+    }
+
+    /**
+     * Default abilities of the finance committee: sees registrants and payments, verifies and records payments,
+     * and places announced registrants as students.
+     *
+     * @return list<Ability>
+     */
+    public static function financeCommitteeAbilities(): array
+    {
+        return [
+            Ability::AdminAccess,
+            Ability::PersonView,
+            Ability::NoteView,
+            Ability::NoteCreate,
+            Ability::RegistrantView,
+            Ability::RegistrantPlace,
             Ability::StudentView,
             Ability::PaymentView,
             Ability::PaymentRecord,
@@ -67,6 +115,8 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $this->seedRole(DefaultRole::Admin, array_column(Ability::cases(), 'value'), $newAbilities);
         $this->seedRole(DefaultRole::Operator, array_map(fn (Ability $ability): string => $ability->value, self::operatorAbilities()), $newAbilities);
+        $this->seedRole(DefaultRole::TestCommittee, array_map(fn (Ability $ability): string => $ability->value, self::testCommitteeAbilities()), $newAbilities);
+        $this->seedRole(DefaultRole::FinanceCommittee, array_map(fn (Ability $ability): string => $ability->value, self::financeCommitteeAbilities()), $newAbilities);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

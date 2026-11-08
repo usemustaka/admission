@@ -82,6 +82,7 @@ class RegisterChild
                 'registered_as_relation' => $data->relation,
                 'registered_as_kind' => $kind,
                 'status' => RegistrantStatus::Draft,
+                'admission_type' => $data->admissionType,
                 'needs_identity_review' => $needsIdentityReview,
             ]);
 

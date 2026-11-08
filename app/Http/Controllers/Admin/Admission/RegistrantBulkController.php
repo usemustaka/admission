@@ -254,7 +254,7 @@ class RegistrantBulkController extends Controller
         $requiredStatus = $action === 'announce' ? RegistrantStatus::Validated : RegistrantStatus::Review;
 
         return match (true) {
-            ! Gate::forUser($user)->allows('manage', $registrant) => 'Kamu tidak punya izin memproses pendaftar',
+            ! Gate::forUser($user)->allows($action === 'announce' ? 'announce' : 'manage', $action === 'announce' ? Registrant::class : $registrant) => 'Kamu tidak punya izin memproses pendaftar',
             $registrant->status !== $requiredStatus => "Statusnya {$registrant->status->label()}, bukan {$requiredStatus->label()}",
             $registrant->needs_identity_review => 'Perlu cek NIK dulu',
             $action === 'announce' && ! $includeIncomplete => AnnouncementReadiness::incompleteReason($registrant),

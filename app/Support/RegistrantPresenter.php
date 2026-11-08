@@ -3,16 +3,23 @@
 namespace App\Support;
 
 use App\Enums\Ability;
+use App\Enums\AdmissionType;
 use App\Enums\DefaultRole;
+use App\Enums\EducationLevel;
 use App\Enums\Gender;
 use App\Enums\NoteUrgency;
 use App\Enums\NoteVisibility;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use App\Enums\RegistrantStatus;
+use App\Models\EducationHistory;
 use App\Models\Note;
 use App\Models\NoteShare;
 use App\Models\Parentship;
+use App\Models\Payment;
+use App\Models\PaymentAllocation;
 use App\Models\Person;
 use App\Models\Registrant;
 use App\Models\RegistrantStatusChange;
@@ -51,21 +58,24 @@ class RegistrantPresenter
      * the status and the NIK check allow them. While the NIK is unconfirmed nothing moves forward and nothing is
      * sent back (the parent cannot edit yet); `bypass` stays, but the status picker leaves out the steps ahead.
      *
-     * @return array{manage: bool, accept: bool, revise: bool, announce: bool, place: bool, bypass: bool, cancel_placement: bool}
+     * @return array{manage: bool, score: bool, accept: bool, revise: bool, announce: bool, place: bool, bypass: bool, cancel_placement: bool}
      */
     public static function abilities(Registrant $registrant, User $user): array
     {
         $canManage = $user->can(Ability::RegistrantManage->value);
-        $canPlace = $canManage && $user->can(Ability::RegistrantPlace->value);
+        $canAnnounce = $user->can('announce', Registrant::class);
+        $canScore = $user->can('score', Registrant::class);
+        $canPlace = $user->can('place', Registrant::class);
         $canBypass = $canManage && $user->can(Ability::RegistrantBypass->value);
         $canCancelPlacement = $user->can(Ability::StudentManage->value);
         $status = $registrant->status;
 
         return [
             'manage' => $canManage,
+            'score' => $canScore,
             'accept' => $canManage && $status === RegistrantStatus::Review && ! $registrant->needs_identity_review,
             'revise' => $canManage && $status === RegistrantStatus::Review && ! $registrant->needs_identity_review,
-            'announce' => $canManage && $status === RegistrantStatus::Validated && ! $registrant->needs_identity_review,
+            'announce' => $canAnnounce && $status === RegistrantStatus::Validated && ! $registrant->needs_identity_review,
             'place' => $canPlace && $status === RegistrantStatus::Announced && ! $registrant->needs_identity_review,
             'bypass' => $canBypass && $status !== RegistrantStatus::Placed,
             'cancel_placement' => $canCancelPlacement && $status === RegistrantStatus::Placed,
@@ -246,6 +256,9 @@ class RegistrantPresenter
             'options' => [
                 ...PersonOptions::all(),
                 'genders' => array_map(fn (Gender $case): array => ['value' => $case->value, 'label' => $case->label()], Gender::cases()),
+                'admissionTypes' => array_map(fn (AdmissionType $case): array => ['value' => $case->value, 'label' => $case->label()], AdmissionType::cases()),
+                'requiredChildFields' => array_keys(self::CHILD_REQUIRED),
+                'educationLevels' => array_map(fn (EducationLevel $case): array => ['value' => $case->value, 'label' => $case->label()], EducationLevel::cases()),
                 'kinds' => array_map(fn (ParentKind $case): array => ['value' => $case->value, 'label' => $case->label()], ParentKind::cases()),
             ],
         ];
@@ -258,10 +271,18 @@ class RegistrantPresenter
      */
     public static function profile(Registrant $registrant): array
     {
-        $registrant->loadMissing(['person.parentships.relatedPerson']);
+        $registrant->loadMissing(['person.parentships.relatedPerson', 'person.educationHistories']);
         $child = $registrant->person;
 
         return [
+            'admission_type' => $registrant->admission_type->value,
+            'education' => $child->educationHistories->map(fn (EducationHistory $history): array => [
+                'level' => $history->level->value,
+                'level_label' => $history->level->label(),
+                'school_name' => $history->school_name,
+                'npsn' => $history->npsn,
+                'school_address' => $history->school_address,
+            ])->values()->all(),
             'child' => [
                 'name' => $child->name,
                 'nik' => $child->nik,
@@ -303,6 +324,9 @@ class RegistrantPresenter
 
         return [
             'restricted' => false,
+            'admission_type' => $registrant->admission_type->value,
+            'admission_type_label' => $registrant->admission_type->label(),
+            'education' => self::profile($registrant)['education'],
             'child' => [
                 ...self::profile($registrant)['child'],
                 'person_id' => $child->id,
@@ -322,6 +346,38 @@ class RegistrantPresenter
                 ->values()
                 ->all(),
         ];
+    }
+
+    /**
+     * Every payment that touched a bill of this registration, newest first: what it paid for this child (not the whole
+     * transfer, which may cover siblings too), by which method, and whether it is counted yet.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function payments(Registrant $registrant): array
+    {
+        $registrantId = $registrant->id;
+
+        return Payment::query()
+            ->whereHas('allocations.billItem.bill', fn ($bill) => $bill->where('registrant_id', $registrantId))
+            ->with(['payer', 'allocations.billItem.bill.registrant.person'])
+            ->latest('paid_on')
+            ->latest('id')
+            ->get()
+            ->map(function (Payment $payment) use ($registrantId): array {
+                $mine = $payment->allocations->filter(fn (PaymentAllocation $allocation): bool => $allocation->billItem->bill->registrant_id === $registrantId);
+
+                return [
+                    ...BillPresenter::payment($payment),
+                    'method_value' => $payment->method->value,
+                    'note' => $payment->note,
+                    'for_child' => (int) $mine->sum('amount'),
+                    'items' => $mine->map(fn (PaymentAllocation $allocation): string => $allocation->billItem->name)->values()->all(),
+                    'receipt' => $payment->status === PaymentStatus::Verified && $payment->method !== PaymentMethod::Scholarship,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**

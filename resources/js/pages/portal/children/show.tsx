@@ -5,6 +5,7 @@ import {
     CircleAlert,
     CircleCheck,
     CircleX,
+    FileText,
     Hourglass,
     History,
     ListChecks,
@@ -30,6 +31,7 @@ import { formatDate } from '@/lib/format';
 import { nextAction } from '@/lib/portal-next-step';
 import { cn } from '@/lib/utils';
 import { edit } from '@/routes/portal/children/data';
+import { edit as editDocuments } from '@/routes/portal/children/documents';
 import { edit as editExam } from '@/routes/portal/children/exam';
 import { submit as submitData } from '@/routes/portal/children';
 import type { Completeness, PortalRegistrant } from '@/types/portal';
@@ -48,6 +50,7 @@ export default function ChildShow({
     hasExamSchedule,
     result,
     timeline,
+    documents,
 }: {
     registrant: PortalRegistrant;
     completeness: Completeness;
@@ -57,6 +60,7 @@ export default function ChildShow({
     hasExamSchedule: boolean;
     result: ExamResultData | null;
     timeline: TimelineEntry[];
+    documents: { missing: string[]; asked: boolean; uploaded: number } | null;
 }) {
     const [sending, setSending] = useState(false);
 
@@ -324,6 +328,32 @@ export default function ChildShow({
                                         : registrant.can_edit
                                           ? 'Pilih jadwal'
                                           : 'Lihat jadwal'}
+                                </Link>
+                            </Button>
+                        </div>
+                    </SectionCard>
+                )}
+
+                {documents && (
+                    <SectionCard title="Berkas" icon={FileText}>
+                        <div className="grid gap-3">
+                            <p className="text-[15px] text-muted-foreground">
+                                {documents.missing.length > 0
+                                    ? `Masih kurang: ${documents.missing.join(', ')}.`
+                                    : documents.uploaded > 0
+                                      ? 'Berkas yang diminta sudah lengkap. Kamu masih bisa menambah bukti prestasi atau bantuan.'
+                                      : 'Unggah berkas pendaftaran, dan bukti prestasi atau bantuan kalau ada.'}
+                            </p>
+                            <Button
+                                variant={
+                                    documents.missing.length > 0
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                asChild
+                            >
+                                <Link href={editDocuments(registrant.id)}>
+                                    Kelola berkas
                                 </Link>
                             </Button>
                         </div>

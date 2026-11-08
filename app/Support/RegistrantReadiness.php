@@ -36,6 +36,10 @@ class RegistrantReadiness
             $missing[] = 'Data orang tua atau wali';
         }
 
+        foreach (RegistrantDocuments::missing($registrant) as $document) {
+            $missing[] = "Berkas {$document}";
+        }
+
         if ($registrant->hasExamSchedule() && $registrant->exam_session_id === null) {
             $missing[] = 'Jadwal ujian';
         }

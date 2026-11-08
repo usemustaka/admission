@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Admission;
 
 use App\Actions\Portal\SaveRegistrantData;
 use App\Enums\Ability;
+use App\Enums\AdmissionType;
 use App\Enums\BillType;
 use App\Enums\RegistrantStatus;
 use App\Http\Controllers\Controller;
@@ -12,18 +13,24 @@ use App\Models\Bill;
 use App\Models\Note;
 use App\Models\Organization;
 use App\Models\Parentship;
+use App\Models\Payment;
 use App\Models\Registrant;
 use App\Models\Wave;
 use App\Models\Year;
+use App\Support\AdmissionLetter;
 use App\Support\Announcement;
 use App\Support\AnnouncementReadiness;
 use App\Support\BillPresenter;
 use App\Support\ExamResult;
 use App\Support\ExamSchedulePresenter;
+use App\Support\ParentAccount;
 use App\Support\RegistrantBillSummary;
+use App\Support\RegistrantDocuments;
 use App\Support\RegistrantListFilters;
 use App\Support\RegistrantPresenter;
 use App\Support\RegistrantReadiness;
+use App\Support\ScholarshipPresenter;
+use App\Support\SettlementReceipt;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -101,9 +108,10 @@ class RegistrantController extends Controller
                 ...collect(RegistrantStatus::cases())->mapWithKeys(fn (RegistrantStatus $case): array => [$case->value => (int) ($statusCounts[$case->value] ?? 0)])->all(),
             ],
             'can' => [
-                'bulk' => $user->can(Ability::RegistrantManage->value) && $user->can('bulk', Registrant::class),
+                'bulk' => ($user->can(Ability::RegistrantManage->value) || $user->can('announce', Registrant::class)) && $user->can('bulk', Registrant::class),
                 'export' => $user->can('export', Registrant::class),
                 'editAnnouncement' => $user->can(Ability::AnnouncementManage->value),
+                'scholarship' => $user->can('grantScholarship', Registrant::class),
             ],
         ]);
     }
@@ -145,6 +153,7 @@ class RegistrantController extends Controller
                 'wave' => $registrant->wave->name,
                 'registered_at' => $registrant->created_at?->toDateString(),
                 'submitted_at' => $registrant->submitted_at?->toDateString(),
+                'ruleset' => $registrant->ruleset_snapshot['name'] ?? null,
                 'child' => [
                     'id' => $person->id,
                     'name' => $person->name,
@@ -191,6 +200,20 @@ class RegistrantController extends Controller
                 ->values(),
             'settlement' => ['has_bill' => $hasSettlement, 'paid' => $settlementPaid],
             'can' => $can,
+            'prints' => [
+                'letter' => $user->can('announce', Registrant::class) && AdmissionLetter::canPrint($registrant),
+                'settlement_receipt' => $user->can('viewAny', Payment::class) && SettlementReceipt::isAvailable($registrant),
+            ],
+            'documents' => $registrant->needs_identity_review ? null : RegistrantDocuments::forCommittee($registrant),
+            'scholarship' => $user->can('grantScholarship', Registrant::class) && ! $registrant->needs_identity_review ? ScholarshipPresenter::for($registrant) : null,
+            'parentAccount' => $registrant->needs_identity_review || ($account = ParentAccount::for($registrant)) === null
+                ? null
+                : [
+                    'email' => $account->email,
+                    'verified' => $account->hasVerifiedEmail(),
+                    'can_reset' => $user->can(Ability::ParentPasswordReset->value),
+                ],
+            'payments' => $user->can(Ability::PaymentView->value) ? RegistrantPresenter::payments($registrant) : [],
             'access' => [
                 'person' => $user->can(Ability::PersonView->value),
                 'payments' => $user->can(Ability::PaymentView->value),
@@ -305,6 +328,8 @@ class RegistrantController extends Controller
             $request->file('photo'),
             $request->boolean('remove_photo'),
             auditedBy: $request->user(),
+            education: $request->validated('education'),
+            admissionType: $request->enum('admission_type', AdmissionType::class),
         );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Data pendaftar sudah disimpan.']);

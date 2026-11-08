@@ -39,6 +39,7 @@ class PaymentReconciliation
     {
         return Payment::query()
             ->where('status', PaymentStatus::Verified)
+            ->whereNot('method', PaymentMethod::Scholarship)
             ->where('verified_at', '>=', $this->day->startOfDay())
             ->where('verified_at', '<', $this->day->addDay()->startOfDay());
     }
@@ -75,7 +76,7 @@ class PaymentReconciliation
             'label' => $method->label(),
             'count' => (int) ($rows->get($method->value)->total_count ?? 0),
             'total' => (int) ($rows->get($method->value)->total_amount ?? 0),
-        ], PaymentMethod::cases());
+        ], PaymentMethod::selectable());
     }
 
     /**

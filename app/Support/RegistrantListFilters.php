@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Enums\PaymentStatus;
 use App\Enums\RegistrantStatus;
+use App\Enums\ScholarshipKind;
 use App\Models\Registrant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -21,6 +22,9 @@ class RegistrantListFilters
 
     /** At least one payment proof is waiting for the committee to verify it. */
     public const PAYMENT_PENDING = 'menunggu';
+
+    /** Every kind of scholarship candidate, for the `beasiswa` filter. A single kind uses the value of `ScholarshipKind`. */
+    public const SCHOLARSHIP_ANY = 'semua';
 
     /** Page sizes the list offers; anything else falls back to the default. */
     public const PER_PAGE_OPTIONS = [25, 50, 100, 200];
@@ -41,6 +45,7 @@ class RegistrantListFilters
         public readonly string $sort,
         public readonly string $direction,
         public readonly int $perPage = self::DEFAULT_PER_PAGE,
+        public readonly string $scholarship = '',
     ) {}
 
     /**
@@ -59,6 +64,7 @@ class RegistrantListFilters
         $sort = in_array($requestedSort, self::SORTS, true) ? $requestedSort : 'terbaru';
         $payment = $request->string('bayar')->toString();
         $perPage = $request->integer('per_halaman');
+        $scholarship = $request->string('beasiswa')->toString();
 
         return new self(
             term: trim($request->string('cari')->toString()),
@@ -75,6 +81,7 @@ class RegistrantListFilters
                 default => in_array($sort, ['nama', 'dikirim'], true) ? 'asc' : 'desc',
             },
             perPage: in_array($perPage, self::PER_PAGE_OPTIONS, true) ? $perPage : self::DEFAULT_PER_PAGE,
+            scholarship: $scholarship === self::SCHOLARSHIP_ANY || ScholarshipKind::tryFrom($scholarship) !== null ? $scholarship : '',
         );
     }
 
@@ -89,7 +96,8 @@ class RegistrantListFilters
             || $this->waveId > 0
             || $this->needsIdentityReview
             || $this->payment !== ''
-            || $this->withoutExamSession;
+            || $this->withoutExamSession
+            || $this->scholarship !== '';
     }
 
     /**
@@ -110,6 +118,7 @@ class RegistrantListFilters
             'urut' => $this->sort,
             'arah' => $this->direction,
             'per_halaman' => $this->perPage,
+            'beasiswa' => $this->scholarship,
         ];
     }
 
@@ -126,7 +135,8 @@ class RegistrantListFilters
             ->when($this->waveId > 0, fn (Builder $query) => $query->where('registrants.wave_id', $this->waveId))
             ->when($this->needsIdentityReview, fn (Builder $query) => $query->where('registrants.needs_identity_review', true))
             ->when($this->payment !== '', fn (Builder $query) => $this->applyPayment($query))
-            ->when($this->withoutExamSession, fn (Builder $query) => $this->applyWithoutExamSession($query));
+            ->when($this->withoutExamSession, fn (Builder $query) => $this->applyWithoutExamSession($query))
+            ->when($this->scholarship !== '', fn (Builder $query) => $query->scholarshipCandidates(ScholarshipKind::tryFrom($this->scholarship)));
     }
 
     /**

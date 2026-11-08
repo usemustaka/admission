@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AdmissionType;
 use App\Enums\BillType;
 use App\Enums\NoteUrgency;
 use App\Enums\NoteVisibility;
@@ -191,4 +192,18 @@ test('the form offers open waves and active organizations and suggests the relat
         ->has('waves', 1)
         ->has('organizations', 1)
         ->where('suggestedRelation', 'mother'));
+});
+
+test('a registration is for a new student unless the parent says the child is transferring', function () {
+    ($this->register)()->assertSessionHasNoErrors();
+    expect(Registrant::firstOrFail()->admission_type)->toBe(AdmissionType::New);
+
+    Registrant::query()->delete();
+
+    ($this->register)(['nik' => '3201123456789013', 'admission_type' => 'transfer'])->assertSessionHasNoErrors();
+    expect(Registrant::firstOrFail()->admission_type)->toBe(AdmissionType::Transfer);
+});
+
+test('an unknown admission type is refused', function () {
+    ($this->register)(['admission_type' => 'alumni'])->assertSessionHasErrors('admission_type');
 });

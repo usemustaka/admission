@@ -8,6 +8,7 @@ use App\Actions\Admission\SaveRuleset;
 use App\Contracts\HasLabel;
 use App\Enums\Ability;
 use App\Enums\BillType;
+use App\Enums\DocumentType;
 use App\Enums\Gender;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Admission\SaveRulesetRequest;
@@ -91,7 +92,7 @@ class RulesetController extends Controller
         Gate::authorize('view', $ruleset);
 
         $ruleset->load([
-            'wave', 'organization', 'bills.items', 'examAspects',
+            'wave', 'organization', 'bills.items', 'examAspects', 'documents',
         ])->loadCount('registrants');
 
         $shadowed = $findShadowedRulesets->handle(Ruleset::query()->byPriority()->get());
@@ -109,6 +110,15 @@ class RulesetController extends Controller
                 'id' => $aspect->id,
                 'name' => $aspect->name,
                 'passing_score' => $aspect->passing_score,
+            ])->values(),
+            'documents' => collect(DocumentType::core())->map(fn (DocumentType $type): array => [
+                'type' => $type->value,
+                'label' => $type->label(),
+                'choice' => match ($ruleset->documents->firstWhere('type', $type)?->is_required) {
+                    true => 'required',
+                    false => 'optional',
+                    null => 'none',
+                },
             ])->values(),
             'can' => ['update' => $request->user()->can('update', $ruleset), 'delete' => $request->user()->can('delete', $ruleset)],
         ]);

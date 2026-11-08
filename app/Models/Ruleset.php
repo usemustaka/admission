@@ -85,6 +85,16 @@ class Ruleset extends Model
     }
 
     /**
+     * The files this ruleset asks parents for.
+     *
+     * @return HasMany<RulesetDocument, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(RulesetDocument::class)->orderBy('id');
+    }
+
+    /**
      * @param  Builder<Ruleset>  $query
      */
     #[Scope]
@@ -106,11 +116,11 @@ class Ruleset extends Model
      * A frozen copy of the rules, stored on a registration so later edits of this ruleset do not change it.
      * Exam sessions are not copied: seats are shared by everyone, so they stay live.
      *
-     * @return array{ruleset_id: int, name: string, bills: list<array{type: string, items: list<array{name: string, amount: int}>}>, exam_aspects: list<array{name: string, passing_score: int}>}
+     * @return array{ruleset_id: int, name: string, bills: list<array{type: string, items: list<array{name: string, amount: int}>}>, exam_aspects: list<array{name: string, passing_score: int}>, documents: list<array{type: string, required: bool}>}
      */
     public function toSnapshot(): array
     {
-        $this->load(['bills.items', 'examAspects']);
+        $this->load(['bills.items', 'examAspects', 'documents']);
 
         $bills = [];
 
@@ -136,11 +146,18 @@ class Ruleset extends Model
             $aspects[] = ['name' => $aspect->name, 'passing_score' => $aspect->passing_score];
         }
 
+        $documents = [];
+
+        foreach ($this->documents as $document) {
+            $documents[] = ['type' => $document->type->value, 'required' => $document->is_required];
+        }
+
         return [
             'ruleset_id' => $this->id,
             'name' => $this->name,
             'bills' => $bills,
             'exam_aspects' => $aspects,
+            'documents' => $documents,
         ];
     }
 }

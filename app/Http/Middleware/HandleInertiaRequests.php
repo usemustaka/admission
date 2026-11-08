@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Enums\Ability;
 use App\Models\Registrant;
 use App\Support\Brand;
+use App\Support\EmailVerification;
 use App\Support\RegistrantPresenter;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -46,6 +47,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user()?->loadMissing('person'),
                 'abilities' => $this->abilities($request),
+                'email_unverified' => EmailVerification::isPending($request->user()),
             ],
             'portal' => fn (): ?array => $request->user() !== null && $request->routeIs('portal*') ? [
                 'children' => Registrant::query()

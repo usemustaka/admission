@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Portal;
 
+use App\Enums\AdmissionType;
+use App\Enums\EducationLevel;
 use App\Enums\Gender;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
@@ -33,6 +35,12 @@ class SaveRegistrantDataRequest extends FormRequest
             'child.child_order' => ['nullable', 'integer', 'min:1', 'max:30'],
             'child.siblings_count' => ['nullable', 'integer', 'min:0', 'max:30'],
             'child.address' => ['nullable', 'string', 'max:1000'],
+            'admission_type' => ['nullable', Rule::enum(AdmissionType::class)],
+            'education' => ['nullable', 'array', 'max:6'],
+            'education.*.level' => ['required', Rule::enum(EducationLevel::class)],
+            'education.*.school_name' => ['required', 'string', 'max:255'],
+            'education.*.npsn' => ['nullable', 'digits:8'],
+            'education.*.school_address' => ['nullable', 'string', 'max:1000'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:1024'],
             'remove_photo' => ['boolean'],
         ];
@@ -72,6 +80,11 @@ class SaveRegistrantDataRequest extends FormRequest
             'child.child_order' => 'Anak ke-',
             'child.siblings_count' => 'Jumlah saudara',
             'child.address' => 'Alamat',
+            'admission_type' => 'Status pendaftar',
+            'education.*.level' => 'Jenjang',
+            'education.*.school_name' => 'Nama sekolah',
+            'education.*.npsn' => 'NPSN',
+            'education.*.school_address' => 'Alamat sekolah',
         ];
 
         foreach ($labels as $relation => $label) {

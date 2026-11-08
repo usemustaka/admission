@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
+    FileText,
     ListChecks,
     Pencil,
     Trash2,
@@ -9,6 +10,8 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { BillEditor } from '@/components/admission/bill-editor';
+import { DocumentRequirementEditor } from '@/components/admission/document-requirement-editor';
+import type { DocumentRequirementRow } from '@/components/admission/document-requirement-editor';
 import { ExamAspectEditor } from '@/components/admission/exam-aspect-editor';
 import { RulesetConditions } from '@/components/admission/ruleset-conditions';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -30,11 +33,13 @@ export default function RulesetShow({
     ruleset,
     bills,
     aspects,
+    documents,
     can,
 }: {
     ruleset: RulesetSummary;
     bills: { registration: BillItemRow[]; settlement: BillItemRow[] };
     aspects: ExamAspectRow[];
+    documents: DocumentRequirementRow[];
     can: { update: boolean; delete: boolean };
 }) {
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -116,6 +121,19 @@ export default function RulesetShow({
                                 key={JSON.stringify(aspects)}
                                 rulesetId={ruleset.id}
                                 initial={aspects}
+                                canEdit={can.update}
+                            />
+                        </SectionCard>
+
+                        <SectionCard
+                            title="Berkas pendaftaran"
+                            description="Berkas yang diminta dari orang tua, dan mana yang wajib."
+                            icon={FileText}
+                        >
+                            <DocumentRequirementEditor
+                                key={JSON.stringify(documents)}
+                                rulesetId={ruleset.id}
+                                initial={documents}
                                 canEdit={can.update}
                             />
                         </SectionCard>

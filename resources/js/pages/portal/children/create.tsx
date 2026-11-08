@@ -24,6 +24,7 @@ export default function RegisterChild({
     genders,
     relations,
     kinds,
+    admissionTypes,
     suggestedRelation,
 }: {
     waves: Choice[];
@@ -31,6 +32,7 @@ export default function RegisterChild({
     genders: Option[];
     relations: Option[];
     kinds: Option[];
+    admissionTypes: Option[];
     suggestedRelation: string | null;
 }) {
     const form = useForm({
@@ -39,6 +41,7 @@ export default function RegisterChild({
         gender: '',
         birth_date: '',
         organization_id: '',
+        admission_type: 'new',
         wave_id: waves.length === 1 ? String(waves[0].value) : '',
         relation: suggestedRelation ?? '',
         kind: 'biological',
@@ -187,6 +190,25 @@ export default function RegisterChild({
                                     options={waves}
                                     placeholder="Pilih gelombang"
                                     {...control}
+                                />
+                            )}
+                        </FormField>
+                        <FormField
+                            label="Status pendaftar"
+                            required
+                            error={form.errors.admission_type}
+                        >
+                            {() => (
+                                <ChoiceCardGroup
+                                    columns={2}
+                                    value={form.data.admission_type}
+                                    onValueChange={(admissionType) =>
+                                        form.setData(
+                                            'admission_type',
+                                            admissionType,
+                                        )
+                                    }
+                                    options={admissionTypes}
                                 />
                             )}
                         </FormField>

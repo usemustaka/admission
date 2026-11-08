@@ -82,6 +82,12 @@ test('a child goes from registration to placement', function () {
         'photo' => UploadedFile::fake()->image('profil.jpg'),
     ])->assertSessionHasNoErrors();
 
+    // The ruleset asks for the family card, birth certificate and every report card.
+    $this->post(route('portal.children.submit', $registrant))->assertSessionHasErrors('status');
+    foreach ([['family-card', 1], ['birth-certificate', 1], ...array_map(fn (int $semester): array => ['report-card', $semester], range(1, 5))] as [$type, $slot]) {
+        $this->post(route('portal.children.documents.store', $registrant), ['type' => $type, 'slot' => $slot, 'file' => UploadedFile::fake()->create("{$type}.pdf", 100, 'application/pdf')])->assertSessionHasNoErrors();
+    }
+
     $session = $registrant->refresh()->ruleset_id === $ruleset->id ? ExamSession::query()->firstOrFail() : null;
     $this->post(route('portal.children.exam.update', $registrant), ['exam_session_id' => $session->id])->assertSessionHasNoErrors();
     $this->post(route('portal.children.submit', $registrant))->assertSessionHasNoErrors();

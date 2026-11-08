@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+use App\Enums\AdmissionType;
 use App\Enums\BillStatus;
 use App\Enums\BillType;
+use App\Enums\DocumentType;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use App\Enums\RegistrantStatus;
+use App\Enums\ScholarshipKind;
 use Database\Factories\RegistrantFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -29,12 +34,15 @@ use Illuminate\Support\Facades\Storage;
  * @property int $wave_id
  * @property int|null $exam_session_id
  * @property int|null $ruleset_id
- * @property array{ruleset_id: int, name: string, bills: list<array{type: string, items: list<array{name: string, amount: int}>}>, exam_aspects: list<array{name: string, passing_score: int}>}|null $ruleset_snapshot
+ * @property array{ruleset_id: int, name: string, bills: list<array{type: string, items: list<array{name: string, amount: int}>}>, exam_aspects: list<array{name: string, passing_score: int}>, documents?: list<array{type: string, required: bool}>}|null $ruleset_snapshot
  * @property int $registered_by_person_id
  * @property string $submitted_name the child's name as the parent typed it
  * @property ParentRelation $registered_as_relation
  * @property ParentKind|null $registered_as_kind
  * @property RegistrantStatus $status
+ * @property AdmissionType $admission_type
+ * @property string|null $kip_number
+ * @property string|null $support_note
  * @property bool $needs_identity_review
  * @property string|null $formal_photo_path
  * @property array<int, int|null>|null $exam_scores score per exam aspect, in the order of the aspects in the snapshot
@@ -42,7 +50,7 @@ use Illuminate\Support\Facades\Storage;
  * @property-read string|null $formal_photo_url
  * @property Carbon|null $created_at
  */
-#[Fillable(['person_id', 'organization_id', 'wave_id', 'exam_session_id', 'ruleset_id', 'ruleset_snapshot', 'registered_by_person_id', 'submitted_name', 'registered_as_relation', 'registered_as_kind', 'status', 'needs_identity_review', 'formal_photo_path', 'exam_scores', 'submitted_at'])]
+#[Fillable(['person_id', 'organization_id', 'wave_id', 'exam_session_id', 'ruleset_id', 'ruleset_snapshot', 'registered_by_person_id', 'submitted_name', 'registered_as_relation', 'registered_as_kind', 'status', 'admission_type', 'kip_number', 'support_note', 'needs_identity_review', 'formal_photo_path', 'exam_scores', 'submitted_at'])]
 class Registrant extends Model
 {
     /** @use HasFactory<RegistrantFactory> */
@@ -58,10 +66,21 @@ class Registrant extends Model
             'registered_as_relation' => ParentRelation::class,
             'registered_as_kind' => ParentKind::class,
             'status' => RegistrantStatus::class,
+            'admission_type' => AdmissionType::class,
             'needs_identity_review' => 'boolean',
             'exam_scores' => 'array',
             'submitted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The files uploaded for this registration.
+     *
+     * @return HasMany<RegistrantDocument, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(RegistrantDocument::class)->orderBy('type')->orderBy('slot');
     }
 
     /**
@@ -143,6 +162,35 @@ class Registrant extends Model
     protected function forParent(Builder $query, User $user): void
     {
         $this->forParentPerson($query, $user->person_id);
+    }
+
+    /**
+     * Children who might be given a scholarship: not placed yet, with evidence of the given kind (or of any kind),
+     * and no scholarship granted yet. The evidence is what the parent uploaded or typed; the committee decides.
+     *
+     * @param  Builder<Registrant>  $query
+     */
+    #[Scope]
+    protected function scholarshipCandidates(Builder $query, ?ScholarshipKind $kind = null): void
+    {
+        $kinds = $kind === null ? ScholarshipKind::cases() : [$kind];
+        $types = collect(DocumentType::supporting())
+            ->filter(fn (DocumentType $type): bool => in_array($type->scholarshipKind(), $kinds, true))
+            ->map(fn (DocumentType $type): string => $type->value)
+            ->values()
+            ->all();
+
+        $query->whereNot('registrants.status', RegistrantStatus::Placed)
+            ->where(function (Builder $query) use ($types, $kinds): void {
+                $query->whereHas('documents', fn (Builder $documents) => $documents->whereIn('type', $types));
+
+                if (in_array(ScholarshipKind::Hardship, $kinds, true)) {
+                    $query->orWhereNotNull('registrants.kip_number');
+                }
+            })
+            ->whereDoesntHave('bills.items.allocations.payment', fn (Builder $payments) => $payments
+                ->where('method', PaymentMethod::Scholarship)
+                ->where('status', PaymentStatus::Verified));
     }
 
     /**

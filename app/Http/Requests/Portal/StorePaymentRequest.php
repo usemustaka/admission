@@ -24,7 +24,7 @@ class StorePaymentRequest extends FormRequest
             'items.*.bill_item_id' => ['required', 'integer', 'distinct'],
             'items.*.amount' => ['required', 'integer', 'min:1', 'max:1000000000000'],
             'paid_on' => ['required', 'date', 'before_or_equal:today'],
-            'method' => ['required', Rule::enum(PaymentMethod::class)],
+            'method' => ['required', Rule::enum(PaymentMethod::class)->only(PaymentMethod::selectable())],
             'note' => ['nullable', 'string', 'max:500'],
             'proof' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
         ];

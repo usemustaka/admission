@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\AdmissionType;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
 use App\Enums\RegistrantStatus;
@@ -32,6 +33,7 @@ class RegistrantFactory extends Factory
             'registered_as_relation' => ParentRelation::Father,
             'registered_as_kind' => ParentKind::Biological,
             'status' => RegistrantStatus::Draft,
+            'admission_type' => AdmissionType::New,
             'needs_identity_review' => false,
         ];
     }

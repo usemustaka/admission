@@ -485,42 +485,47 @@ export default function SettingsEdit({
                         )}
 
                         {group === 'keamanan' && (
-                            <label className="flex min-h-11 items-start justify-between gap-4 text-[15px]">
-                                <span className="grid gap-1">
-                                    <span className="font-medium">
-                                        Wajib autentikasi dua langkah untuk staf
-                                    </span>
-                                    <span className="text-muted-foreground">
-                                        Staf yang belum mengaktifkannya
-                                        diarahkan ke pengaturan keamanan sampai
-                                        selesai. Orang tua tidak terpengaruh.
-                                    </span>
-                                    {errors[
-                                        'security.require_two_factor_staff'
-                                    ] && (
-                                        <span className="font-medium text-destructive-foreground">
-                                            {
-                                                errors[
-                                                    'security.require_two_factor_staff'
-                                                ]
-                                            }
+                            <>
+                                {[
+                                    {
+                                        key: 'security.require_email_verification',
+                                        title: 'Wajib verifikasi email',
+                                        description:
+                                            'Akun harus memverifikasi email lewat tautan yang dikirim sebelum bisa masuk. Kalau dimatikan, orang tua langsung bisa memakai aplikasi dan hanya melihat pengingat di beranda.',
+                                    },
+                                    {
+                                        key: 'security.require_two_factor_staff',
+                                        title: 'Wajib autentikasi dua langkah untuk staf',
+                                        description:
+                                            'Staf yang belum mengaktifkannya diarahkan ke pengaturan keamanan sampai selesai. Orang tua tidak terpengaruh.',
+                                    },
+                                ].map((item) => (
+                                    <label
+                                        key={item.key}
+                                        className="flex min-h-11 items-start justify-between gap-4 text-[15px]"
+                                    >
+                                        <span className="grid gap-1">
+                                            <span className="font-medium">
+                                                {item.title}
+                                            </span>
+                                            <span className="text-muted-foreground">
+                                                {item.description}
+                                            </span>
+                                            {errors[item.key] && (
+                                                <span className="font-medium text-destructive-foreground">
+                                                    {errors[item.key]}
+                                                </span>
+                                            )}
                                         </span>
-                                    )}
-                                </span>
-                                <Switch
-                                    checked={
-                                        read(
-                                            'security.require_two_factor_staff',
-                                        ) === true
-                                    }
-                                    onCheckedChange={(checked) =>
-                                        set(
-                                            'security.require_two_factor_staff',
-                                            checked,
-                                        )
-                                    }
-                                />
-                            </label>
+                                        <Switch
+                                            checked={read(item.key) === true}
+                                            onCheckedChange={(checked) =>
+                                                set(item.key, checked)
+                                            }
+                                        />
+                                    </label>
+                                ))}
+                            </>
                         )}
 
                         <div className="flex justify-end">

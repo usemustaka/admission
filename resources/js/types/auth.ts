@@ -13,6 +13,8 @@ export type User = {
 export type Auth = {
     user: User;
     abilities: string[];
+    /** The email is not verified yet, so the app reminds the person to check their inbox. */
+    email_unverified: boolean;
 };
 
 export type TwoFactorSetupData = {

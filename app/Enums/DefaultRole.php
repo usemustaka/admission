@@ -9,6 +9,12 @@ enum DefaultRole: string
     case Operator = 'operator';
     case User = 'user';
 
+    /** Committee that enters exam scores and announces the results. */
+    case TestCommittee = 'panitia-tes';
+
+    /** Committee that verifies payments, prints receipts and places students. */
+    case FinanceCommittee = 'panitia-keuangan';
+
     /**
      * Marks a deactivated account. It keeps the login but is refused everywhere.
      */

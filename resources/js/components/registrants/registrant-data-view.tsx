@@ -1,22 +1,32 @@
 import { Link } from '@inertiajs/react';
-import { ChevronDown, PencilLine, ShieldAlert } from 'lucide-react';
-import type { ReactNode } from 'react';
+import {
+    GraduationCap,
+    MessageCircle,
+    PencilLine,
+    Phone,
+    ShieldAlert,
+    UserRound,
+    Users,
+} from 'lucide-react';
 import { DescriptionList } from '@/components/description-list';
 import type { DescriptionItem } from '@/components/description-list';
+import { SectionCard } from '@/components/section-card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { whatsappUrl } from '@/lib/format';
 import { show as showPerson } from '@/routes/admin/people';
 
 export type RegistrantDetailData = {
     /** True while the NIK is unconfirmed: nothing of the person on record is sent, only the typed name. */
     restricted: boolean;
+    admission_type_label?: string;
+    education?: {
+        level_label: string;
+        school_name: string;
+        npsn: string | null;
+        school_address: string | null;
+    }[];
     child: {
         name: string;
         person_id?: number;
@@ -49,37 +59,6 @@ export type RegistrantDetailData = {
     }[];
 };
 
-function CollapsibleCard({
-    title,
-    badges,
-    children,
-}: {
-    title: string;
-    badges?: ReactNode;
-    children: ReactNode;
-}) {
-    return (
-        <Collapsible defaultOpen asChild>
-            <Card className="gap-0 py-0 @2xl:gap-0 @2xl:py-0">
-                <CardHeader className="px-0 @2xl:px-0">
-                    <CollapsibleTrigger className="group flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl px-4 text-left outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring @2xl:px-6">
-                        <span className="flex flex-wrap items-center gap-2 text-base font-semibold">
-                            {title}
-                            {badges}
-                        </span>
-                        <ChevronDown className="size-5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                    </CollapsibleTrigger>
-                </CardHeader>
-                <CollapsibleContent>
-                    <CardContent className="border-t border-line py-4 @2xl:py-5">
-                        {children}
-                    </CardContent>
-                </CollapsibleContent>
-            </Card>
-        </Collapsible>
-    );
-}
-
 function siblings(order?: number | null, count?: number | null): string | null {
     if (order && count) {
         return `Anak ke-${order} dari ${count} bersaudara`;
@@ -93,168 +72,234 @@ function siblings(order?: number | null, count?: number | null): string | null {
 }
 
 /**
- * Everything the data form holds, read-only, so the committee can check it without opening the form.
+ * Everything the child's data form holds, read-only, so the committee can check it without opening the form.
+ * While the NIK is unconfirmed only the name the parent typed is shown.
  */
-export function RegistrantDataView({
+export function ChildDataCard({
     data,
     editHref,
     canEdit,
-    canViewPerson,
 }: {
     data: RegistrantDetailData;
     editHref: string;
     canEdit: boolean;
-    canViewPerson: boolean;
 }) {
     const { child } = data;
 
-    const childItems: DescriptionItem[] = [
-        { label: 'Nama', value: child.name },
-        { label: 'NIK', value: child.nik },
-        { label: 'Jenis kelamin', value: child.gender_label },
-        { label: 'Tempat, tanggal lahir', value: child.birth },
-        { label: 'Agama', value: child.religion },
-        { label: 'NISN', value: child.nisn },
-        { label: 'Golongan darah', value: child.blood_type },
-        {
-            label: 'Urutan saudara',
-            value: siblings(child.child_order, child.siblings_count),
-        },
-        { label: 'Nomor KK', value: child.family_card_number },
-        { label: 'Alamat', value: child.address, wide: true },
-    ];
+    const items: DescriptionItem[] = data.restricted
+        ? [{ label: 'Nama yang diketik', value: child.name, wide: true }]
+        : [
+              { label: 'NIK', value: child.nik },
+              { label: 'Jenis kelamin', value: child.gender_label },
+              {
+                  label: 'Tempat, tanggal lahir',
+                  value: child.birth,
+                  wide: true,
+              },
+              { label: 'Agama', value: child.religion },
+              { label: 'Golongan darah', value: child.blood_type },
+              { label: 'NISN', value: child.nisn },
+              { label: 'Nomor KK', value: child.family_card_number },
+              {
+                  label: 'Urutan saudara',
+                  value: siblings(child.child_order, child.siblings_count),
+                  wide: true,
+              },
+              { label: 'Alamat', value: child.address, wide: true },
+          ];
 
     return (
-        <section className="grid gap-4" aria-labelledby="data-lengkap">
-            <div className="flex items-start justify-between gap-4">
-                <div className="grid gap-1">
-                    <h2
-                        id="data-lengkap"
-                        className="text-base font-semibold @2xl:text-lg"
-                    >
-                        Data lengkap
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                        Seluruh data yang diisi orang tua, hanya untuk dibaca.
-                    </p>
-                </div>
-                {canEdit && (
+        <SectionCard
+            title="Data anak"
+            icon={UserRound}
+            compact
+            actions={
+                canEdit && (
                     <Button variant="outline" size="sm" asChild>
                         <Link href={editHref}>
                             <PencilLine />
                             Ubah data
                         </Link>
                     </Button>
-                )}
-            </div>
-            {data.restricted ? (
-                <>
-                    <Alert variant="warning">
-                        <ShieldAlert />
-                        <AlertDescription>
-                            Data lain disembunyikan selama NIK belum dicocokkan,
-                            supaya data anak orang lain tidak terbawa. Yang
-                            tampil hanya nama yang diketik orang tua.
-                        </AlertDescription>
-                    </Alert>
-                    <CollapsibleCard title="Data anak">
-                        <DescriptionList
-                            items={[
-                                {
-                                    label: 'Nama yang diketik',
-                                    value: child.name,
-                                },
-                            ]}
-                        />
-                    </CollapsibleCard>
-                </>
-            ) : (
-                <>
-                    <CollapsibleCard title="Data anak">
-                        <div className="grid gap-6 sm:grid-cols-[auto_1fr]">
-                            {child.photo_url && (
-                                <img
-                                    src={child.photo_url}
-                                    alt={`Foto ${child.name}`}
-                                    className="h-40 w-30 rounded-xl border object-cover"
-                                />
-                            )}
-                            <DescriptionList items={childItems} />
-                        </div>
-                    </CollapsibleCard>
-
-                    {data.parents.length === 0 && (
-                        <p className="text-sm text-muted-foreground">
-                            Belum ada data orang tua atau wali.
-                        </p>
-                    )}
-
-                    {data.parents.map((parent) => (
-                        <CollapsibleCard
-                            key={parent.relation}
-                            title={`Data ${parent.relation_label.toLowerCase()}`}
-                            badges={
-                                <>
-                                    {parent.kind_label && (
-                                        <Badge variant="muted">
-                                            {parent.kind_label}
-                                        </Badge>
-                                    )}
-                                    {parent.is_primary_contact && (
-                                        <Badge variant="info">
-                                            Kontak utama
-                                        </Badge>
-                                    )}
-                                    {!parent.is_alive && (
-                                        <Badge variant="muted">
-                                            Sudah meninggal
-                                        </Badge>
-                                    )}
-                                </>
-                            }
-                        >
-                            <DescriptionList
-                                items={[
-                                    {
-                                        label: 'Nama',
-                                        value: canViewPerson ? (
-                                            <Link
-                                                href={showPerson(
-                                                    parent.person_id,
-                                                )}
-                                                className="hover:underline"
-                                            >
-                                                {parent.name}
-                                            </Link>
-                                        ) : (
-                                            parent.name
-                                        ),
-                                    },
-                                    { label: 'NIK', value: parent.nik },
-                                    { label: 'Nomor HP', value: parent.phone },
-                                    {
-                                        label: 'Pekerjaan',
-                                        value: parent.job,
-                                    },
-                                    {
-                                        label: 'Penghasilan per bulan',
-                                        value: parent.monthly_income,
-                                    },
-                                    {
-                                        label: 'Pendidikan terakhir',
-                                        value: parent.last_education,
-                                    },
-                                    {
-                                        label: 'Alamat',
-                                        value: parent.address,
-                                        wide: true,
-                                    },
-                                ]}
-                            />
-                        </CollapsibleCard>
-                    ))}
-                </>
+                )
+            }
+            contentClassName="grid gap-3"
+        >
+            {data.restricted && (
+                <Alert variant="warning">
+                    <ShieldAlert />
+                    <AlertDescription>
+                        Data lain disembunyikan selama NIK belum dicocokkan,
+                        supaya data anak orang lain tidak terbawa.
+                    </AlertDescription>
+                </Alert>
             )}
-        </section>
+            <DescriptionList compact items={items} />
+        </SectionCard>
+    );
+}
+
+export function EducationCard({ data }: { data: RegistrantDetailData }) {
+    if (data.restricted) {
+        return null;
+    }
+
+    const schools = data.education ?? [];
+
+    return (
+        <SectionCard
+            title="Riwayat pendidikan"
+            icon={GraduationCap}
+            compact
+            contentClassName="grid gap-3"
+        >
+            {schools.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    Belum ada riwayat sekolah yang diisi.
+                </p>
+            ) : (
+                <ul className="grid gap-3 divide-y divide-line">
+                    {schools.map((school, index) => (
+                        <li key={index} className="pt-3 first:pt-0">
+                            <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                                {school.school_name}
+                                <Badge variant="muted">
+                                    {school.level_label}
+                                </Badge>
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                {[
+                                    school.npsn && `NPSN ${school.npsn}`,
+                                    school.school_address,
+                                ]
+                                    .filter(Boolean)
+                                    .join(' · ') || 'Tanpa NPSN dan alamat'}
+                            </p>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </SectionCard>
+    );
+}
+
+/**
+ * Father, mother and guardian in one card, each with the number to call or message.
+ */
+export function ParentsCard({
+    data,
+    canViewPerson,
+}: {
+    data: RegistrantDetailData;
+    canViewPerson: boolean;
+}) {
+    if (data.restricted) {
+        return null;
+    }
+
+    return (
+        <SectionCard
+            title="Orang tua dan wali"
+            icon={Users}
+            compact
+            contentClassName="grid gap-4"
+        >
+            {data.parents.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                    Belum ada data orang tua atau wali.
+                </p>
+            )}
+
+            {data.parents.map((parent) => (
+                <section
+                    key={parent.relation}
+                    className="grid gap-3 border-t border-line pt-4 first:border-t-0 first:pt-0"
+                >
+                    <div className="flex flex-wrap items-center gap-2">
+                        {canViewPerson ? (
+                            <Link
+                                href={showPerson(parent.person_id)}
+                                className="text-sm font-semibold hover:underline"
+                            >
+                                {parent.name}
+                            </Link>
+                        ) : (
+                            <span className="text-sm font-semibold">
+                                {parent.name}
+                            </span>
+                        )}
+                        <Badge variant="muted">{parent.relation_label}</Badge>
+                        {parent.kind_label && (
+                            <Badge variant="muted">{parent.kind_label}</Badge>
+                        )}
+                        {parent.is_primary_contact && (
+                            <Badge variant="info">Kontak utama</Badge>
+                        )}
+                        {!parent.is_alive && (
+                            <Badge variant="muted">Sudah meninggal</Badge>
+                        )}
+                    </div>
+                    <DescriptionList
+                        compact
+                        items={[
+                            { label: 'NIK', value: parent.nik },
+                            {
+                                label: 'Nomor HP',
+                                value: parent.phone ? (
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="tabular-nums">
+                                            {parent.phone}
+                                        </span>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="size-8"
+                                            asChild
+                                        >
+                                            <a
+                                                href={`tel:${parent.phone}`}
+                                                aria-label={`Telepon ${parent.name}`}
+                                            >
+                                                <Phone />
+                                            </a>
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="size-8"
+                                            asChild
+                                        >
+                                            <a
+                                                href={whatsappUrl(parent.phone)}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                aria-label={`WhatsApp ${parent.name}`}
+                                            >
+                                                <MessageCircle />
+                                            </a>
+                                        </Button>
+                                    </span>
+                                ) : null,
+                            },
+                            { label: 'Pekerjaan', value: parent.job },
+                            {
+                                label: 'Penghasilan per bulan',
+                                value: parent.monthly_income,
+                            },
+                            {
+                                label: 'Pendidikan terakhir',
+                                value: parent.last_education,
+                                wide: true,
+                            },
+                            {
+                                label: 'Alamat',
+                                value: parent.address,
+                                wide: true,
+                            },
+                        ]}
+                    />
+                </section>
+            ))}
+        </SectionCard>
     );
 }

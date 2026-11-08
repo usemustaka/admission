@@ -5,6 +5,7 @@ import {
     ClipboardCheck,
     Clock,
     Download,
+    FileArchive,
     GraduationCap,
     Megaphone,
     MessageCircle,
@@ -58,6 +59,8 @@ type Filters = {
     perlu_dicek: boolean;
     bayar: '' | 'lunas' | 'belum' | 'menunggu';
     belum_ujian: boolean;
+    /** '' for all, 'semua' for any candidate, or one kind: achievement, tahfidz or hardship. */
+    beasiswa: string;
     urut: 'nama' | 'terbaru' | 'dikirim';
     arah: 'asc' | 'desc';
     per_halaman: number;
@@ -95,6 +98,7 @@ function filterQuery(filters: Filters) {
         perlu_dicek: filters.perlu_dicek ? 1 : undefined,
         bayar: filters.bayar || undefined,
         belum_ujian: filters.belum_ujian ? 1 : undefined,
+        beasiswa: filters.beasiswa || undefined,
         urut: filters.urut === 'terbaru' ? undefined : filters.urut,
         arah:
             filters.arah === defaultDirection(filters.urut)
@@ -150,7 +154,12 @@ export default function RegistrantsIndex({
         announced: number;
     };
     statusCounts: StatusCounts;
-    can: { bulk: boolean; export: boolean; editAnnouncement: boolean };
+    can: {
+        bulk: boolean;
+        export: boolean;
+        editAnnouncement: boolean;
+        scholarship: boolean;
+    };
 }) {
     const [term, setTerm] = useState(filters.cari);
     const [loading, setLoading] = useState(false);
@@ -195,6 +204,7 @@ export default function RegistrantsIndex({
                 perlu_dicek: false,
                 bayar: '',
                 belum_ujian: false,
+                beasiswa: '',
             }),
             {
                 preserveState: true,
@@ -526,9 +536,14 @@ export default function RegistrantsIndex({
         filters.gelombang !== '' ||
         filters.perlu_dicek ||
         filters.bayar !== '' ||
-        filters.belum_ujian;
+        filters.belum_ujian ||
+        filters.beasiswa !== '';
 
     const exportUrl = registrantRoutes.export.url({
+        query: toQuery({ ...filters, cari: term }),
+    });
+
+    const archiveUrl = registrantRoutes.documents.archive.url({
         query: toQuery({ ...filters, cari: term }),
     });
 
@@ -576,6 +591,12 @@ export default function RegistrantsIndex({
               query: { selected_only: 1, ids: [...selected].map(Number) },
           });
 
+    const selectionArchiveUrl = selectAll
+        ? archiveUrl
+        : registrantRoutes.documents.archive.url({
+              query: { selected_only: 1, ids: [...selected].map(Number) },
+          });
+
     const tooManyTicked = !selectAll && selected.size > MAX_BULK;
 
     function bulkButton(action: BulkAction) {
@@ -603,6 +624,14 @@ export default function RegistrantsIndex({
                                     <a href={exportUrl}>
                                         <Download />
                                         Ekspor CSV
+                                    </a>
+                                </Button>
+                            )}
+                            {can.export && (
+                                <Button variant="outline" asChild>
+                                    <a href={archiveUrl}>
+                                        <FileArchive />
+                                        Unduh berkas (ZIP)
                                     </a>
                                 </Button>
                             )}
@@ -722,6 +751,16 @@ export default function RegistrantsIndex({
                         >
                             Belum memilih ujian
                         </FilterToggle>
+                        {can.scholarship && (
+                            <FilterToggle
+                                pressed={filters.beasiswa !== ''}
+                                onPressedChange={(on) =>
+                                    visit({ beasiswa: on ? 'semua' : '' })
+                                }
+                            >
+                                Berpotensi beasiswa
+                            </FilterToggle>
+                        )}
                         <FilterToggle
                             pressed={
                                 filters.urut === 'dikirim' &&
@@ -936,6 +975,14 @@ export default function RegistrantsIndex({
                         <a href={selectionExportUrl}>
                             <Download />
                             Ekspor
+                        </a>
+                    </Button>
+                )}
+                {can.export && (
+                    <Button size="sm" variant="outline" asChild>
+                        <a href={selectionArchiveUrl}>
+                            <FileArchive />
+                            Berkas
                         </a>
                     </Button>
                 )}

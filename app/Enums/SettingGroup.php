@@ -3,6 +3,7 @@
 namespace App\Enums;
 
 use App\Contracts\HasLabel;
+use App\Support\EmailVerification;
 use App\Support\StaffTwoFactor;
 
 /**
@@ -37,7 +38,7 @@ enum SettingGroup: string implements HasLabel
             self::Contact => 'Cara orang tua menghubungi sekolah. Tampil di halaman bantuan dan halaman depan.',
             self::Payment => 'Rekening tujuan transfer yang ditampilkan ke orang tua saat membayar.',
             self::Public => 'Teks sambutan di halaman depan dan baris kaki yang dilihat orang tua.',
-            self::Security => 'Aturan keamanan untuk akun staf.',
+            self::Security => 'Aturan keamanan untuk akun staf dan pendaftar.',
         };
     }
 
@@ -78,6 +79,7 @@ enum SettingGroup: string implements HasLabel
             ],
             self::Security => [
                 StaffTwoFactor::SETTING_KEY => ['boolean'],
+                EmailVerification::SETTING_KEY => ['boolean'],
             ],
         };
     }
@@ -106,6 +108,7 @@ enum SettingGroup: string implements HasLabel
             'brand.welcome_description' => 'Teks sambutan',
             'brand.footer_text' => 'Teks kaki halaman',
             StaffTwoFactor::SETTING_KEY => 'Wajib autentikasi dua langkah untuk staf',
+            EmailVerification::SETTING_KEY => 'Wajib verifikasi email',
             'logo' => 'Logo',
             'favicon' => 'Ikon tab',
         ];

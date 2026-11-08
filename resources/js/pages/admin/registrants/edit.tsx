@@ -4,6 +4,7 @@ import { RegistrantDataForm } from '@/components/registrants/data-form';
 import type {
     ChildData,
     DataFormOptions,
+    EducationRow,
     ParentFromServer,
 } from '@/components/registrants/data-form';
 import { dashboard } from '@/routes';
@@ -16,11 +17,15 @@ export default function RegistrantEdit({
     registrant,
     child,
     parents,
+    admission_type,
+    education,
     options,
 }: {
     registrant: { id: number; child_name: string; person_id: number };
     child: ChildData;
     parents: Record<ParentRelationKey, ParentFromServer>;
+    admission_type: string;
+    education: EducationRow[];
     options: DataFormOptions;
 }) {
     return (
@@ -38,6 +43,8 @@ export default function RegistrantEdit({
                     identityHref={editPerson(registrant.person_id).url}
                     child={child}
                     parents={parents}
+                    admissionType={admission_type}
+                    education={education}
                     options={options}
                     canEdit
                 />

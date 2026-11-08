@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin\Admission;
 
 use App\Actions\Admission\SaveSessionScores;
-use App\Enums\Ability;
 use App\Enums\RegistrantStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ExamSession;
@@ -57,7 +56,7 @@ class ExamScoreGridController extends Controller
                 ];
             })->values(),
             'can' => [
-                'manage' => $request->user()->can(Ability::RegistrantManage->value),
+                'manage' => $request->user()->can('score', Registrant::class),
             ],
         ]);
     }
@@ -67,7 +66,7 @@ class ExamScoreGridController extends Controller
      */
     public function update(Request $request, ExamSession $session, SaveSessionScores $saveSessionScores): RedirectResponse
     {
-        Gate::authorize('manage', Registrant::class);
+        Gate::authorize('score', Registrant::class);
 
         $validated = $request->validate([
             'rows' => ['required', 'array', 'min:1', 'max:500'],

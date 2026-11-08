@@ -32,6 +32,7 @@ export type RegistrantContact = {
 
 export type RegistrantAbilities = {
     manage: boolean;
+    score: boolean;
     accept: boolean;
     revise: boolean;
     announce: boolean;

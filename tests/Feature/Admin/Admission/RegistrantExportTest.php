@@ -1,12 +1,16 @@
 <?php
 
+use App\Enums\AdmissionType;
 use App\Enums\DefaultRole;
+use App\Enums\DocumentType;
 use App\Enums\ParentRelation;
 use App\Enums\RegistrantStatus;
+use App\Models\EducationHistory;
 use App\Models\Organization;
 use App\Models\Parentship;
 use App\Models\Person;
 use App\Models\Registrant;
+use App\Models\RegistrantDocument;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 
@@ -141,10 +145,10 @@ test('exports that mix rulesets get one score column per aspect, and a registran
     $header = $rows[0];
     $byId = collect(array_slice($rows, 1))->mapWithKeys(fn (array $row): array => [$row[0] => array_combine($header, $row)]);
 
-    expect(array_slice($header, 26))->toBe(['Nilai Tes tulis', 'Nilai Wawancara', 'Nilai Baca Quran'])
-        ->and(array_slice($byId[$standard->person->name], 26))->toBe(['Nilai Tes tulis' => '90', 'Nilai Wawancara' => '80', 'Nilai Baca Quran' => ''])
-        ->and(array_slice($byId[$other->person->name], 26))->toBe(['Nilai Tes tulis' => '', 'Nilai Wawancara' => '55', 'Nilai Baca Quran' => ''])
-        ->and(array_slice($byId[$without->person->name], 26))->toBe(['Nilai Tes tulis' => '', 'Nilai Wawancara' => '', 'Nilai Baca Quran' => '']);
+    expect(array_slice($header, 30))->toBe(['Nilai Tes tulis', 'Nilai Wawancara', 'Nilai Baca Quran'])
+        ->and(array_slice($byId[$standard->person->name], 30))->toBe(['Nilai Tes tulis' => '90', 'Nilai Wawancara' => '80', 'Nilai Baca Quran' => ''])
+        ->and(array_slice($byId[$other->person->name], 30))->toBe(['Nilai Tes tulis' => '', 'Nilai Wawancara' => '55', 'Nilai Baca Quran' => ''])
+        ->and(array_slice($byId[$without->person->name], 30))->toBe(['Nilai Tes tulis' => '', 'Nilai Wawancara' => '', 'Nilai Baca Quran' => '']);
 });
 
 test('every text cell is neutralized against formulas while NIK and phone numbers stay text with their zeros', function () {
@@ -185,4 +189,29 @@ test('the file name says what was exported and when, in ASCII and in WIB', funct
         ->and($this->get(route('admin.registrants.export', ['status' => 'review', 'lembaga' => $school->id, 'bayar' => 'menunggu', 'cari' => 'Ünïcode Ané! 100%']))->headers->get('content-disposition'))
         ->toContain("filename=pendaftar-review-lembaga-{$school->id}-bayar-menunggu-cari-unicode-ane-100-2026-11-06.csv")
         ->and($this->get(route('admin.registrants.export', ['selected_only' => 1, 'ids' => [$registrant->id]]))->headers->get('content-disposition'))->toContain('filename=pendaftar-terpilih-1-2026-11-06.csv');
+});
+
+test('the export says the admission type, the previous schools, whether the required files are complete and the scholarship hints', function () {
+    $this->actingAs(userWithRole(DefaultRole::Admin));
+    $registrant = admissionRegistrant(RegistrantStatus::Review, [
+        'admission_type' => AdmissionType::Transfer,
+        'kip_number' => '123',
+        'ruleset_snapshot' => ['ruleset_id' => 1, 'name' => 'A', 'bills' => [], 'exam_aspects' => [], 'documents' => [['type' => 'family-card', 'required' => true], ['type' => 'diploma', 'required' => false]]],
+    ]);
+    EducationHistory::factory()->create(['person_id' => $registrant->person_id, 'level' => 'elementary', 'school_name' => 'SDN 1 Bandung', 'npsn' => '20219001']);
+    RegistrantDocument::factory()->create(['registrant_id' => $registrant->id, 'type' => DocumentType::AchievementCertificate]);
+    $complete = admissionRegistrant(RegistrantStatus::Review, ['ruleset_snapshot' => ['ruleset_id' => 1, 'name' => 'A', 'bills' => [], 'exam_aspects' => [], 'documents' => [['type' => 'family-card', 'required' => true]]]]);
+    RegistrantDocument::factory()->create(['registrant_id' => $complete->id, 'type' => DocumentType::FamilyCard]);
+    $unasked = admissionRegistrant(RegistrantStatus::Review);
+
+    $rows = csvRows($this->get(route('admin.registrants.export'))->streamedContent());
+    $byName = collect(array_slice($rows, 1))->mapWithKeys(fn (array $row): array => [$row[0] => array_combine($rows[0], $row)]);
+
+    expect($byName[$registrant->person->name])->toMatchArray([
+        'Status pendaftar' => 'Siswa pindahan',
+        'Riwayat pendidikan' => 'SD/MI: SDN 1 Bandung (NPSN 20219001)',
+        'Berkas wajib' => 'Kurang: Kartu Keluarga (KK)',
+        'Potensi beasiswa' => 'Prestasi; Tidak mampu',
+    ])->and($byName[$complete->person->name]['Berkas wajib'])->toBe('Lengkap')
+        ->and($byName[$unasked->person->name])->toMatchArray(['Status pendaftar' => 'Siswa baru', 'Berkas wajib' => 'Tidak diminta', 'Potensi beasiswa' => '']);
 });

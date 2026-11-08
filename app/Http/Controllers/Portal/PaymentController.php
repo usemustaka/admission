@@ -42,7 +42,7 @@ class PaymentController extends Controller
         return Inertia::render('portal/payments/create', [
             'focus' => $registrant === null ? null : RegistrantPresenter::summary($registrant),
             'groups' => BillPresenter::openGroups($bills),
-            'methods' => array_map(fn (PaymentMethod $method): array => ['value' => $method->value, 'label' => $method->label()], PaymentMethod::cases()),
+            'methods' => array_map(fn (PaymentMethod $method): array => ['value' => $method->value, 'label' => $method->label()], PaymentMethod::selectable()),
         ]);
     }
 

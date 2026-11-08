@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Portal;
 
+use App\Enums\AdmissionType;
 use App\Enums\Gender;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
@@ -39,6 +40,7 @@ class RegisterChildRequest extends FormRequest
                     }
                 },
             ],
+            'admission_type' => ['nullable', Rule::enum(AdmissionType::class)],
             'relation' => ['required', Rule::enum(ParentRelation::class)],
             'kind' => [
                 Rule::requiredIf(fn (): bool => in_array($this->input('relation'), [ParentRelation::Father->value, ParentRelation::Mother->value], true)),
@@ -60,6 +62,7 @@ class RegisterChildRequest extends FormRequest
             'birth_date' => 'Tanggal lahir',
             'organization_id' => 'Lembaga',
             'wave_id' => 'Gelombang',
+            'admission_type' => 'Status pendaftar',
             'relation' => 'Hubunganmu dengan anak',
         ];
     }

@@ -23,6 +23,7 @@ use App\Models\User;
 use App\Support\PersonDuplicates;
 use App\Support\PersonName;
 use App\Support\PersonOverview;
+use App\Support\PersonProfile;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\RedirectResponse;
@@ -165,7 +166,10 @@ class PersonController extends Controller
 
         $user = $request->user();
 
-        $person->load(['parentships.relatedPerson', 'childrenParentships.person']);
+        $person->load(['parentships.relatedPerson', 'childrenParentships.person', 'educationHistories']);
+
+        $registrations = $user->can(Ability::RegistrantView->value) ? PersonProfile::registrations($person) : [];
+        $account = PersonProfile::account($person);
 
         $notes = $person->notes()
             ->visibleTo($user)
@@ -193,8 +197,20 @@ class PersonController extends Controller
             ])->values(),
             'notes' => $notes->map(fn (Note $note): array => $this->note($note, $user))->values(),
             'roles' => PersonOverview::rolesOf($person),
-            'registrations' => $user->can(Ability::RegistrantView->value) ? PersonOverview::registrations($person) : [],
+            'registrations' => $registrations,
+            'profile' => [
+                ...PersonProfile::details($person),
+                'education' => PersonProfile::education($person),
+                'students' => PersonProfile::students($person),
+                'employees' => PersonProfile::employees($person),
+                'siblings' => PersonProfile::siblings($person),
+                'account' => $account,
+            ],
+            'finance' => $user->can(Ability::PaymentView->value) ? PersonProfile::finance($person, $registrations) : null,
+            'duplicates' => $user->can('update', $person) ? PersonDuplicates::present(PersonDuplicates::of($person)) : [],
             'can' => [
+                'viewAccount' => $account !== null && $account['is_staff'] && $user->can(Ability::UserManage->value),
+                'viewPayments' => $user->can(Ability::PaymentView->value),
                 'viewRegistrations' => $user->can(Ability::RegistrantView->value),
                 'update' => $user->can('update', $person),
                 'manageFamily' => $user->can(Ability::FamilyManage->value),

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Actions\Portal\RegisterChild;
 use App\Actions\Portal\RegisterChildData;
+use App\Enums\AdmissionType;
 use App\Enums\Gender;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
@@ -16,6 +17,7 @@ use App\Models\Registrant;
 use App\Models\Wave;
 use App\Support\ExamResult;
 use App\Support\ExamSchedulePresenter;
+use App\Support\RegistrantDocuments;
 use App\Support\RegistrantPresenter;
 use App\Support\RegistrantReadiness;
 use Illuminate\Http\RedirectResponse;
@@ -36,6 +38,7 @@ class ChildController extends Controller
             'genders' => array_map(fn (Gender $case): array => ['value' => $case->value, 'label' => $case->label()], Gender::cases()),
             'relations' => array_map(fn (ParentRelation $case): array => ['value' => $case->value, 'label' => $case->label()], ParentRelation::cases()),
             'kinds' => array_map(fn (ParentKind $case): array => ['value' => $case->value, 'label' => $case->label()], ParentKind::cases()),
+            'admissionTypes' => array_map(fn (AdmissionType $case): array => ['value' => $case->value, 'label' => $case->label()], AdmissionType::cases()),
             'suggestedRelation' => match ($gender) {
                 Gender::Male => ParentRelation::Father->value,
                 Gender::Female => ParentRelation::Mother->value,
@@ -55,6 +58,7 @@ class ChildController extends Controller
             waveId: $request->integer('wave_id'),
             relation: $request->enum('relation', ParentRelation::class) ?? ParentRelation::Guardian,
             kind: $request->enum('kind', ParentKind::class),
+            admissionType: $request->enum('admission_type', AdmissionType::class) ?? AdmissionType::New,
         ));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Anak sudah didaftarkan. Lanjutkan dengan melengkapi datanya ya.']);
@@ -81,6 +85,11 @@ class ChildController extends Controller
             'hasExamSchedule' => $registrant->hasExamSchedule(),
             'result' => $showResult ? ExamResult::for($registrant) : null,
             'timeline' => RegistrantPresenter::timeline($registrant, forParent: true),
+            'documents' => $pending ? null : [
+                'missing' => RegistrantDocuments::missing($registrant),
+                'asked' => RegistrantDocuments::requirements($registrant) !== [],
+                'uploaded' => $registrant->documents()->count(),
+            ],
             'completeness' => $pending ? ['filled' => 0, 'total' => 0] : RegistrantPresenter::completeness($registrant),
             'family' => $pending ? [] : $registrant->person->parentships->map(fn (Parentship $parentship): array => [
                 'id' => $parentship->id,

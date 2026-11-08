@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin\Admission;
 
 use App\Actions\Admission\SyncBills;
 use App\Actions\Admission\SyncExamAspects;
+use App\Actions\Admission\SyncRulesetDocuments;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Admission\SaveExamAspectsRequest;
 use App\Http\Requests\Admin\Admission\SaveRulesetBillsRequest;
+use App\Http\Requests\Admin\Admission\SaveRulesetDocumentsRequest;
 use App\Models\Ruleset;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -31,6 +33,16 @@ class RulesetContentController extends Controller
         $syncExamAspects->handle($ruleset, $aspects);
 
         return $this->saved('Aspek ujian sudah disimpan.');
+    }
+
+    public function documents(SaveRulesetDocumentsRequest $request, Ruleset $ruleset, SyncRulesetDocuments $syncRulesetDocuments): RedirectResponse
+    {
+        /** @var array<string, string> $choices */
+        $choices = $request->validated('documents');
+
+        $syncRulesetDocuments->handle($ruleset, $choices);
+
+        return $this->saved('Berkas yang diminta sudah disimpan.');
     }
 
     private function saved(string $message): RedirectResponse

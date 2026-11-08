@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin\Admission;
 
-use App\Enums\Ability;
 use App\Http\Controllers\Controller;
 use App\Models\ExamSession;
 use App\Models\Organization;
@@ -103,7 +102,7 @@ class ExamController extends Controller
             ],
             'today' => $today,
             'can' => [
-                'manage' => $user->can(Ability::RegistrantManage->value),
+                'manage' => $user->can('score', Registrant::class),
             ],
         ]);
     }
@@ -135,7 +134,7 @@ class ExamController extends Controller
                 ];
             })->values(),
             'can' => [
-                'manage' => $user->can(Ability::RegistrantManage->value),
+                'manage' => $user->can('score', Registrant::class),
                 'export' => $user->can('export', Registrant::class),
             ],
         ]);

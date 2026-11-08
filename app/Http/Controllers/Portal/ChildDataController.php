@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Actions\Portal\SaveRegistrantData;
+use App\Enums\AdmissionType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\SaveRegistrantDataRequest;
 use App\Models\Registrant;
@@ -44,6 +45,8 @@ class ChildDataController extends Controller
             $parents,
             $request->file('photo'),
             $request->boolean('remove_photo'),
+            education: $request->validated('education'),
+            admissionType: $request->enum('admission_type', AdmissionType::class),
         );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Datanya sudah disimpan sebagai draf.']);

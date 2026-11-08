@@ -1,7 +1,15 @@
 import { Link, useForm } from '@inertiajs/react';
-import { Camera, Plus, UserRound, Users } from 'lucide-react';
+import {
+    Camera,
+    GraduationCap,
+    Plus,
+    Trash2,
+    UserRound,
+    Users,
+} from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { ChoiceCardGroup } from '@/components/choice-card-group';
 import { FormField } from '@/components/form-field';
 import { OptionSelect } from '@/components/option-select';
 import { ParentFields } from '@/components/portal/parent-fields';
@@ -37,8 +45,19 @@ export type ParentFromServer = Partial<
     Omit<ParentFieldsData, 'is_alive'> & { is_alive: boolean }
 > | null;
 
+export type EducationRow = {
+    level: string;
+    school_name: string;
+    npsn: string | null;
+    school_address: string | null;
+};
+
 export type DataFormOptions = {
     genders: Option[];
+    admissionTypes: Option[];
+    educationLevels: Option[];
+    /** Child fields the parent has to fill in before sending. The rest can be skipped. */
+    requiredChildFields: string[];
     religions: Option[];
     bloodTypes: Option[];
     educations: Option[];
@@ -73,6 +92,8 @@ export function RegistrantDataForm({
     identityHref,
     child,
     parents,
+    admissionType,
+    education,
     options,
     canEdit,
     stickyActions = false,
@@ -86,6 +107,8 @@ export function RegistrantDataForm({
     identityHref?: string;
     child: ChildData;
     parents: Record<ParentRelationKey, ParentFromServer>;
+    admissionType: string;
+    education: EducationRow[];
     options: DataFormOptions;
     canEdit: boolean;
     /** Pin the buttons above the portal's bottom tab bar (parents on a phone). */
@@ -109,6 +132,13 @@ export function RegistrantDataForm({
             mother: parentData(parents.mother),
             guardian: parentData(parents.guardian),
         },
+        admission_type: admissionType,
+        education: education.map((row) => ({
+            level: row.level,
+            school_name: row.school_name,
+            npsn: row.npsn ?? '',
+            school_address: row.school_address ?? '',
+        })),
         photo: null as File | null,
         remove_photo: false,
     });
@@ -118,6 +148,21 @@ export function RegistrantDataForm({
     function setChild(field: keyof typeof form.data.child, value: string) {
         form.setData('child', { ...form.data.child, [field]: value });
     }
+
+    function setEducation(
+        index: number,
+        changes: Partial<(typeof form.data.education)[number]>,
+    ) {
+        form.setData(
+            'education',
+            form.data.education.map((row, i) =>
+                i === index ? { ...row, ...changes } : row,
+            ),
+        );
+    }
+
+    const isRequired = (field: string) =>
+        options.requiredChildFields.includes(field);
 
     function setParent(
         key: ParentRelationKey,
@@ -177,6 +222,11 @@ export function RegistrantDataForm({
                 </Alert>
             )}
 
+            <p className="text-[15px] text-muted-foreground">
+                Isian bertanda <span className="text-destructive">*</span> wajib
+                diisi sebelum data dikirim ke panitia. Yang lain boleh dilewati.
+            </p>
+
             <fieldset disabled={!canEdit} className="grid gap-6">
                 <SectionCard title="Foto" icon={Camera}>
                     <div className="grid gap-4">
@@ -221,9 +271,22 @@ export function RegistrantDataForm({
                                 </Link>
                             )}
                         </p>
+                        <FormField label="Status pendaftar" required>
+                            {() => (
+                                <ChoiceCardGroup
+                                    columns={2}
+                                    value={form.data.admission_type}
+                                    onValueChange={(value) =>
+                                        form.setData('admission_type', value)
+                                    }
+                                    options={options.admissionTypes}
+                                />
+                            )}
+                        </FormField>
                         <div className="grid gap-6 @2xl:grid-cols-2">
                             <FormField
                                 label="Jenis kelamin"
+                                required={isRequired('gender')}
                                 error={errors['child.gender']}
                             >
                                 {(control) => (
@@ -240,6 +303,7 @@ export function RegistrantDataForm({
                             </FormField>
                             <FormField
                                 label="Agama"
+                                required={isRequired('religion')}
                                 error={errors['child.religion']}
                             >
                                 {(control) => (
@@ -256,6 +320,7 @@ export function RegistrantDataForm({
                             </FormField>
                             <FormField
                                 label="Tempat lahir"
+                                required={isRequired('birth_place')}
                                 error={errors['child.birth_place']}
                             >
                                 {(control) => (
@@ -273,6 +338,7 @@ export function RegistrantDataForm({
                             </FormField>
                             <FormField
                                 label="Tanggal lahir"
+                                required={isRequired('birth_date')}
                                 error={errors['child.birth_date']}
                             >
                                 {(control) => (
@@ -291,6 +357,7 @@ export function RegistrantDataForm({
                             </FormField>
                             <FormField
                                 label="Nomor KK"
+                                required={isRequired('family_card_number')}
                                 hint="16 digit angka"
                                 error={errors['child.family_card_number']}
                             >
@@ -393,6 +460,7 @@ export function RegistrantDataForm({
                             </FormField>
                             <FormField
                                 label="Alamat"
+                                required={isRequired('address')}
                                 error={errors['child.address']}
                                 className="@2xl:col-span-2"
                             >
@@ -408,6 +476,148 @@ export function RegistrantDataForm({
                                 )}
                             </FormField>
                         </div>
+                    </div>
+                </SectionCard>
+
+                <SectionCard title="Riwayat pendidikan" icon={GraduationCap}>
+                    <div className="grid gap-6">
+                        {form.data.education.length === 0 && (
+                            <p className="text-[15px] text-muted-foreground">
+                                Belum ada sekolah sebelumnya. Boleh dilewati
+                                kalau anak belum pernah bersekolah.
+                            </p>
+                        )}
+                        {form.data.education.map((row, index) => (
+                            <div
+                                key={index}
+                                className="grid gap-4 rounded-xl border border-line p-4 @2xl:grid-cols-2"
+                            >
+                                <FormField
+                                    label="Jenjang"
+                                    required
+                                    error={errors[`education.${index}.level`]}
+                                >
+                                    {(control) => (
+                                        <OptionSelect
+                                            value={row.level}
+                                            onValueChange={(value) =>
+                                                setEducation(index, {
+                                                    level: value,
+                                                })
+                                            }
+                                            options={options.educationLevels}
+                                            {...control}
+                                        />
+                                    )}
+                                </FormField>
+                                <FormField
+                                    label="Nama sekolah"
+                                    required
+                                    error={
+                                        errors[`education.${index}.school_name`]
+                                    }
+                                >
+                                    {(control) => (
+                                        <Input
+                                            value={row.school_name}
+                                            onChange={(e) =>
+                                                setEducation(index, {
+                                                    school_name: e.target.value,
+                                                })
+                                            }
+                                            {...control}
+                                        />
+                                    )}
+                                </FormField>
+                                <FormField
+                                    label="NPSN"
+                                    hint="8 digit angka, kalau tahu"
+                                    error={errors[`education.${index}.npsn`]}
+                                >
+                                    {(control) => (
+                                        <Input
+                                            inputMode="numeric"
+                                            maxLength={8}
+                                            value={row.npsn}
+                                            onChange={(e) =>
+                                                setEducation(index, {
+                                                    npsn: e.target.value.replace(
+                                                        /\D/g,
+                                                        '',
+                                                    ),
+                                                })
+                                            }
+                                            {...control}
+                                        />
+                                    )}
+                                </FormField>
+                                <FormField
+                                    label="Alamat sekolah"
+                                    error={
+                                        errors[
+                                            `education.${index}.school_address`
+                                        ]
+                                    }
+                                >
+                                    {(control) => (
+                                        <Input
+                                            value={row.school_address}
+                                            onChange={(e) =>
+                                                setEducation(index, {
+                                                    school_address:
+                                                        e.target.value,
+                                                })
+                                            }
+                                            {...control}
+                                        />
+                                    )}
+                                </FormField>
+                                <div className="@2xl:col-span-2">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() =>
+                                            form.setData(
+                                                'education',
+                                                form.data.education.filter(
+                                                    (_, i) => i !== index,
+                                                ),
+                                            )
+                                        }
+                                    >
+                                        <Trash2 />
+                                        Hapus sekolah ini
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                        {form.data.education.length < 6 && (
+                            <div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size={buttonSize}
+                                    className={
+                                        stickyActions ? 'w-full' : undefined
+                                    }
+                                    onClick={() =>
+                                        form.setData('education', [
+                                            ...form.data.education,
+                                            {
+                                                level: 'elementary',
+                                                school_name: '',
+                                                npsn: '',
+                                                school_address: '',
+                                            },
+                                        ])
+                                    }
+                                >
+                                    <Plus />
+                                    Tambah sekolah
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </SectionCard>
 

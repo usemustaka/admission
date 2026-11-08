@@ -10,6 +10,7 @@ enum Ability: string
     case AdminAccess = 'core::admin.access';
     case SettingManage = 'core::setting.manage';
     case UserManage = 'core::user.manage';
+    case ParentPasswordReset = 'core::parent.password-reset';
     case RoleManage = 'core::role.manage';
     case YearManage = 'core::year.manage';
     case OrganizationManage = 'core::organization.manage';
@@ -28,11 +29,14 @@ enum Ability: string
     case RegistrantView = 'admission::registrant.view';
     case RegistrantManage = 'admission::registrant.manage';
     case ExamManage = 'admission::exam.manage';
+    case ExamScore = 'admission::exam.score';
     case RegistrantExport = 'admission::registrant.export';
     case RegistrantBulk = 'admission::registrant.bulk';
+    case RegistrantAnnounce = 'admission::registrant.announce';
     case RegistrantPlace = 'admission::registrant.place';
     case RegistrantBypass = 'admission::registrant.bypass';
     case AnnouncementManage = 'admission::announcement.manage';
+    case ScholarshipGrant = 'admission::scholarship.grant';
     case PaymentView = 'admission::payment.view';
     case PaymentRecord = 'admission::payment.record';
     case PaymentVerify = 'admission::payment.verify';
@@ -55,6 +59,7 @@ enum Ability: string
             self::AdminAccess => 'Masuk ke panel admin',
             self::SettingManage => 'Mengatur identitas, tampilan, dan kontak aplikasi',
             self::UserManage => 'Mengelola akun staf: undang, ubah peran, nonaktifkan',
+            self::ParentPasswordReset => 'Mengirim tautan atur ulang password ke akun orang tua pendaftar',
             self::RoleManage => 'Mengelola peran dan izinnya',
             self::YearManage => 'Mengelola tahun ajaran dan periode',
             self::OrganizationManage => 'Mengelola lembaga',
@@ -73,11 +78,14 @@ enum Ability: string
             self::RegistrantView => 'Melihat pendaftar',
             self::RegistrantManage => 'Memeriksa, mengubah, mengumumkan, dan menempatkan pendaftar',
             self::ExamManage => 'Mengatur jadwal ujian: tanggal, sesi, dan kuota',
+            self::ExamScore => 'Memasukkan nilai ujian pendaftar',
             self::RegistrantExport => 'Mengekspor data pendaftar (CSV)',
             self::RegistrantBulk => 'Menjalankan aksi massal pada pendaftar',
+            self::RegistrantAnnounce => 'Mengumumkan hasil pendaftar dan mencetak surat penerimaan',
             self::RegistrantPlace => 'Menempatkan pendaftar menjadi siswa',
             self::RegistrantBypass => 'Melompati alur status pendaftar dengan catatan',
             self::AnnouncementManage => 'Mengubah templat pengumuman',
+            self::ScholarshipGrant => 'Memberikan beasiswa dan melihat anak yang berpotensi mendapatkannya',
             self::PaymentView => 'Melihat pembayaran',
             self::PaymentRecord => 'Mencatat pembayaran langsung (tunai atau transfer yang diterima staf)',
             self::PaymentVerify => 'Memverifikasi dan menolak pembayaran yang dikirim orang tua',

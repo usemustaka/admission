@@ -8,7 +8,9 @@ use App\Http\Controllers\Admin\Admission\ExamScheduleController;
 use App\Http\Controllers\Admin\Admission\ExamScoreGridController;
 use App\Http\Controllers\Admin\Admission\RegistrantBulkController;
 use App\Http\Controllers\Admin\Admission\RegistrantController;
+use App\Http\Controllers\Admin\Admission\RegistrantDocumentArchiveController;
 use App\Http\Controllers\Admin\Admission\RegistrantExportController;
+use App\Http\Controllers\Admin\Admission\RegistrantLetterController;
 use App\Http\Controllers\Admin\Admission\RegistrantQuickViewController;
 use App\Http\Controllers\Admin\Admission\RegistrantWorkflowController;
 use App\Http\Controllers\Admin\Admission\RulesetContentController;
@@ -19,6 +21,7 @@ use App\Http\Controllers\Admin\Finance\ArrearsController;
 use App\Http\Controllers\Admin\Finance\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Admin\Finance\PaymentCorrectionController;
 use App\Http\Controllers\Admin\Finance\PaymentReconciliationController;
+use App\Http\Controllers\Admin\Finance\SettlementReceiptController;
 use App\Http\Controllers\Admin\NoteController;
 use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\ParentshipController;
@@ -37,10 +40,12 @@ use App\Http\Controllers\PaymentReceiptController;
 use App\Http\Controllers\Portal\BillController;
 use App\Http\Controllers\Portal\ChildController;
 use App\Http\Controllers\Portal\ChildDataController;
+use App\Http\Controllers\Portal\ChildDocumentController;
 use App\Http\Controllers\Portal\ChildExamController;
 use App\Http\Controllers\Portal\ChildSubmissionController;
 use App\Http\Controllers\Portal\PaymentController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\RegistrantDocumentController;
 use App\Http\Controllers\SetupController;
 use App\Http\Middleware\RequireStaffTwoFactor;
 use Illuminate\Support\Facades\Route;
@@ -66,6 +71,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('{registrant}/data', [ChildDataController::class, 'update'])->name('data.update');
         Route::get('{registrant}/ujian', [ChildExamController::class, 'edit'])->name('exam.edit');
         Route::post('{registrant}/ujian', [ChildExamController::class, 'update'])->name('exam.update');
+        Route::get('{registrant}/berkas', [ChildDocumentController::class, 'edit'])->name('documents.edit');
+        Route::post('{registrant}/berkas', [ChildDocumentController::class, 'store'])->name('documents.store');
+        Route::put('{registrant}/berkas/pendukung', [ChildDocumentController::class, 'support'])->name('documents.support');
+        Route::delete('{registrant}/berkas/{document}', [ChildDocumentController::class, 'destroy'])->name('documents.destroy');
         Route::post('{registrant}/kirim', [ChildSubmissionController::class, 'store'])->name('submit');
         Route::get('{registrant}/tagihan', [BillController::class, 'index'])->name('bills');
     });
@@ -74,6 +83,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('portal/pembayaran/baru', [PaymentController::class, 'create'])->name('portal.payments.create');
     Route::post('portal/pembayaran', [PaymentController::class, 'store'])->name('portal.payments.store');
 
+    Route::get('documents/{document}', RegistrantDocumentController::class)->name('documents.show');
     Route::get('payments/{payment}/bukti', PaymentProofController::class)->name('payments.proof');
     Route::get('payments/{payment}/kwitansi', PaymentReceiptController::class)->name('payments.receipt');
 
@@ -97,6 +107,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             Route::get('registrants', [RegistrantController::class, 'index'])->name('registrants.index');
             Route::get('registrants/export', RegistrantExportController::class)->name('registrants.export');
+            Route::get('registrants/berkas', [RegistrantDocumentArchiveController::class, 'index'])->name('registrants.documents.archive');
+            Route::get('registrants/{registrant}/berkas', [RegistrantDocumentArchiveController::class, 'show'])->name('registrants.documents.zip');
+            Route::get('registrants/{registrant}/surat', RegistrantLetterController::class)->name('registrants.letter');
+            Route::get('registrants/{registrant}/kwitansi-lunas', SettlementReceiptController::class)->name('registrants.settlement-receipt');
             Route::post('registrants/bulk', RegistrantBulkController::class)->name('registrants.bulk');
             Route::post('registrants/bulk/pratinjau', [RegistrantBulkController::class, 'preview'])->name('registrants.bulk-preview');
             Route::get('registrants/{registrant}', [RegistrantController::class, 'show'])->name('registrants.show');
@@ -110,6 +124,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::post('bypass', 'bypass')->name('bypass');
                 Route::post('announce', 'announce')->name('announce');
                 Route::post('place', 'place')->name('place');
+                Route::post('reset-password', 'resetPassword')->name('reset-password');
+                Route::post('scholarship', 'scholarship')->name('scholarship');
                 Route::post('resolve-identity', 'resolveIdentity')->name('resolve-identity');
                 Route::post('repoint-identity', 'repointIdentity')->name('repoint-identity');
                 Route::put('exam-session', 'examSession')->name('exam-session');
@@ -168,6 +184,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::resource('rulesets', RulesetController::class);
             Route::patch('rulesets/{ruleset}/move', RulesetOrderController::class)->name('rulesets.move');
             Route::put('rulesets/{ruleset}/bills', [RulesetContentController::class, 'bills'])->name('rulesets.bills');
+            Route::put('rulesets/{ruleset}/documents', [RulesetContentController::class, 'documents'])->name('rulesets.documents');
             Route::put('rulesets/{ruleset}/exam-aspects', [RulesetContentController::class, 'examAspects'])->name('rulesets.exam-aspects');
         });
 });

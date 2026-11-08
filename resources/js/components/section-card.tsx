@@ -16,6 +16,7 @@ export function SectionCard({
     actions,
     className,
     contentClassName,
+    compact = false,
     children,
 }: {
     title?: string;
@@ -24,15 +25,22 @@ export function SectionCard({
     actions?: ReactNode;
     className?: string;
     contentClassName?: string;
+    /** Tighter spacing and a fixed title size, for cards that sit side by side in a dense detail page. */
+    compact?: boolean;
     children: ReactNode;
 }) {
     return (
-        <Card className={cn('gap-4 @2xl:gap-5', className)}>
+        <Card className={cn(compact ? 'gap-3' : 'gap-4 @2xl:gap-5', className)}>
             {(title || description || actions) && (
                 <CardHeader className="flex flex-row items-start justify-between gap-4">
                     <div className="grid gap-1">
                         {title && (
-                            <CardTitle className="flex items-center gap-2 text-base font-semibold @2xl:text-lg">
+                            <CardTitle
+                                className={cn(
+                                    'flex items-center gap-2 text-base font-semibold',
+                                    !compact && '@2xl:text-lg',
+                                )}
+                            >
                                 {Icon && (
                                     <Icon className="size-5 text-muted-foreground" />
                                 )}
@@ -40,7 +48,12 @@ export function SectionCard({
                             </CardTitle>
                         )}
                         {description && (
-                            <CardDescription className="text-sm @2xl:text-[15px]">
+                            <CardDescription
+                                className={cn(
+                                    'text-sm',
+                                    !compact && '@2xl:text-[15px]',
+                                )}
+                            >
                                 {description}
                             </CardDescription>
                         )}

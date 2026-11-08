@@ -6,17 +6,24 @@ use App\Actions\Admission\AcceptRegistrant;
 use App\Actions\Admission\AnnounceRegistrant;
 use App\Actions\Admission\BypassRegistrantStatus;
 use App\Actions\Admission\ChooseExamSession;
+use App\Actions\Admission\GrantScholarship;
 use App\Actions\Admission\PlaceRegistrant;
 use App\Actions\Admission\RepointRegistrantIdentity;
 use App\Actions\Admission\RequestRevision;
 use App\Actions\Admission\ResolveIdentityReview;
 use App\Actions\Admission\SaveExamScores;
+use App\Actions\Notes\WritePersonAuditNote;
+use App\Actions\Users\SendPasswordSetupLink;
+use App\Enums\Ability;
 use App\Enums\RegistrantStatus;
+use App\Enums\ScholarshipKind;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Admission\GrantScholarshipRequest;
 use App\Http\Requests\Portal\ChooseExamSessionRequest;
 use App\Models\ExamSession;
 use App\Models\Registrant;
 use App\Models\Year;
+use App\Support\ParentAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -74,7 +81,7 @@ class RegistrantWorkflowController extends Controller
 
     public function scores(Request $request, Registrant $registrant, SaveExamScores $saveExamScores): RedirectResponse
     {
-        Gate::authorize('manage', $registrant);
+        Gate::authorize('score', Registrant::class);
 
         $validated = $request->validate([
             'scores' => ['present', 'array'],
@@ -89,7 +96,7 @@ class RegistrantWorkflowController extends Controller
 
     public function announce(Request $request, Registrant $registrant, AnnounceRegistrant $announceRegistrant): RedirectResponse
     {
-        Gate::authorize('manage', $registrant);
+        Gate::authorize('announce', Registrant::class);
 
         $announceRegistrant->handle($registrant, $request->user());
 
@@ -131,6 +138,32 @@ class RegistrantWorkflowController extends Controller
         $repointRegistrantIdentity->handle($registrant, $request->user(), $validated['nik'], $validated['reason']);
 
         return $this->done('Pendaftaran sudah dialihkan ke NIK yang benar.');
+    }
+
+    public function scholarship(GrantScholarshipRequest $request, Registrant $registrant, GrantScholarship $grantScholarship): RedirectResponse
+    {
+        /** @var list<array{bill_item_id: int, amount: int}> $items */
+        $items = array_map(fn (array $row): array => ['bill_item_id' => (int) $row['bill_item_id'], 'amount' => (int) $row['amount']], $request->validated('items'));
+
+        $grantScholarship->handle($registrant, $request->user(), ScholarshipKind::from($request->validated('kind')), $items, $request->validated('note'));
+
+        return $this->done('Beasiswa sudah dicatat sebagai pembayaran.');
+    }
+
+    public function resetPassword(Request $request, Registrant $registrant, SendPasswordSetupLink $sendPasswordSetupLink, WritePersonAuditNote $writeAuditNote): RedirectResponse
+    {
+        Gate::authorize(Ability::ParentPasswordReset->value);
+
+        $account = ParentAccount::for($registrant);
+
+        if ($account === null) {
+            return back()->withErrors(['password' => 'Pendaftar ini belum punya akun orang tua yang bisa diatur ulang.']);
+        }
+
+        $sendPasswordSetupLink->handle($account);
+        $writeAuditNote->handle($registrant->person, $request->user(), "Tautan atur ulang password dikirim ke {$account->email}.");
+
+        return $this->done("Tautan atur ulang password dikirim ke {$account->email}.");
     }
 
     private function done(string $message): RedirectResponse

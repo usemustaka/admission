@@ -18,6 +18,8 @@ void createInertiaApp({
             case name === 'welcome':
             case name === 'komponen':
             case name === 'payments/receipt':
+            case name === 'payments/settlement-receipt':
+            case name === 'letters/admission':
             case name === 'setup/index':
                 return null;
             case name.startsWith('auth/'):

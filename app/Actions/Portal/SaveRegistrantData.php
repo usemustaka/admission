@@ -5,8 +5,11 @@ namespace App\Actions\Portal;
 use App\Actions\Notes\WritePersonAuditNote;
 use App\Actions\People\LinkParent;
 use App\Actions\People\SavePerson;
+use App\Enums\AdmissionType;
+use App\Enums\EducationLevel;
 use App\Enums\ParentKind;
 use App\Enums\ParentRelation;
+use App\Models\EducationHistory;
 use App\Models\Parentship;
 use App\Models\Person;
 use App\Models\Registrant;
@@ -37,6 +40,7 @@ class SaveRegistrantData
      *
      * @param  array<string, mixed>  $child
      * @param  array<string, array<string, mixed>>  $parents  keyed by relation (father, mother, guardian)
+     * @param  list<array<string, mixed>>|null  $education  the schools to keep; null leaves them as they are
      *
      * @throws ValidationException
      */
@@ -47,13 +51,22 @@ class SaveRegistrantData
         ?UploadedFile $photo = null,
         bool $removePhoto = false,
         ?User $auditedBy = null,
+        ?array $education = null,
+        ?AdmissionType $admissionType = null,
     ): void {
-        DB::transaction(function () use ($registrant, $child, $parents, $photo, $removePhoto, $auditedBy): void {
+        DB::transaction(function () use ($registrant, $child, $parents, $photo, $removePhoto, $auditedBy, $education, $admissionType): void {
             $person = $registrant->person;
             $hadPhoto = $person->photo_path !== null;
             $before = $auditedBy === null ? [] : $this->snapshot($person);
 
             $this->savePerson->handle($person, $child, $photo, $removePhoto);
+
+            $educationChanged = $education !== null && $this->saveEducation($person, $education);
+            $typeChanged = $admissionType !== null && $registrant->admission_type !== $admissionType;
+
+            if ($typeChanged) {
+                $registrant->update(['admission_type' => $admissionType]);
+            }
 
             foreach (ParentRelation::cases() as $relation) {
                 $fields = $parents[$relation->value] ?? [];
@@ -72,7 +85,10 @@ class SaveRegistrantData
                     default => null,
                 };
 
-                $this->writeAuditNote($person, $auditedBy, $before, $this->snapshot($person), $photoChange);
+                $this->writeAuditNote($person, $auditedBy, $before, $this->snapshot($person), $photoChange, array_values(array_filter([
+                    $educationChanged ? 'Riwayat pendidikan' : null,
+                    $typeChanged ? 'Status pendaftar' : null,
+                ])));
             }
         });
     }
@@ -135,10 +151,11 @@ class SaveRegistrantData
     /**
      * @param  array{child?: array<string, string>, parents?: array<string, array<string, string>>}  $before
      * @param  array{child: array<string, string>, parents: array<string, array<string, string>>}  $after
+     * @param  list<string>  $extra  other things that changed, already worded for the note
      */
-    private function writeAuditNote(Person $child, User $by, array $before, array $after, ?string $photo): void
+    private function writeAuditNote(Person $child, User $by, array $before, array $after, ?string $photo, array $extra = []): void
     {
-        $changes = [];
+        $changes = $extra;
 
         foreach (self::CHILD_LABELS as $field => $label) {
             if (($before['child'][$field] ?? '') !== $after['child'][$field]) {
@@ -170,6 +187,38 @@ class SaveRegistrantData
         }
 
         $this->writePersonAuditNote->handle($child, $by, 'Data pendaftaran diubah panitia: '.implode(', ', $changes).'.');
+    }
+
+    /**
+     * Replace the schools of the child with the rows of the form, in the order given. Returns whether anything
+     * differs from what was stored.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     */
+    private function saveEducation(Person $child, array $rows): bool
+    {
+        $rows = collect($rows)
+            ->filter(fn (array $row): bool => filled($row['school_name'] ?? null))
+            ->values()
+            ->map(fn (array $row, int $index): array => [
+                'level' => (string) ($row['level'] ?? EducationLevel::Other->value),
+                'school_name' => trim((string) $row['school_name']),
+                'npsn' => filled($row['npsn'] ?? null) ? (string) $row['npsn'] : null,
+                'school_address' => filled($row['school_address'] ?? null) ? trim((string) $row['school_address']) : null,
+                'sort_order' => $index,
+            ]);
+
+        $stored = $child->educationHistories()->get(['level', 'school_name', 'npsn', 'school_address', 'sort_order'])
+            ->map(fn (EducationHistory $history): array => [...$history->only(['school_name', 'npsn', 'school_address', 'sort_order']), 'level' => $history->level->value]);
+
+        if ($stored->toArray() === $rows->toArray()) {
+            return false;
+        }
+
+        $child->educationHistories()->delete();
+        $rows->each(fn (array $row) => $child->educationHistories()->create($row));
+
+        return true;
     }
 
     /** @var list<string> */

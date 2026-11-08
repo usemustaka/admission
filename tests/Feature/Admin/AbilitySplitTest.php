@@ -37,11 +37,11 @@ describe('registrant export', function () {
     test('the list offers the export, selection and template button only to those who may use them', function () {
         $this->actingAs(staffWithAbilities(Ability::RegistrantView));
         $this->get(route('admin.registrants.index'))->assertInertia(fn ($page) => $page
-            ->where('can', ['bulk' => false, 'export' => false, 'editAnnouncement' => false]));
+            ->where('can', ['bulk' => false, 'export' => false, 'editAnnouncement' => false, 'scholarship' => false]));
 
         $this->actingAs(staffWithAbilities(Ability::RegistrantView, Ability::RegistrantManage, Ability::RegistrantBulk, Ability::RegistrantExport, Ability::AnnouncementManage));
         $this->get(route('admin.registrants.index'))->assertInertia(fn ($page) => $page
-            ->where('can', ['bulk' => true, 'export' => true, 'editAnnouncement' => true]));
+            ->where('can', ['bulk' => true, 'export' => true, 'editAnnouncement' => true, 'scholarship' => false]));
     });
 });
 

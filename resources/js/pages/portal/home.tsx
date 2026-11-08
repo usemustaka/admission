@@ -4,6 +4,7 @@ import { ChildCard } from '@/components/child-card';
 import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
 import { ContactCard } from '@/components/portal/contact-card';
+import { EmailVerificationReminder } from '@/components/portal/email-verification-reminder';
 import { Button } from '@/components/ui/button';
 import { currentStepIndex, stepsFor } from '@/lib/admission-steps';
 import { nextAction } from '@/lib/portal-next-step';
@@ -21,6 +22,7 @@ export default function PortalHome({
         <>
             <Head title="Beranda" />
             <div className="grid gap-4">
+                <EmailVerificationReminder />
                 <PageHeader
                     title={`Halo, ${auth.user.name}!`}
                     description={

@@ -1,39 +1,45 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    Check,
-    Circle,
-    ClipboardList,
     MessageCircle,
     Pencil,
     Phone,
     Star,
     StickyNote,
+    Users,
     Trash2,
     TriangleAlert,
     UserPlus,
 } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { DetailColumn, DetailColumns } from '@/components/detail-columns';
+import { DuplicateCandidates } from '@/components/people/duplicate-candidates';
+import {
+    AccountCard,
+    birthLine,
+    ChecklistCard,
+    FinanceCard,
+    ProfileCard,
+    RegistrationsCard,
+    RolesCard,
+    SchoolsCard,
+    SiblingsCard,
+} from '@/components/people/person-profile-cards';
+import { Card, CardContent } from '@/components/ui/card';
 import { DescriptionList } from '@/components/description-list';
-import { EmptyState } from '@/components/empty-state';
 import { NoteCard } from '@/components/note-card';
-import { PageHeader } from '@/components/page-header';
 import { PersonAvatar } from '@/components/person-avatar';
 import { QuickView } from '@/components/quick-view';
 import { AddParentDialog } from '@/components/people/add-parent-dialog';
 import { NoteForm } from '@/components/people/note-form';
 import { WhatsAppLink } from '@/components/people/whatsapp-link';
 import { SectionCard } from '@/components/section-card';
-import { StatusBadge } from '@/components/status-badge';
-import { ValueTabs } from '@/components/section-tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { formatDate, isCompleteNik, whatsappUrl } from '@/lib/format';
+import { isCompleteNik, whatsappUrl } from '@/lib/format';
 import { dashboard } from '@/routes';
 import { edit, index, show } from '@/routes/admin/people';
-import { show as showRegistrant } from '@/routes/admin/registrants';
 import { destroy, update } from '@/routes/admin/notes';
 import {
     destroy as destroyParentship,
@@ -41,14 +47,15 @@ import {
 } from '@/routes/admin/people/parentships';
 import type {
     ChildLink,
+    DuplicateCandidate,
     NoteItem,
     Option,
     ParentLink,
     PersonDetail,
+    PersonFinance,
+    PersonProfileData,
     PersonRegistration,
 } from '@/types/people';
-
-type Tab = 'data' | 'keluarga' | 'catatan';
 
 type PendingDelete =
     | { kind: 'parent'; id: number; name: string; isPrimaryContact: boolean }
@@ -62,6 +69,9 @@ export default function PersonShow({
     notes,
     roles,
     registrations,
+    profile,
+    finance,
+    duplicates,
     can,
     options,
 }: {
@@ -71,7 +81,12 @@ export default function PersonShow({
     notes: NoteItem[];
     roles: string[];
     registrations: PersonRegistration[];
+    profile: PersonProfileData;
+    finance: PersonFinance | null;
+    duplicates: DuplicateCandidate[];
     can: {
+        viewAccount: boolean;
+        viewPayments: boolean;
         update: boolean;
         manageFamily: boolean;
         createNote: boolean;
@@ -92,7 +107,6 @@ export default function PersonShow({
         name: string;
     } | null>(null);
     const [processing, setProcessing] = useState(false);
-    const [tab, setTab] = useState<Tab>('data');
     const [noteOpen, setNoteOpen] = useState(false);
 
     const primaryParent = parents.find((parent) => parent.is_primary_contact);
@@ -118,7 +132,6 @@ export default function PersonShow({
               ]
             : []),
     ];
-    const completed = checklist.filter((item) => item.done).length;
 
     function writeNote() {
         setNoteOpen(true);
@@ -177,25 +190,28 @@ export default function PersonShow({
         );
     }
 
-    const parentCount = parents.length + dependents.length;
-
     return (
         <>
             <Head title={person.name} />
-            <div className="grid gap-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <PersonAvatar
-                        name={person.name}
-                        src={person.photo_url}
-                        size="xl"
-                    />
-                    <div className="min-w-0 flex-1">
-                        <PageHeader
-                            title={person.name}
-                            description={person.nik ?? 'NIK belum diisi'}
-                            meta={
-                                roles.length > 0 && (
-                                    <div className="flex flex-wrap gap-1.5 pt-1">
+            <div className="grid gap-4">
+                <Card className="gap-4 @2xl:gap-4">
+                    <CardContent className="grid gap-5">
+                        <div className="flex flex-col gap-4 @2xl:flex-row @2xl:items-start">
+                            <div className="flex min-w-0 flex-1 items-start gap-4">
+                                <PersonAvatar
+                                    name={person.name}
+                                    src={person.photo_url}
+                                    size="xl"
+                                    className="size-16 shrink-0 text-lg @2xl:size-20 @2xl:text-2xl"
+                                />
+                                <div className="grid min-w-0 flex-1 gap-1.5">
+                                    <h1 className="text-xl font-semibold break-words @2xl:text-2xl">
+                                        {person.name}
+                                    </h1>
+                                    <p className="text-sm text-muted-foreground tabular-nums">
+                                        {person.nik ?? 'NIK belum diisi'}
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
                                         {roles.map((role) => (
                                             <Badge key={role}>{role}</Badge>
                                         ))}
@@ -204,377 +220,98 @@ export default function PersonShow({
                                                 Almarhum
                                             </Badge>
                                         )}
+                                        {profile.account && (
+                                            <Badge variant="muted">
+                                                Punya akun
+                                            </Badge>
+                                        )}
                                     </div>
-                                )
-                            }
-                            actions={
-                                <>
-                                    {can.update && (
-                                        <Button asChild>
-                                            <Link href={edit(person.id)}>
-                                                <Pencil />
-                                                Ubah data
-                                            </Link>
-                                        </Button>
-                                    )}
-                                    {can.manageFamily && (
-                                        <AddParentDialog
-                                            childId={person.id}
-                                            relations={options.relations}
-                                            kinds={options.kinds}
-                                            trigger={
-                                                <Button variant="outline">
-                                                    <UserPlus />
-                                                    Tambah orang tua
-                                                </Button>
-                                            }
-                                        />
-                                    )}
-                                    {can.createNote && (
-                                        <Button
-                                            variant="outline"
-                                            onClick={writeNote}
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 @2xl:max-w-sm @2xl:justify-end">
+                                {can.update && (
+                                    <Button asChild>
+                                        <Link href={edit(person.id)}>
+                                            <Pencil />
+                                            Ubah data
+                                        </Link>
+                                    </Button>
+                                )}
+                                {can.manageFamily && (
+                                    <AddParentDialog
+                                        childId={person.id}
+                                        relations={options.relations}
+                                        kinds={options.kinds}
+                                        trigger={
+                                            <Button variant="outline">
+                                                <UserPlus />
+                                                Tambah orang tua
+                                            </Button>
+                                        }
+                                    />
+                                )}
+                                {can.createNote && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={writeNote}
+                                    >
+                                        <StickyNote />
+                                        Tulis catatan
+                                    </Button>
+                                )}
+                                {contactPhone && (
+                                    <Button variant="outline" asChild>
+                                        <a
+                                            href={whatsappUrl(contactPhone)}
+                                            target="_blank"
+                                            rel="noreferrer"
                                         >
-                                            <StickyNote />
-                                            Tulis catatan
-                                        </Button>
-                                    )}
-                                    {contactPhone && (
-                                        <Button variant="outline" asChild>
-                                            <a
-                                                href={whatsappUrl(contactPhone)}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                            >
-                                                <MessageCircle />
-                                                WhatsApp
-                                            </a>
-                                        </Button>
-                                    )}
-                                </>
-                            }
-                        />
-                    </div>
-                </div>
-
-                <div className="grid gap-6 @5xl:grid-cols-[minmax(0,1fr)_24rem] @5xl:items-start">
-                    <div className="grid min-w-0 gap-6">
-                        <ValueTabs
-                            label="Bagian data orang"
-                            value={tab}
-                            onChange={setTab}
+                                            <MessageCircle />
+                                            WhatsApp
+                                        </a>
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                        <DescriptionList
+                            compact
+                            className="border-t border-line pt-4 @3xl:grid-cols-3"
                             items={[
-                                { value: 'data', label: 'Data diri' },
                                 {
-                                    value: 'keluarga',
-                                    label: 'Keluarga',
-                                    count: parentCount,
+                                    label: 'Jenis kelamin',
+                                    value: person.gender,
                                 },
                                 {
-                                    value: 'catatan',
-                                    label: 'Catatan',
-                                    count: notes.length,
+                                    label: 'Tempat, tanggal lahir',
+                                    value: birthLine(person),
+                                },
+                                {
+                                    label: 'Alamat',
+                                    value: profile.address,
                                 },
                             ]}
                         />
+                    </CardContent>
+                </Card>
 
-                        {tab === 'data' && (
-                            <SectionCard title="Data diri">
-                                <DescriptionList
-                                    items={[
-                                        {
-                                            label: 'Jenis kelamin',
-                                            value: person.gender,
-                                        },
-                                        {
-                                            label: 'Tempat lahir',
-                                            value: person.birth_place,
-                                        },
-                                        {
-                                            label: 'Tanggal lahir',
-                                            value: person.birth_date
-                                                ? formatDate(person.birth_date)
-                                                : null,
-                                        },
-                                        {
-                                            label: 'Nomor HP',
-                                            value: person.phone,
-                                        },
-                                        { label: 'Email', value: person.email },
-                                        {
-                                            label: 'Status',
-                                            value: person.is_alive
-                                                ? 'Masih hidup'
-                                                : 'Sudah meninggal',
-                                        },
-                                    ]}
-                                />
-                            </SectionCard>
+                {duplicates.length > 0 && (
+                    <DuplicateCandidates
+                        title="Kemungkinan ada catatan ganda"
+                        message="Orang berikut mirip dengan yang sedang kamu lihat. Periksa apakah mereka orang yang sama sebelum data makin bercabang."
+                        candidates={duplicates}
+                        action={(candidate) => (
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href={show(candidate.id)}>Buka</Link>
+                            </Button>
                         )}
+                    />
+                )}
 
-                        {tab === 'keluarga' && (
-                            <>
-                                <SectionCard
-                                    title="Orang tua dan wali"
-                                    description="Yang jadi kontak utama akan dihubungi untuk pengumuman."
-                                    actions={
-                                        can.manageFamily && (
-                                            <AddParentDialog
-                                                childId={person.id}
-                                                relations={options.relations}
-                                                kinds={options.kinds}
-                                            />
-                                        )
-                                    }
-                                >
-                                    {parents.length === 0 ? (
-                                        <p className="text-sm text-muted-foreground">
-                                            Belum ada orang tua atau wali yang
-                                            tercatat.
-                                        </p>
-                                    ) : (
-                                        <ul className="grid divide-y divide-line">
-                                            {parents.map((parent) => (
-                                                <li
-                                                    key={parent.id}
-                                                    className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0"
-                                                >
-                                                    <PersonAvatar
-                                                        name={
-                                                            parent.person.name
-                                                        }
-                                                        src={
-                                                            parent.person
-                                                                .photo_url
-                                                        }
-                                                    />
-                                                    <div className="grid min-w-0 flex-1 leading-tight">
-                                                        <Link
-                                                            href={show(
-                                                                parent.person
-                                                                    .id,
-                                                            )}
-                                                            className="truncate font-semibold hover:underline"
-                                                        >
-                                                            {parent.person.name}
-                                                        </Link>
-                                                        <span className="text-sm text-muted-foreground">
-                                                            {[
-                                                                parent.relation,
-                                                                parent.kind,
-                                                                parent.person
-                                                                    .phone,
-                                                            ]
-                                                                .filter(Boolean)
-                                                                .join(' · ')}
-                                                        </span>
-                                                    </div>
-                                                    {parent.is_primary_contact && (
-                                                        <Badge variant="success">
-                                                            <Star />
-                                                            Kontak utama
-                                                        </Badge>
-                                                    )}
-                                                    <div className="flex flex-wrap items-center gap-1">
-                                                        {parent.person
-                                                            .phone && (
-                                                            <WhatsAppLink
-                                                                phone={
-                                                                    parent
-                                                                        .person
-                                                                        .phone
-                                                                }
-                                                                label={
-                                                                    parent
-                                                                        .person
-                                                                        .name
-                                                                }
-                                                                variant="ghost"
-                                                            />
-                                                        )}
-                                                        {can.manageFamily && (
-                                                            <>
-                                                                {!parent.is_primary_contact && (
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        className="max-md:h-10"
-                                                                        onClick={() =>
-                                                                            parent
-                                                                                .person
-                                                                                .phone
-                                                                                ? makePrimaryContact(
-                                                                                      parent.id,
-                                                                                  )
-                                                                                : setPendingPrimary(
-                                                                                      {
-                                                                                          id: parent.id,
-                                                                                          name: parent
-                                                                                              .person
-                                                                                              .name,
-                                                                                      },
-                                                                                  )
-                                                                        }
-                                                                    >
-                                                                        Jadikan
-                                                                        kontak
-                                                                        utama
-                                                                    </Button>
-                                                                )}
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    aria-label={`Hapus ${parent.person.name}`}
-                                                                    onClick={() =>
-                                                                        setPendingDelete(
-                                                                            {
-                                                                                kind: 'parent',
-                                                                                id: parent.id,
-                                                                                name: parent
-                                                                                    .person
-                                                                                    .name,
-                                                                                isPrimaryContact:
-                                                                                    parent.is_primary_contact,
-                                                                            },
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Trash2 />
-                                                                </Button>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </SectionCard>
+                <DetailColumns>
+                    <DetailColumn>
+                        <ProfileCard person={person} profile={profile} />
 
-                                {dependents.length > 0 && (
-                                    <SectionCard title="Anak yang diampu">
-                                        <ul className="grid gap-1">
-                                            {dependents.map((child) => (
-                                                <li key={child.id}>
-                                                    <Link
-                                                        href={show(
-                                                            child.person.id,
-                                                        )}
-                                                        className="-mx-2 flex min-h-12 items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-none"
-                                                    >
-                                                        <PersonAvatar
-                                                            name={
-                                                                child.person
-                                                                    .name
-                                                            }
-                                                            src={
-                                                                child.person
-                                                                    .photo_url
-                                                            }
-                                                            size="sm"
-                                                        />
-                                                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                                                            {child.person.name}
-                                                        </span>
-                                                        <Badge variant="muted">
-                                                            {child.relation}
-                                                        </Badge>
-                                                    </Link>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </SectionCard>
-                                )}
-                            </>
-                        )}
-
-                        {tab === 'catatan' && (
-                            <>
-                                {can.createNote && (
-                                    <div className="flex justify-end">
-                                        <Button onClick={writeNote}>
-                                            <StickyNote />
-                                            Tulis catatan
-                                        </Button>
-                                    </div>
-                                )}
-
-                                {notes.length === 0 ? (
-                                    <EmptyState
-                                        icon={StickyNote}
-                                        title="Belum ada catatan"
-                                        description="Catatan yang boleh kamu baca akan muncul di sini."
-                                    />
-                                ) : (
-                                    <div className="grid gap-3">
-                                        {notes.map((note) => (
-                                            <NoteCard
-                                                key={note.id}
-                                                authorName={note.author.name}
-                                                authorPhoto={
-                                                    note.author.photo_url
-                                                }
-                                                createdAt={
-                                                    note.created_at ?? ''
-                                                }
-                                                body={note.body}
-                                                urgency={note.urgency}
-                                                visibility={note.visibility}
-                                                sharedWith={note.shared_with.map(
-                                                    (share) => share.name,
-                                                )}
-                                                sharedWithFamily={
-                                                    note.shared_with_family
-                                                }
-                                                actions={
-                                                    (note.can_update ||
-                                                        note.can_delete) && (
-                                                        <>
-                                                            {note.can_update && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="max-md:h-10"
-                                                                    onClick={() =>
-                                                                        toggleFamilyShare(
-                                                                            note,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    {note.shared_with_family
-                                                                        ? 'Berhenti share ke keluarga'
-                                                                        : 'Share ke keluarga anak'}
-                                                                </Button>
-                                                            )}
-                                                            {note.can_delete && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    aria-label="Hapus catatan"
-                                                                    onClick={() =>
-                                                                        setPendingDelete(
-                                                                            {
-                                                                                kind: 'note',
-                                                                                id: note.id,
-                                                                            },
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Trash2 />
-                                                                </Button>
-                                                            )}
-                                                        </>
-                                                    )
-                                                }
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-
-                    <aside className="grid gap-6 @5xl:sticky @5xl:top-20">
-                        <SectionCard title="Kontak">
+                        <SectionCard title="Kontak" icon={Phone} compact>
                             {contactPhone || person.email ? (
                                 <ul className="grid gap-3 text-sm">
                                     {person.phone && (
@@ -647,93 +384,277 @@ export default function PersonShow({
                             )}
                         </SectionCard>
 
-                        <SectionCard
-                            title="Kelengkapan data"
-                            description={`${completed} dari ${checklist.length} sudah lengkap`}
-                        >
-                            <div className="grid gap-4">
-                                <Progress
-                                    value={completed}
-                                    max={checklist.length}
-                                    aria-label="Kelengkapan data"
-                                />
-                                <ul className="grid gap-2 text-sm">
-                                    {checklist.map((item) => (
-                                        <li
-                                            key={item.label}
-                                            className="flex items-center gap-2.5"
-                                        >
-                                            {item.done ? (
-                                                <Check className="size-4 text-emerald-600" />
-                                            ) : (
-                                                <Circle className="size-4 text-amber-600" />
-                                            )}
-                                            <span
-                                                className={
-                                                    item.done
-                                                        ? 'text-muted-foreground'
-                                                        : 'font-medium'
-                                                }
-                                            >
-                                                {item.label}
-                                                <span className="sr-only">
-                                                    {item.done
-                                                        ? ', sudah'
-                                                        : ', belum'}
-                                                </span>
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </SectionCard>
+                        <AccountCard
+                            profile={profile}
+                            canViewAccount={can.viewAccount}
+                        />
+                    </DetailColumn>
 
-                        {can.viewRegistrations && (
+                    <DetailColumn>
+                        <ChecklistCard items={checklist} />
+
+                        {isChild && <SchoolsCard profile={profile} />}
+
+                        {(isChild || parents.length > 0) && (
                             <SectionCard
-                                title="Pendaftaran terkait"
-                                icon={ClipboardList}
+                                title="Orang tua dan wali"
+                                description="Yang jadi kontak utama akan dihubungi untuk pengumuman."
+                                icon={Users}
+                                compact
                             >
-                                {registrations.length === 0 ? (
+                                {parents.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">
-                                        Belum ada pendaftaran.
+                                        Belum ada orang tua atau wali yang
+                                        tercatat.
                                     </p>
                                 ) : (
-                                    <ul className="grid gap-1">
-                                        {registrations.map((registration) => (
-                                            <li key={registration.id}>
-                                                <Link
-                                                    href={showRegistrant(
-                                                        registration.id,
-                                                    )}
-                                                    className="-mx-2 flex min-h-12 items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-none"
-                                                >
-                                                    <span className="grid min-w-0 leading-tight">
-                                                        <span className="truncate font-semibold">
-                                                            {registration.is_self
-                                                                ? registration.organization
-                                                                : `${registration.child_name} · ${registration.organization}`}
-                                                        </span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {registration.wave}
-                                                        </span>
-                                                    </span>
-                                                    <StatusBadge
-                                                        status={
-                                                            registration.status
+                                    <ul className="grid divide-y divide-line">
+                                        {parents.map((parent) => (
+                                            <li
+                                                key={parent.id}
+                                                className="grid gap-2 py-3 first:pt-0 last:pb-0"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <PersonAvatar
+                                                        name={
+                                                            parent.person.name
                                                         }
-                                                        label={
-                                                            registration.status_label
+                                                        src={
+                                                            parent.person
+                                                                .photo_url
                                                         }
                                                     />
-                                                </Link>
+                                                    <div className="grid min-w-0 flex-1 leading-tight">
+                                                        <Link
+                                                            href={show(
+                                                                parent.person
+                                                                    .id,
+                                                            )}
+                                                            className="truncate font-semibold hover:underline"
+                                                        >
+                                                            {parent.person.name}
+                                                        </Link>
+                                                        <span className="text-sm text-muted-foreground">
+                                                            {[
+                                                                parent.relation,
+                                                                parent.kind,
+                                                                parent.person
+                                                                    .phone,
+                                                            ]
+                                                                .filter(Boolean)
+                                                                .join(' · ')}
+                                                        </span>
+                                                    </div>
+                                                    {parent.person.phone && (
+                                                        <WhatsAppLink
+                                                            phone={
+                                                                parent.person
+                                                                    .phone
+                                                            }
+                                                            label={
+                                                                parent.person
+                                                                    .name
+                                                            }
+                                                            variant="ghost"
+                                                        />
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-wrap items-center gap-1">
+                                                    {parent.is_primary_contact && (
+                                                        <Badge variant="success">
+                                                            <Star />
+                                                            Kontak utama
+                                                        </Badge>
+                                                    )}
+                                                    {can.manageFamily && (
+                                                        <>
+                                                            {!parent.is_primary_contact && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="max-md:h-10"
+                                                                    onClick={() =>
+                                                                        parent
+                                                                            .person
+                                                                            .phone
+                                                                            ? makePrimaryContact(
+                                                                                  parent.id,
+                                                                              )
+                                                                            : setPendingPrimary(
+                                                                                  {
+                                                                                      id: parent.id,
+                                                                                      name: parent
+                                                                                          .person
+                                                                                          .name,
+                                                                                  },
+                                                                              )
+                                                                    }
+                                                                >
+                                                                    Jadikan
+                                                                    kontak utama
+                                                                </Button>
+                                                            )}
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                aria-label={`Hapus ${parent.person.name}`}
+                                                                onClick={() =>
+                                                                    setPendingDelete(
+                                                                        {
+                                                                            kind: 'parent',
+                                                                            id: parent.id,
+                                                                            name: parent
+                                                                                .person
+                                                                                .name,
+                                                                            isPrimaryContact:
+                                                                                parent.is_primary_contact,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Trash2 />
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </li>
                                         ))}
                                     </ul>
                                 )}
                             </SectionCard>
                         )}
-                    </aside>
-                </div>
+
+                        {dependents.length > 0 && (
+                            <SectionCard title="Anak yang diampu" compact>
+                                <ul className="grid gap-1">
+                                    {dependents.map((child) => (
+                                        <li key={child.id}>
+                                            <Link
+                                                href={show(child.person.id)}
+                                                className="-mx-2 flex min-h-12 items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-none"
+                                            >
+                                                <PersonAvatar
+                                                    name={child.person.name}
+                                                    src={child.person.photo_url}
+                                                    size="sm"
+                                                />
+                                                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                                                    {child.person.name}
+                                                </span>
+                                                <Badge variant="muted">
+                                                    {child.relation}
+                                                </Badge>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </SectionCard>
+                        )}
+
+                        <SiblingsCard profile={profile} />
+
+                        <RolesCard
+                            profile={profile}
+                            canViewRegistrations={can.viewRegistrations}
+                        />
+                    </DetailColumn>
+
+                    <DetailColumn wide>
+                        {can.viewRegistrations && (
+                            <RegistrationsCard registrations={registrations} />
+                        )}
+
+                        {finance && (
+                            <FinanceCard
+                                finance={finance}
+                                canViewPayments={can.viewPayments}
+                            />
+                        )}
+
+                        <SectionCard
+                            title="Catatan"
+                            icon={StickyNote}
+                            compact
+                            actions={
+                                can.createNote && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={writeNote}
+                                    >
+                                        <StickyNote />
+                                        Tulis catatan
+                                    </Button>
+                                )
+                            }
+                            contentClassName="grid gap-3"
+                        >
+                            {notes.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Belum ada catatan yang boleh kamu baca.
+                                </p>
+                            ) : (
+                                notes.map((note) => (
+                                    <NoteCard
+                                        key={note.id}
+                                        authorName={note.author.name}
+                                        authorPhoto={note.author.photo_url}
+                                        createdAt={note.created_at ?? ''}
+                                        body={note.body}
+                                        urgency={note.urgency}
+                                        visibility={note.visibility}
+                                        sharedWith={note.shared_with.map(
+                                            (share) => share.name,
+                                        )}
+                                        sharedWithFamily={
+                                            note.shared_with_family
+                                        }
+                                        actions={
+                                            (note.can_update ||
+                                                note.can_delete) && (
+                                                <>
+                                                    {note.can_update && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="max-md:h-10"
+                                                            onClick={() =>
+                                                                toggleFamilyShare(
+                                                                    note,
+                                                                )
+                                                            }
+                                                        >
+                                                            {note.shared_with_family
+                                                                ? 'Berhenti share ke keluarga'
+                                                                : 'Share ke keluarga anak'}
+                                                        </Button>
+                                                    )}
+                                                    {note.can_delete && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            aria-label="Hapus catatan"
+                                                            onClick={() =>
+                                                                setPendingDelete(
+                                                                    {
+                                                                        kind: 'note',
+                                                                        id: note.id,
+                                                                    },
+                                                                )
+                                                            }
+                                                        >
+                                                            <Trash2 />
+                                                        </Button>
+                                                    )}
+                                                </>
+                                            )
+                                        }
+                                    />
+                                ))
+                            )}
+                        </SectionCard>
+                    </DetailColumn>
+                </DetailColumns>
             </div>
 
             {can.createNote && (

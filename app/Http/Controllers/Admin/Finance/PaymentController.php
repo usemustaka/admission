@@ -213,7 +213,7 @@ class PaymentController extends Controller
         Gate::authorize('record', Payment::class);
 
         return Inertia::render('admin/payments/create', [
-            'methods' => array_map(fn (PaymentMethod $method): array => ['value' => $method->value, 'label' => $method->label()], PaymentMethod::cases()),
+            'methods' => array_map(fn (PaymentMethod $method): array => ['value' => $method->value, 'label' => $method->label()], PaymentMethod::selectable()),
         ]);
     }
 

@@ -1,9 +1,12 @@
 <?php
 
+use App\Models\Setting;
 use App\Models\User;
+use App\Support\EmailVerification;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
+use Inertia\Testing\AssertableInertia;
 use Laravel\Fortify\Features;
 
 beforeEach(function () {
@@ -106,4 +109,37 @@ test('already verified user visiting verification link is redirected without fir
 
     Event::assertNotDispatched(Verified::class);
     expect($user->fresh()->hasVerifiedEmail())->toBeTrue();
+});
+
+describe('when the school does not require verification', function () {
+    beforeEach(function () {
+        Setting::put(EmailVerification::SETTING_KEY, false);
+        $this->withoutVite();
+    });
+
+    test('an unverified parent can use the portal and sees the reminder', function () {
+        $user = User::factory()->unverified()->create();
+
+        $this->actingAs($user)->get(route('portal'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('auth.email_unverified', true));
+    });
+
+    test('a verified parent gets no reminder', function () {
+        $this->actingAs(User::factory()->create())->get(route('portal'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('auth.email_unverified', false));
+    });
+
+    test('switching it back on sends unverified accounts to the prompt again', function () {
+        Setting::put(EmailVerification::SETTING_KEY, true);
+
+        $this->actingAs(User::factory()->unverified()->create())->get(route('portal'))->assertRedirect(route('verification.notice'));
+    });
+});
+
+test('verification is required until a school switches it off', function () {
+    expect(EmailVerification::isRequired())->toBeTrue();
+
+    Setting::put(EmailVerification::SETTING_KEY, false);
+
+    expect(EmailVerification::isRequired())->toBeFalse();
 });

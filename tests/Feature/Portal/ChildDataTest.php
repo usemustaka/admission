@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\AdmissionType;
 use App\Enums\RegistrantStatus;
+use App\Models\EducationHistory;
 use App\Models\Parentship;
 use App\Models\Person;
 use App\Models\Registrant;
@@ -169,5 +171,59 @@ describe('parents', function () {
         ($this->save)(['parents' => ['father' => ['name' => 'Budi', 'kind' => 'step']]]);
 
         expect($this->link->refresh()->kind->value)->toBe('step');
+    });
+});
+
+describe('admission type and education history', function () {
+    test('a parent keeps several previous schools in the order entered and can change the admission type', function () {
+        ($this->save)([
+            'admission_type' => 'transfer',
+            'education' => [
+                ['level' => 'kindergarten', 'school_name' => 'TK Melati', 'npsn' => '', 'school_address' => ''],
+                ['level' => 'elementary', 'school_name' => 'SDN 1 Bandung', 'npsn' => '20219001', 'school_address' => 'Jl. Braga 1'],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        expect($this->registrant->refresh()->admission_type)->toBe(AdmissionType::Transfer)
+            ->and($this->child->educationHistories->pluck('school_name')->all())->toBe(['TK Melati', 'SDN 1 Bandung'])
+            ->and($this->child->educationHistories->last()->npsn)->toBe('20219001');
+    });
+
+    test('saving fewer schools removes the others', function () {
+        EducationHistory::factory()->count(2)->create(['person_id' => $this->child->id]);
+
+        ($this->save)([
+            'education' => [['level' => 'elementary', 'school_name' => 'SDN Baru', 'npsn' => '', 'school_address' => '']],
+        ])->assertSessionHasNoErrors();
+
+        expect($this->child->educationHistories()->pluck('school_name')->all())->toBe(['SDN Baru']);
+    });
+
+    test('an empty list of schools clears them', function () {
+        EducationHistory::factory()->create(['person_id' => $this->child->id]);
+
+        ($this->save)(['education' => []])->assertSessionHasNoErrors();
+
+        expect($this->child->educationHistories()->count())->toBe(0);
+    });
+
+    test('a school needs a name', function () {
+        ($this->save)([
+            'education' => [['level' => 'elementary', 'school_name' => '', 'npsn' => '', 'school_address' => '']],
+        ])->assertSessionHasErrors('education.0.school_name');
+    });
+
+    test('a data save without the education field leaves the schools alone', function () {
+        EducationHistory::factory()->create(['person_id' => $this->child->id]);
+
+        ($this->save)(['child' => ['religion' => 'Islam']])->assertSessionHasNoErrors();
+
+        expect($this->child->educationHistories()->count())->toBe(1);
+    });
+
+    test('an NPSN must be eight digits', function () {
+        ($this->save)([
+            'education' => [['level' => 'elementary', 'school_name' => 'SDN 1', 'npsn' => '123', 'school_address' => '']],
+        ])->assertSessionHasErrors('education.0.npsn');
     });
 });

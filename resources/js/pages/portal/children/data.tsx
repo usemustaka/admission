@@ -4,6 +4,7 @@ import { RegistrantDataForm } from '@/components/registrants/data-form';
 import type {
     ChildData,
     DataFormOptions,
+    EducationRow,
     ParentFromServer,
 } from '@/components/registrants/data-form';
 import { show } from '@/routes/portal/children';
@@ -14,12 +15,16 @@ export default function ChildDataPage({
     registrant,
     child,
     parents,
+    admission_type,
+    education,
     options,
     canEdit,
 }: {
     registrant: PortalRegistrant;
     child: ChildData;
     parents: Record<ParentRelationKey, ParentFromServer>;
+    admission_type: string;
+    education: EducationRow[];
     options: DataFormOptions;
     canEdit: boolean;
 }) {
@@ -37,6 +42,8 @@ export default function ChildDataPage({
                     identityNote="Nama dan NIK tidak bisa diubah di sini. Kalau ada yang keliru, hubungi sekolah ya."
                     child={child}
                     parents={parents}
+                    admissionType={admission_type}
+                    education={education}
                     options={options}
                     canEdit={canEdit}
                     stickyActions

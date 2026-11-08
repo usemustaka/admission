@@ -29,7 +29,7 @@ class AdminDashboard
         $canSeeWaves = $user->can(Ability::WaveView->value);
 
         return [
-            'attention' => self::attention($canSeeRegistrants, $canSeePayments),
+            'attention' => self::attention($canSeeRegistrants, $canSeePayments, $user->can('grantScholarship', Registrant::class)),
             'flow' => $canSeeRegistrants ? self::flow() : null,
             'registrations' => $canSeeRegistrants ? self::registrations() : null,
             'payments' => $canSeePayments ? self::payments() : null,
@@ -45,7 +45,7 @@ class AdminDashboard
      *
      * @return list<array{key: string, label: string, hint: string, count: int, amount: int|null, tone: string}>
      */
-    private static function attention(bool $canSeeRegistrants, bool $canSeePayments): array
+    private static function attention(bool $canSeeRegistrants, bool $canSeePayments, bool $canGrantScholarship): array
     {
         $queues = [];
 
@@ -99,6 +99,17 @@ class AdminDashboard
                 'count' => (int) ($counts[RegistrantStatus::Announced->value] ?? 0),
                 'amount' => null,
                 'tone' => 'success',
+            ];
+        }
+
+        if ($canGrantScholarship) {
+            $queues[] = [
+                'key' => 'scholarship_candidates',
+                'label' => 'Berpotensi mendapat beasiswa',
+                'hint' => 'Orang tua melampirkan prestasi, hafalan, atau bukti kurang mampu. Tinjau lalu putuskan.',
+                'count' => Registrant::query()->scholarshipCandidates()->count(),
+                'amount' => null,
+                'tone' => 'info',
             ];
         }
 

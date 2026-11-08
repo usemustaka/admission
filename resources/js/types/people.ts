@@ -32,6 +32,75 @@ export type PersonRegistration = {
     wave: string;
     status: string;
     status_label: string;
+    /** Only on the person page: siswa baru or pindahan, money, files, exam result and scholarship hints. */
+    admission_type?: string;
+    payment?: 'none' | 'unpaid' | 'partial' | 'paid';
+    outstanding?: number;
+    documents_uploaded?: number;
+    documents_missing?: string[];
+    exam?: string | null;
+    scholarship?: string[];
+};
+
+export type PersonAccount = {
+    id: number;
+    email: string;
+    verified: boolean;
+    roles: string[];
+    is_staff: boolean;
+    is_active: boolean;
+    two_factor: boolean;
+    created_at: string | null;
+};
+
+/** What the person page adds to the name and contact: the full profile and what hangs off it. */
+export type PersonProfileData = {
+    nisn: string | null;
+    religion: string | null;
+    blood_type: string | null;
+    child_order: number | null;
+    siblings_count: number | null;
+    address: string | null;
+    last_education: string | null;
+    job: string | null;
+    monthly_income: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+    education: {
+        level_label: string;
+        school_name: string;
+        npsn: string | null;
+        school_address: string | null;
+    }[];
+    students: {
+        id: number;
+        nis: string | null;
+        organization: string;
+        year: string | null;
+        registrant_id: number | null;
+    }[];
+    employees: { organization: string; position: string | null }[];
+    siblings: {
+        id: number;
+        name: string;
+        photo_url: string | null;
+        relation: string;
+    }[];
+    account: PersonAccount | null;
+};
+
+export type PersonFinance = {
+    owed: number;
+    payments: {
+        id: number;
+        amount: number;
+        paid_on: string;
+        method: string;
+        status: string;
+        status_label: string;
+        for: string[];
+        receipt: boolean;
+    }[];
 };
 
 export type PersonQuickViewData = {
