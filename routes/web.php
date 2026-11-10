@@ -125,6 +125,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::post('announce', 'announce')->name('announce');
                 Route::post('place', 'place')->name('place');
                 Route::post('reset-password', 'resetPassword')->name('reset-password');
+                Route::post('set-password', 'setPassword')->name('set-password');
                 Route::post('scholarship', 'scholarship')->name('scholarship');
                 Route::post('resolve-identity', 'resolveIdentity')->name('resolve-identity');
                 Route::post('repoint-identity', 'repointIdentity')->name('repoint-identity');
@@ -163,6 +164,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::post('reactivate', 'reactivate')->name('reactivate');
                 Route::post('password-change', 'requirePasswordChange')->name('password-change');
                 Route::post('setup-link', 'sendSetupLink')->name('setup-link');
+                Route::post('password', 'setPassword')->name('set-password');
             });
 
             Route::resource('roles', RoleController::class)->except('show');

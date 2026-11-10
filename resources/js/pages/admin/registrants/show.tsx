@@ -29,6 +29,7 @@ import { QuickView } from '@/components/quick-view';
 import { NextStepCard } from '@/components/registrants/next-step-card';
 import { AnnounceWarnings } from '@/components/registrants/announce-warnings';
 import { ContactCard } from '@/components/registrants/contact-card';
+import { SetPasswordDialog } from '@/components/set-password-dialog';
 import type { ParentAccountData } from '@/components/registrants/contact-card';
 import { OverviewCard } from '@/components/registrants/overview-card';
 import { PaymentsCard } from '@/components/registrants/payments-card';
@@ -62,6 +63,7 @@ import {
     announce,
     index,
     resetPassword,
+    setPassword,
     resolveIdentity,
     show,
 } from '@/routes/admin/registrants';
@@ -210,6 +212,7 @@ export default function RegistrantShow({
     const [resolving, setResolving] = useState(false);
     const [repointing, setRepointing] = useState(false);
     const [resettingPassword, setResettingPassword] = useState(false);
+    const [settingPassword, setSettingPassword] = useState(false);
     const [changingSession, setChangingSession] = useState(false);
     const [writingNote, setWritingNote] = useState(false);
     const [processing, setProcessing] = useState(false);
@@ -572,6 +575,7 @@ export default function RegistrantShow({
                             messages={messages}
                             account={parentAccount}
                             onResetPassword={() => setResettingPassword(true)}
+                            onSetPassword={() => setSettingPassword(true)}
                         />
                     </DetailColumn>
 
@@ -664,6 +668,13 @@ export default function RegistrantShow({
                 open={placing}
                 onOpenChange={setPlacing}
                 years={years}
+            />
+            <SetPasswordDialog
+                open={settingPassword}
+                onOpenChange={setSettingPassword}
+                url={setPassword(registrant.id).url}
+                title="Atur password orang tua"
+                account={parentAccount?.email ?? 'orang tua'}
             />
             <ConfirmDialog
                 open={resettingPassword}

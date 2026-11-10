@@ -7,6 +7,7 @@ use App\Actions\Users\CreateStaffAccount;
 use App\Actions\Users\DeactivateUser;
 use App\Actions\Users\ReactivateUser;
 use App\Actions\Users\SendPasswordSetupLink;
+use App\Actions\Users\SetUserPassword;
 use App\Enums\Ability;
 use App\Enums\DefaultRole;
 use App\Http\Controllers\Controller;
@@ -21,6 +22,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -85,9 +87,17 @@ class UserController extends Controller
 
     public function store(StoreStaffRequest $request, CreateStaffAccount $createStaffAccount): RedirectResponse
     {
-        $user = $createStaffAccount->handle($request->validated('name'), $request->validated('email'), $request->validated('role'));
+        $password = $request->validated('password');
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Undangan dikirim ke {$user->email}. Staf memilih passwordnya sendiri lewat tautan itu."]);
+        $user = $createStaffAccount->handle($request->validated('name'), $request->validated('email'), $request->validated('role'), $password);
+
+        if ($password !== null) {
+            PasswordChange::require($user);
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $password === null
+            ? "Undangan dikirim ke {$user->email}. Staf memilih passwordnya sendiri lewat tautan itu."
+            : "Akun dibuat. Sampaikan password awalnya ke {$user->email}; staf diminta menggantinya saat masuk pertama."]);
 
         return to_route('admin.users.show', $user);
     }
@@ -171,6 +181,19 @@ class UserController extends Controller
         $sendSetupLink->handle($user);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "Tautan atur password dikirim ke {$user->email}."]);
+
+        return back();
+    }
+
+    public function setPassword(Request $request, User $user, SetUserPassword $setUserPassword): RedirectResponse
+    {
+        $this->authorizeAccountAction($request, $user);
+
+        $validated = $request->validate(['password' => ['required', 'string', Password::default()]], [], ['password' => 'Password']);
+
+        $setUserPassword->handle($user, $validated['password']);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Password {$user->name} sudah diatur. Sampaikan ke orangnya; ia diminta menggantinya saat masuk berikutnya."]);
 
         return back();
     }

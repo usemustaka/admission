@@ -59,7 +59,7 @@ enum Ability: string
             self::AdminAccess => 'Masuk ke panel admin',
             self::SettingManage => 'Mengatur identitas, tampilan, dan kontak aplikasi',
             self::UserManage => 'Mengelola akun staf: undang, ubah peran, nonaktifkan',
-            self::ParentPasswordReset => 'Mengirim tautan atur ulang password ke akun orang tua pendaftar',
+            self::ParentPasswordReset => 'Mengatur ulang password akun orang tua pendaftar (kirim tautan atau atur langsung)',
             self::RoleManage => 'Mengelola peran dan izinnya',
             self::YearManage => 'Mengelola tahun ajaran dan periode',
             self::OrganizationManage => 'Mengelola lembaga',

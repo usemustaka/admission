@@ -4,7 +4,9 @@ use App\Enums\Ability;
 use App\Enums\DefaultRole;
 use App\Enums\RegistrantStatus;
 use App\Models\Note;
+use App\Support\PasswordChange;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 
 beforeEach(function () {
@@ -49,4 +51,27 @@ test('it never reaches a staff account', function () {
         ->assertSessionHasErrors('password');
 
     Notification::assertNothingSent();
+});
+
+test('an admin sets the parent password directly, the parent must change it, and a note is left', function () {
+    $this->actingAs(userWithRole(DefaultRole::Admin))
+        ->post(route('admin.registrants.set-password', $this->registrant), ['password' => 'Sementara-2026'])
+        ->assertSessionHasNoErrors();
+
+    $parent = $this->parent->refresh();
+
+    expect(Hash::check('Sementara-2026', $parent->password))->toBeTrue()
+        ->and(PasswordChange::isRequiredFor($parent))->toBeTrue()
+        ->and(Note::query()->where('person_id', $this->registrant->person_id)->where('body', 'like', '%ibu@example.test%')->exists())->toBeTrue();
+});
+
+test('setting the parent password needs a password and the ability, and never reaches staff', function () {
+    $this->actingAs(registrantViewer())->post(route('admin.registrants.set-password', $this->registrant), ['password' => 'Sementara-2026'])->assertForbidden();
+
+    $this->actingAs(userWithRole(DefaultRole::Admin))->post(route('admin.registrants.set-password', $this->registrant), ['password' => ''])->assertSessionHasErrors('password');
+
+    $this->parent->givePermissionTo(Ability::AdminAccess->value);
+    $this->post(route('admin.registrants.set-password', $this->registrant), ['password' => 'Sementara-2026'])->assertSessionHasErrors('password');
+
+    expect(Hash::check('Sementara-2026', $this->parent->refresh()->password))->toBeFalse();
 });

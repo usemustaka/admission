@@ -9,6 +9,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class StoreStaffRequest extends FormRequest
 {
@@ -33,6 +34,7 @@ class StoreStaffRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class, 'email')],
             'role' => ['required', 'string', Rule::in(RoleRules::assignableBy($this->user())->pluck('name')->all())],
+            'password' => ['nullable', 'string', Password::default()],
         ];
     }
 
