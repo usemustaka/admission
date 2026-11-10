@@ -12,6 +12,7 @@ use App\Models\Organization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,6 +37,7 @@ class OrganizationController extends Controller
                     'category' => $organization->category?->value,
                     'category_label' => $organization->category?->label(),
                     'is_active' => $organization->is_active,
+                    'has_brochure' => $organization->brochure_path !== null,
                     'rulesets_count' => $organization->rulesets_count,
                     'registrants_count' => $organization->registrants_count,
                     'students_count' => $organization->students_count,
@@ -50,6 +52,7 @@ class OrganizationController extends Controller
     {
         Organization::query()->create([
             ...$request->safe()->only(['name', 'code', 'category']),
+            'brochure_path' => $this->storeBrochure($request),
             'is_active' => $request->boolean('is_active', true),
             'sort_order' => (int) Organization::query()->max('sort_order') + 1,
         ]);
@@ -61,10 +64,19 @@ class OrganizationController extends Controller
 
     public function update(SaveOrganizationRequest $request, Organization $organization): RedirectResponse
     {
+        $old = $organization->brochure_path;
+        $brochure = $this->storeBrochure($request);
+        $removed = $brochure === null && $request->boolean('remove_brochure');
+
         $organization->update([
             ...$request->safe()->only(['name', 'code', 'category']),
+            'brochure_path' => $brochure ?? ($removed ? null : $old),
             'is_active' => $request->has('is_active') ? $request->boolean('is_active') : $organization->is_active,
         ]);
+
+        if ($old !== null && ($brochure !== null || $removed)) {
+            Storage::disk('public')->delete($old);
+        }
 
         $this->flash('Lembaga sudah diperbarui.');
 
@@ -91,6 +103,16 @@ class OrganizationController extends Controller
         $moveOrganization->handle($organization, $validated['direction']);
 
         return back();
+    }
+
+    /**
+     * Keeps an uploaded brochure on the public disk and returns its path, or null when none was sent.
+     */
+    private function storeBrochure(SaveOrganizationRequest $request): ?string
+    {
+        $file = $request->file('brochure');
+
+        return $file === null ? null : $file->store('brochures', 'public');
     }
 
     private function flash(string $message): void

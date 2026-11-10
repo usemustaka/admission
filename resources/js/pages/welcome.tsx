@@ -1,13 +1,19 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import { FileDown } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { Button } from '@/components/ui/button';
 import { dashboard, login, register } from '@/routes';
+import { show as showBrochure } from '@/routes/brochures';
 
 /**
  * Front door of the site: says what it is for and sends people to sign in or
  * sign up, or straight to their page when they already are.
  */
-export default function Welcome() {
+export default function Welcome({
+    brochures,
+}: {
+    brochures: { id: number; name: string }[];
+}) {
     const { auth, brand } = usePage().props;
 
     return (
@@ -56,6 +62,32 @@ export default function Welcome() {
                             </div>
                         )}
                     </div>
+
+                    {brochures.length > 0 && (
+                        <div className="grid gap-3 rounded-3xl border border-line bg-card p-6">
+                            <h2 className="text-center text-[15px] font-semibold">
+                                Unduh brosur
+                            </h2>
+                            <div className="grid gap-2">
+                                {brochures.map((brochure) => (
+                                    <Button
+                                        key={brochure.id}
+                                        asChild
+                                        variant="outline"
+                                        className="justify-start"
+                                    >
+                                        <a
+                                            href={showBrochure(brochure.id).url}
+                                            download
+                                        >
+                                            <FileDown />
+                                            {brochure.name}
+                                        </a>
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {brand.public.footer_text && (
                         <p className="text-center text-xs text-muted-foreground">

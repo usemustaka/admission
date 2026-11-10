@@ -42,6 +42,8 @@ class SaveOrganizationRequest extends FormRequest
             ],
             'category' => ['nullable', Rule::enum(OrganizationCategory::class)],
             'is_active' => ['boolean'],
+            'brochure' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'remove_brochure' => ['boolean'],
         ];
     }
 
@@ -76,6 +78,9 @@ class SaveOrganizationRequest extends FormRequest
             'code.required' => 'Kode lembaga wajib diisi.',
             'code.regex' => 'Kode hanya boleh huruf kecil, angka, dan tanda hubung, misalnya smp-1.',
             'code.unique' => 'Kode ini sudah dipakai lembaga lain.',
+            'brochure.mimes' => 'Brosur harus berupa file PDF, JPG, atau PNG.',
+            'brochure.max' => 'Ukuran brosur paling besar 10 MB.',
+            'brochure.uploaded' => 'Brosur gagal diunggah. Cek ukurannya (maksimal 10 MB) lalu coba lagi.',
         ];
     }
 
@@ -84,6 +89,6 @@ class SaveOrganizationRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['code' => 'Kode', 'category' => 'Kategori', 'is_active' => 'Status', 'name' => 'Nama'];
+        return ['code' => 'Kode', 'category' => 'Kategori', 'is_active' => 'Status', 'name' => 'Nama', 'brochure' => 'Brosur'];
     }
 }

@@ -34,6 +34,7 @@ use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\YearController;
+use App\Http\Controllers\BrochureController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentProofController;
 use App\Http\Controllers\PaymentReceiptController;
@@ -47,10 +48,12 @@ use App\Http\Controllers\Portal\PaymentController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\RegistrantDocumentController;
 use App\Http\Controllers\SetupController;
+use App\Http\Controllers\WelcomeController;
 use App\Http\Middleware\RequireStaffTwoFactor;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'welcome')->name('home');
+Route::get('/', WelcomeController::class)->name('home');
+Route::get('brosur/{organization}', BrochureController::class)->name('brochures.show');
 
 Route::get('setup', [SetupController::class, 'show'])->name('setup.show');
 Route::post('setup', [SetupController::class, 'store'])->middleware('throttle:10,1')->name('setup.store');
