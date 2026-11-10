@@ -13,31 +13,48 @@ use App\Models\Registrant;
 use App\Models\RegistrantDocument;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use OpenSpout\Reader\XLSX\Reader;
 
 /**
- * @return list<list<string|null>>
+ * The rows of an exported workbook, every cell as a string, header first.
+ *
+ * @return list<list<string>>
  */
 function csvRows(string $content): array
 {
-    $content = ltrim($content, "\xEF\xBB\xBF");
+    $path = tempnam(sys_get_temp_dir(), 'xlsx');
+    file_put_contents($path, $content);
 
-    return array_map(fn (string $line): array => str_getcsv($line, escape: ''), array_values(array_filter(explode("\n", $content))));
+    $reader = new Reader;
+    $reader->open($path);
+    $rows = [];
+
+    foreach ($reader->getSheetIterator() as $sheet) {
+        foreach ($sheet->getRowIterator() as $row) {
+            $rows[] = array_map(fn ($value): string => (string) $value, $row->toArray());
+        }
+    }
+
+    $reader->close();
+    unlink($path);
+
+    return $rows;
 }
 
 test('only staff who can see applicants can export', function () {
     $this->actingAs(User::factory()->create())->get(route('admin.registrants.export'))->assertForbidden();
 });
 
-test('the export is a UTF-8 CSV with a BOM so Excel reads Indonesian text', function () {
+test('the export is an Excel workbook so every column lands in its own cell', function () {
     $this->actingAs(userWithRole(DefaultRole::Operator));
     Registrant::factory()->create(['person_id' => Person::factory()->create(['name' => 'Zahra Ananda Putri'])->id]);
 
     $response = $this->get(route('admin.registrants.export'))->assertOk();
     $content = $response->streamedContent();
 
-    expect($response->headers->get('content-type'))->toContain('text/csv')
-        ->and($response->headers->get('content-disposition'))->toContain('pendaftar-')
-        ->and(str_starts_with($content, "\xEF\xBB\xBF"))->toBeTrue()
+    expect($response->headers->get('content-type'))->toContain('spreadsheetml.sheet')
+        ->and($response->headers->get('content-disposition'))->toContain('.xlsx')
+        ->and(str_starts_with($content, 'PK'))->toBeTrue()
         ->and(csvRows($content)[0][0])->toBe('Nama')
         ->and(csvRows($content)[1][0])->toBe('Zahra Ananda Putri');
 });
@@ -56,7 +73,7 @@ test('the export follows the list filters and covers every page', function () {
         ->and(collect(array_slice($rows, 1))->pluck(4)->unique()->all())->toBe(['Sedang diperiksa']);
 });
 
-test('the export keeps NIK and phone numbers as text and neutralizes formulas in names', function () {
+test('the export keeps NIK and phone numbers as text and never runs a formula', function () {
     $this->actingAs(userWithRole(DefaultRole::Operator));
     $registrant = Registrant::factory()->create(['person_id' => Person::factory()->create(['name' => '=HYPERLINK("x")', 'nik' => '3201234567890123'])->id]);
     Parentship::factory()->primaryContact()->create([
@@ -66,10 +83,10 @@ test('the export keeps NIK and phone numbers as text and neutralizes formulas in
 
     $row = csvRows($this->get(route('admin.registrants.export'))->streamedContent())[1];
 
-    expect($row[0])->toBe("'=HYPERLINK(\"x\")")
-        ->and($row[1])->toBe('="3201234567890123"')
+    expect($row[0])->toBe('=HYPERLINK("x")')
+        ->and($row[1])->toBe('3201234567890123')
         ->and($row[11])->toBe('Bu Ani')
-        ->and($row[12])->toBe('="081234567890"');
+        ->and($row[12])->toBe('081234567890');
 });
 
 test('staff who can see applicants but not export them get a 403', function () {
@@ -117,12 +134,12 @@ test('the export keeps its first columns and adds the details of the child, the 
         ->and($row['Nama diketik orang tua'])->toBe('Zahra A.')
         ->and($row['Tempat lahir'])->toBe('Bandung')
         ->and($row['Tanggal lahir'])->toBe('2018-02-09')
-        ->and($row['NISN'])->toBe('="0012345678"')
+        ->and($row['NISN'])->toBe('0012345678')
         ->and($row['Alamat'])->toBe('Jl. Melati 3')
         ->and($row['Nama ayah'])->toBe('Pak Ahmad')
-        ->and($row['HP ayah'])->toBe('="081200001111"')
+        ->and($row['HP ayah'])->toBe('081200001111')
         ->and($row['Nama ibu'])->toBe('Bu Rani')
-        ->and($row['HP ibu'])->toBe('="081200002222"')
+        ->and($row['HP ibu'])->toBe('081200002222')
         ->and($row['Nama wali'])->toBe('')
         ->and($row['HP wali'])->toBe('')
         ->and($row['Tanggal kirim'])->toBe('2026-11-03 07:15')
@@ -151,7 +168,7 @@ test('exports that mix rulesets get one score column per aspect, and a registran
         ->and(array_slice($byId[$without->person->name], 30))->toBe(['Nilai Tes tulis' => '', 'Nilai Wawancara' => '', 'Nilai Baca Quran' => '']);
 });
 
-test('every text cell is neutralized against formulas while NIK and phone numbers stay text with their zeros', function () {
+test('text that looks like a formula is written as plain text, and NIK and phone numbers keep their zeros', function () {
     $this->actingAs(userWithRole(DefaultRole::Operator));
     $registrant = Registrant::factory()->create([
         'submitted_name' => '+cmd|calc',
@@ -164,19 +181,19 @@ test('every text cell is neutralized against formulas while NIK and phone number
     $rows = csvRows($this->get(route('admin.registrants.export'))->streamedContent());
     $row = array_combine($rows[0], $rows[1]);
 
-    expect($row['Nama'])->toBe("'@SUM(1)")
-        ->and($row['NIK'])->toBe("'=1+1")
-        ->and($row['NISN'])->toBe("'-5x")
-        ->and($row['Lembaga'])->toBe("'-Sekolah")
-        ->and($row['Nama diketik orang tua'])->toBe("'+cmd|calc")
-        ->and($row['Tempat lahir'])->toBe("'=Bandung")
-        ->and($row['Alamat'])->toBe("'\tJl. Tab")
-        ->and($row['Nama ibu'])->toBe("'=Ibu")
-        ->and($row['HP ibu'])->toBe('="081234567890"')
-        ->and($row['Nama wali'])->toBe("'+Wali")
-        ->and($row['HP wali'])->toBe("'=cmd")
-        ->and($row['Nama kontak'])->toBe("'=Ibu")
-        ->and($row['Nomor HP kontak'])->toBe('="081234567890"');
+    expect($row['Nama'])->toBe('@SUM(1)')
+        ->and($row['NIK'])->toBe('=1+1')
+        ->and($row['NISN'])->toBe('-5x')
+        ->and($row['Lembaga'])->toBe('-Sekolah')
+        ->and($row['Nama diketik orang tua'])->toBe('+cmd|calc')
+        ->and($row['Tempat lahir'])->toBe('=Bandung')
+        ->and($row['Alamat'])->toBe("\tJl. Tab")
+        ->and($row['Nama ibu'])->toBe('=Ibu')
+        ->and($row['HP ibu'])->toBe('0812-3456 7890')
+        ->and($row['Nama wali'])->toBe('+Wali')
+        ->and($row['HP wali'])->toBe('=cmd')
+        ->and($row['Nama kontak'])->toBe('=Ibu')
+        ->and($row['Nomor HP kontak'])->toBe('0812-3456 7890');
 });
 
 test('the file name says what was exported and when, in ASCII and in WIB', function () {
@@ -185,10 +202,10 @@ test('the file name says what was exported and when, in ASCII and in WIB', funct
     $school = Organization::factory()->create();
     $registrant = Registrant::factory()->create(['organization_id' => $school->id, 'status' => RegistrantStatus::Review]);
 
-    expect($this->get(route('admin.registrants.export'))->headers->get('content-disposition'))->toContain('filename=pendaftar-2026-11-06.csv')
+    expect($this->get(route('admin.registrants.export'))->headers->get('content-disposition'))->toContain('filename=pendaftar-2026-11-06.xlsx')
         ->and($this->get(route('admin.registrants.export', ['status' => 'review', 'lembaga' => $school->id, 'bayar' => 'menunggu', 'cari' => 'Ünïcode Ané! 100%']))->headers->get('content-disposition'))
-        ->toContain("filename=pendaftar-review-lembaga-{$school->id}-bayar-menunggu-cari-unicode-ane-100-2026-11-06.csv")
-        ->and($this->get(route('admin.registrants.export', ['selected_only' => 1, 'ids' => [$registrant->id]]))->headers->get('content-disposition'))->toContain('filename=pendaftar-terpilih-1-2026-11-06.csv');
+        ->toContain("filename=pendaftar-review-lembaga-{$school->id}-bayar-menunggu-cari-unicode-ane-100-2026-11-06.xlsx")
+        ->and($this->get(route('admin.registrants.export', ['selected_only' => 1, 'ids' => [$registrant->id]]))->headers->get('content-disposition'))->toContain('filename=pendaftar-terpilih-1-2026-11-06.xlsx');
 });
 
 test('the export says the admission type, the previous schools, whether the required files are complete and the scholarship hints', function () {
