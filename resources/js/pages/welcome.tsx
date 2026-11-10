@@ -1,7 +1,13 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { FileDown } from 'lucide-react';
+import { ChevronDown, FileDown } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { dashboard, login, register } from '@/routes';
 import { show as showBrochure } from '@/routes/brochures';
 
@@ -61,33 +67,44 @@ export default function Welcome({
                                 </Button>
                             </div>
                         )}
-                    </div>
 
-                    {brochures.length > 0 && (
-                        <div className="grid gap-3 rounded-3xl border border-line bg-card p-6">
-                            <h2 className="text-center text-[15px] font-semibold">
-                                Unduh brosur
-                            </h2>
-                            <div className="grid gap-2">
-                                {brochures.map((brochure) => (
+                        {brochures.length > 0 && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
                                     <Button
-                                        key={brochure.id}
-                                        asChild
-                                        variant="outline"
-                                        className="justify-start"
+                                        size="lg"
+                                        variant="ghost"
+                                        className="w-full"
                                     >
-                                        <a
-                                            href={showBrochure(brochure.id).url}
-                                            download
-                                        >
-                                            <FileDown />
-                                            {brochure.name}
-                                        </a>
+                                        <FileDown />
+                                        Unduh brosur
+                                        <ChevronDown />
                                     </Button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    align="center"
+                                    className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
+                                >
+                                    {brochures.map((brochure) => (
+                                        <DropdownMenuItem
+                                            key={brochure.id}
+                                            asChild
+                                        >
+                                            <a
+                                                href={
+                                                    showBrochure(brochure.id)
+                                                        .url
+                                                }
+                                                download
+                                            >
+                                                {brochure.name}
+                                            </a>
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+                    </div>
 
                     {brand.public.footer_text && (
                         <p className="text-center text-xs text-muted-foreground">
