@@ -86,6 +86,15 @@ Salin `.env.example` menjadi `.env`, lalu sesuaikan. Beberapa variabel penting:
 | `DB_CONNECTION`               | Bawaan `sqlite`                                                |
 | `REQUIRE_TWO_FACTOR_STAFF`    | Wajibkan 2FA untuk staf (bisa diubah di Pengaturan > Keamanan) |
 
+### Email (verifikasi dan atur ulang password)
+
+Bawaan `MAIL_MAILER=log` tidak mengirim email sungguhan: isi email hanya ditulis ke `storage/logs/laravel.log`. Di produksi,
+isi `MAIL_MAILER=smtp` beserta `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, dan `MAIL_FROM_ADDRESS` di `.env`,
+lalu jalankan `php artisan config:clear`.
+
+Selama email belum siap, admin tetap bisa mengatur password langsung: di halaman staf (Atur password langsung), di halaman
+pendaftar (Kontak dan akun), atau lewat kolom Password awal saat menambah staf. Orangnya diminta menggantinya saat masuk pertama.
+
 ## Pengembangan
 
 ```bash

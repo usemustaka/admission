@@ -8,6 +8,7 @@ use App\Support\PasswordChange;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
 
@@ -45,6 +46,7 @@ test('staff screens are closed to guests, parents, and staff without the user pe
         $this->get(route('admin.users.create'))->assertForbidden();
         $this->get(route('admin.users.show', $target))->assertForbidden();
         $this->post(route('admin.users.store'), ['name' => 'Baru', 'email' => 'baru@example.com', 'role' => 'operator'])->assertForbidden();
+        $this->post(route('admin.users.set-password', $target), ['password' => 'Baru-Sementara-2'])->assertForbidden();
         $this->put(route('admin.users.update', $target), ['roles' => ['admin']])->assertForbidden();
         $this->post(route('admin.users.deactivate', $target))->assertForbidden();
         $this->post(route('admin.users.reactivate', $target))->assertForbidden();
@@ -341,4 +343,41 @@ test('the password setup link can be sent again', function () {
     $this->post(route('admin.users.setup-link', $staff))->assertSessionHasNoErrors();
 
     Notification::assertSentTo($staff, ResetPassword::class);
+});
+
+test('creating staff with an initial password sends no email and asks for a new password at first sign-in', function () {
+    Notification::fake();
+    $this->actingAs(userWithRole(DefaultRole::Admin));
+
+    $this->post(route('admin.users.store'), ['name' => 'Tono Keuangan', 'email' => 'tono@example.com', 'role' => 'operator', 'password' => 'Awal-Sementara-1'])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $user = User::where('email', 'tono@example.com')->firstOrFail();
+
+    expect(Hash::check('Awal-Sementara-1', $user->password))->toBeTrue()
+        ->and(PasswordChange::isRequiredFor($user))->toBeTrue();
+
+    Notification::assertNothingSent();
+});
+
+test('an admin sets the password of a staff member, who must change it at the next sign-in', function () {
+    $this->actingAs(userWithRole(DefaultRole::Admin));
+    $target = userWithRole(DefaultRole::Operator);
+
+    $this->post(route('admin.users.set-password', $target), ['password' => 'Baru-Sementara-2'])->assertSessionHasNoErrors();
+
+    expect(Hash::check('Baru-Sementara-2', $target->refresh()->password))->toBeTrue()
+        ->and(PasswordChange::isRequiredFor($target))->toBeTrue();
+
+    $this->post(route('admin.users.set-password', $target), ['password' => ''])->assertSessionHasErrors('password');
+});
+
+test('only a super admin can set the password of a super admin', function () {
+    $this->actingAs(userWithRole(DefaultRole::Admin));
+    $superAdmin = userWithRole(DefaultRole::SuperAdmin);
+
+    $this->post(route('admin.users.set-password', $superAdmin), ['password' => 'Baru-Sementara-2'])->assertSessionHasErrors('user');
+
+    expect(Hash::check('Baru-Sementara-2', $superAdmin->refresh()->password))->toBeFalse();
 });

@@ -1,6 +1,7 @@
 import {
     BadgeCheck,
     KeyRound,
+    Mail,
     MailWarning,
     MessageCircle,
     Phone,
@@ -20,7 +21,7 @@ export type ParentAccountData = {
 
 /**
  * How to reach the family: who to call first, the ready-made WhatsApp messages that fit the registration right now,
- * and the parent's login with a way to send a password reset link.
+ * and the parent's login, with a way to set a new password directly or to send a reset link.
  */
 export function ContactCard({
     contact,
@@ -29,6 +30,7 @@ export function ContactCard({
     messages,
     account,
     onResetPassword,
+    onSetPassword,
 }: {
     contact: { name: string; phone: string; label: string } | null;
     hasFamily: boolean;
@@ -36,6 +38,7 @@ export function ContactCard({
     messages: RegistrantMessage[];
     account: ParentAccountData | null;
     onResetPassword: () => void;
+    onSetPassword: () => void;
 }) {
     return (
         <SectionCard
@@ -126,15 +129,24 @@ export function ContactCard({
                         )}
                     </p>
                     {account.can_reset && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="justify-self-start"
-                            onClick={onResetPassword}
-                        >
-                            <KeyRound />
-                            Atur ulang password
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={onSetPassword}
+                            >
+                                <KeyRound />
+                                Atur password langsung
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={onResetPassword}
+                            >
+                                <Mail />
+                                Kirim tautan lewat email
+                            </Button>
+                        </div>
                     )}
                 </div>
             )}

@@ -14,6 +14,7 @@ use App\Actions\Admission\ResolveIdentityReview;
 use App\Actions\Admission\SaveExamScores;
 use App\Actions\Notes\WritePersonAuditNote;
 use App\Actions\Users\SendPasswordSetupLink;
+use App\Actions\Users\SetUserPassword;
 use App\Enums\Ability;
 use App\Enums\RegistrantStatus;
 use App\Enums\ScholarshipKind;
@@ -28,6 +29,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 
 class RegistrantWorkflowController extends Controller
@@ -164,6 +166,24 @@ class RegistrantWorkflowController extends Controller
         $writeAuditNote->handle($registrant->person, $request->user(), "Tautan atur ulang password dikirim ke {$account->email}.");
 
         return $this->done("Tautan atur ulang password dikirim ke {$account->email}.");
+    }
+
+    public function setPassword(Request $request, Registrant $registrant, SetUserPassword $setUserPassword, WritePersonAuditNote $writeAuditNote): RedirectResponse
+    {
+        Gate::authorize(Ability::ParentPasswordReset->value);
+
+        $account = ParentAccount::for($registrant);
+
+        if ($account === null) {
+            return back()->withErrors(['password' => 'Pendaftar ini belum punya akun orang tua yang bisa diatur ulang.']);
+        }
+
+        $validated = $request->validate(['password' => ['required', 'string', Password::default()]], [], ['password' => 'Password']);
+
+        $setUserPassword->handle($account, $validated['password']);
+        $writeAuditNote->handle($registrant->person, $request->user(), "Password akun {$account->email} diatur oleh panitia.");
+
+        return $this->done("Password {$account->email} sudah diatur. Sampaikan ke orang tua; mereka diminta menggantinya saat masuk berikutnya.");
     }
 
     private function done(string $message): RedirectResponse

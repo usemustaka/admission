@@ -1,9 +1,17 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Mail, ShieldAlert, ShieldCheck, UserCheck, UserX } from 'lucide-react';
+import {
+    KeyRound,
+    Mail,
+    ShieldAlert,
+    ShieldCheck,
+    UserCheck,
+    UserX,
+} from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { SetPasswordDialog } from '@/components/set-password-dialog';
 import { DescriptionList } from '@/components/description-list';
 import { PageHeader } from '@/components/page-header';
 import { PersonAvatar } from '@/components/person-avatar';
@@ -23,6 +31,7 @@ import {
     index,
     passwordChange,
     reactivate,
+    setPassword,
     setupLink,
     update,
 } from '@/routes/admin/users';
@@ -46,6 +55,7 @@ export default function UserShow({
     const form = useForm<{ roles: string[] }>({ roles: assigned });
     const [pending, setPending] = useState<Action | null>(null);
     const [busy, setBusy] = useState(false);
+    const [settingPassword, setSettingPassword] = useState(false);
 
     function saveRoles(event: FormEvent) {
         event.preventDefault();
@@ -345,6 +355,14 @@ export default function UserShow({
                                     <Button
                                         variant="outline"
                                         className="justify-start"
+                                        onClick={() => setSettingPassword(true)}
+                                    >
+                                        <KeyRound />
+                                        Atur password langsung
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="justify-start"
                                         onClick={() => setPending('link')}
                                     >
                                         <Mail />
@@ -401,6 +419,13 @@ export default function UserShow({
                 </div>
             </div>
 
+            <SetPasswordDialog
+                open={settingPassword}
+                onOpenChange={setSettingPassword}
+                url={setPassword(staff.id).url}
+                title={`Atur password ${staff.name}`}
+                account={staff.email}
+            />
             <ConfirmDialog
                 open={pending !== null}
                 onOpenChange={(open) => !open && !busy && setPending(null)}

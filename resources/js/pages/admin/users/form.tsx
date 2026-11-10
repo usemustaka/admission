@@ -1,8 +1,11 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Dices } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { FormField } from '@/components/form-field';
 import { PageHeader } from '@/components/page-header';
+import PasswordInput from '@/components/password-input';
 import { SectionCard } from '@/components/section-card';
+import { generatePassword } from '@/components/set-password-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -18,7 +21,7 @@ import { create, index, store } from '@/routes/admin/users';
 import type { RoleOption } from '@/types/access';
 
 export default function UserForm({ roles }: { roles: RoleOption[] }) {
-    const form = useForm({ name: '', email: '', role: '' });
+    const form = useForm({ name: '', email: '', role: '', password: '' });
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -34,7 +37,7 @@ export default function UserForm({ roles }: { roles: RoleOption[] }) {
             >
                 <PageHeader
                     title="Tambah staf"
-                    description="Staf menerima email berisi tautan untuk memilih passwordnya sendiri. Kamu tidak perlu tahu passwordnya."
+                    description="Isi password awal supaya staf bisa langsung masuk, atau biarkan kosong agar staf menerima email berisi tautan untuk memilih passwordnya sendiri."
                 />
 
                 <SectionCard title="Akun staf">
@@ -109,6 +112,44 @@ export default function UserForm({ roles }: { roles: RoleOption[] }) {
                                 </Select>
                             )}
                         </FormField>
+
+                        <FormField
+                            label="Password awal"
+                            hint="Boleh dikosongkan. Kalau diisi, tidak ada email yang dikirim: sampaikan sendiri ke staf, dan ia diminta menggantinya saat masuk pertama."
+                            error={form.errors.password}
+                            className="sm:col-span-2"
+                        >
+                            {(control) => (
+                                <div className="flex gap-2">
+                                    <div className="flex-1">
+                                        <PasswordInput
+                                            value={form.data.password}
+                                            onChange={(e) =>
+                                                form.setData(
+                                                    'password',
+                                                    e.target.value,
+                                                )
+                                            }
+                                            autoComplete="new-password"
+                                            {...control}
+                                        />
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() =>
+                                            form.setData(
+                                                'password',
+                                                generatePassword(),
+                                            )
+                                        }
+                                    >
+                                        <Dices />
+                                        Buat otomatis
+                                    </Button>
+                                </div>
+                            )}
+                        </FormField>
                     </div>
                 </SectionCard>
 
@@ -118,7 +159,9 @@ export default function UserForm({ roles }: { roles: RoleOption[] }) {
                     </Button>
                     <Button type="submit" disabled={form.processing}>
                         {form.processing && <Spinner />}
-                        Kirim undangan
+                        {form.data.password === ''
+                            ? 'Kirim undangan'
+                            : 'Buat akun'}
                     </Button>
                 </div>
             </form>
