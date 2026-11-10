@@ -18,11 +18,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $name
  * @property string $code
  * @property OrganizationCategory|null $category
+ * @property string|null $brochure_path A PDF, JPG or PNG on the public disk that parents can download from the front page.
  * @property array<string, mixed>|null $metadata
  * @property bool $is_active
  * @property int $sort_order
  */
-#[Fillable(['name', 'code', 'category', 'metadata', 'is_active', 'sort_order'])]
+#[Fillable(['name', 'code', 'category', 'brochure_path', 'metadata', 'is_active', 'sort_order'])]
 class Organization extends Model
 {
     /** @use HasFactory<OrganizationFactory> */

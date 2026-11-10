@@ -34,6 +34,7 @@ export type OrganizationRow = {
     category: string | null;
     category_label: string | null;
     is_active: boolean;
+    has_brochure: boolean;
     rulesets_count: number;
     registrants_count: number;
     students_count: number;

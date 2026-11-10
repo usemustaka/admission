@@ -35,6 +35,8 @@ export function OrganizationFormDialog({
         code: organization?.code ?? '',
         category: organization?.category ?? '',
         is_active: organization?.is_active ?? true,
+        brochure: null as File | null,
+        remove_brochure: false,
     });
     const errors = form.errors as Record<string, string>;
     const codeLocked = organization?.in_use === true;
@@ -127,6 +129,44 @@ export function OrganizationFormDialog({
                             />
                         )}
                     </FormField>
+
+                    <FormField
+                        label="Brosur (boleh kosong)"
+                        error={errors.brochure}
+                        hint={
+                            organization?.has_brochure &&
+                            !form.data.remove_brochure
+                                ? 'Sudah ada brosur. Pilih file baru untuk menggantinya. Orang tua mengunduhnya dari halaman depan.'
+                                : 'File PDF, JPG, atau PNG, maksimal 10 MB. Orang tua mengunduhnya dari halaman depan.'
+                        }
+                    >
+                        {(control) => (
+                            <Input
+                                type="file"
+                                accept="application/pdf,image/jpeg,image/png"
+                                onChange={(e) => {
+                                    form.setData(
+                                        'brochure',
+                                        e.target.files?.[0] ?? null,
+                                    );
+                                    form.setData('remove_brochure', false);
+                                }}
+                                {...control}
+                            />
+                        )}
+                    </FormField>
+
+                    {organization?.has_brochure && !form.data.brochure && (
+                        <label className="flex min-h-10 items-center gap-3 text-sm font-medium">
+                            <Switch
+                                checked={form.data.remove_brochure}
+                                onCheckedChange={(checked) =>
+                                    form.setData('remove_brochure', checked)
+                                }
+                            />
+                            Hapus brosur yang ada
+                        </label>
+                    )}
 
                     <label className="flex min-h-10 items-center gap-3 text-sm font-medium">
                         <Switch
