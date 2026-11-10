@@ -623,7 +623,7 @@ export default function RegistrantsIndex({
                                 <Button variant="outline" asChild>
                                     <a href={exportUrl}>
                                         <Download />
-                                        Ekspor CSV
+                                        Ekspor Excel
                                     </a>
                                 </Button>
                             )}
