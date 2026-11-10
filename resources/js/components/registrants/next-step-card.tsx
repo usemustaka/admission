@@ -11,6 +11,7 @@ import {
     MessageSquareWarning,
     PencilLine,
     SkipForward,
+    Trash2,
 } from 'lucide-react';
 import { SectionCard } from '@/components/section-card';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,7 @@ export function NextStepCard({
     onRevise,
     onPlace,
     onBypass,
+    onDelete,
     onResolveIdentity,
     onRepointIdentity,
     correctIdentityHref,
@@ -88,6 +90,7 @@ export function NextStepCard({
     onRevise: () => void;
     onPlace: () => void;
     onBypass: () => void;
+    onDelete: () => void;
     onResolveIdentity: () => void;
     onRepointIdentity: () => void;
     correctIdentityHref: string;
@@ -221,6 +224,19 @@ export function NextStepCard({
                             Lompati status
                         </Button>
                     )}
+                </div>
+            )}
+
+            {can.delete && (
+                <div className="border-t border-line pt-3">
+                    <Button
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={onDelete}
+                    >
+                        <Trash2 />
+                        Hapus pendaftar
+                    </Button>
                 </div>
             )}
 

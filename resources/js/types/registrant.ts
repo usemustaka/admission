@@ -38,6 +38,7 @@ export type RegistrantAbilities = {
     announce: boolean;
     place: boolean;
     bypass: boolean;
+    delete: boolean;
     /** Placed, and the staff member may undo the placement. */
     cancel_placement: boolean;
 };

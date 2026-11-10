@@ -43,6 +43,14 @@ class RegistrantPolicy
     }
 
     /**
+     * Removing an invalid registration (and, optionally, the parent's login). Only for those who may also see it.
+     */
+    public function delete(User $user, Registrant $registrant): bool
+    {
+        return $this->viewAny($user) && $user->can(Ability::RegistrantDelete->value);
+    }
+
+    /**
      * Turning an announced applicant into a student.
      */
     public function announce(User $user): bool

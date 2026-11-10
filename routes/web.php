@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\Admission\ExamScheduleController;
 use App\Http\Controllers\Admin\Admission\ExamScoreGridController;
 use App\Http\Controllers\Admin\Admission\RegistrantBulkController;
 use App\Http\Controllers\Admin\Admission\RegistrantController;
+use App\Http\Controllers\Admin\Admission\RegistrantDeleteController;
 use App\Http\Controllers\Admin\Admission\RegistrantDocumentArchiveController;
 use App\Http\Controllers\Admin\Admission\RegistrantExportController;
 use App\Http\Controllers\Admin\Admission\RegistrantLetterController;
@@ -115,6 +116,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('registrants/{registrant}/surat', RegistrantLetterController::class)->name('registrants.letter');
             Route::get('registrants/{registrant}/kwitansi-lunas', SettlementReceiptController::class)->name('registrants.settlement-receipt');
             Route::post('registrants/bulk', RegistrantBulkController::class)->name('registrants.bulk');
+            Route::post('registrants/hapus-massal', [RegistrantDeleteController::class, 'bulk'])->name('registrants.bulk-delete');
+            Route::delete('registrants/{registrant}', [RegistrantDeleteController::class, 'destroy'])->name('registrants.destroy');
             Route::post('registrants/bulk/pratinjau', [RegistrantBulkController::class, 'preview'])->name('registrants.bulk-preview');
             Route::get('registrants/{registrant}', [RegistrantController::class, 'show'])->name('registrants.show');
             Route::get('registrants/{registrant}/ringkasan', RegistrantQuickViewController::class)->name('registrants.quick-view');
