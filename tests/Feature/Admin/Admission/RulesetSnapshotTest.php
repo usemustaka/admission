@@ -33,6 +33,7 @@ test('a snapshot freezes bills and exam aspects so later edits do not change it'
         ],
         'exam_aspects' => [['name' => 'Tes Tulis', 'passing_score' => 70]],
         'documents' => [['type' => 'family-card', 'required' => true], ['type' => 'diploma', 'required' => false]],
+        'required_fields' => null,
     ]);
 });
 

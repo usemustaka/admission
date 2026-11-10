@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Admin\Admission;
 use App\Actions\Admission\SyncBills;
 use App\Actions\Admission\SyncExamAspects;
 use App\Actions\Admission\SyncRulesetDocuments;
+use App\Actions\Admission\SyncRulesetRequiredFields;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Admission\SaveExamAspectsRequest;
 use App\Http\Requests\Admin\Admission\SaveRulesetBillsRequest;
 use App\Http\Requests\Admin\Admission\SaveRulesetDocumentsRequest;
+use App\Http\Requests\Admin\Admission\SaveRulesetRequiredFieldsRequest;
 use App\Models\Ruleset;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -43,6 +45,16 @@ class RulesetContentController extends Controller
         $syncRulesetDocuments->handle($ruleset, $choices);
 
         return $this->saved('Berkas yang diminta sudah disimpan.');
+    }
+
+    public function requiredFields(SaveRulesetRequiredFieldsRequest $request, Ruleset $ruleset, SyncRulesetRequiredFields $syncRulesetRequiredFields): RedirectResponse
+    {
+        /** @var list<string> $fields */
+        $fields = $request->validated('fields');
+
+        $syncRulesetRequiredFields->handle($ruleset, $fields);
+
+        return $this->saved('Data wajib sudah disimpan.');
     }
 
     private function saved(string $message): RedirectResponse

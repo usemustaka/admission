@@ -16,6 +16,7 @@ use App\Models\Organization;
 use App\Models\Ruleset;
 use App\Models\RulesetBillItem;
 use App\Models\Wave;
+use App\Support\RegistrationFields;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -120,6 +121,10 @@ class RulesetController extends Controller
                     null => 'none',
                 },
             ])->values(),
+            'requiredFields' => [
+                'groups' => RegistrationFields::groups(),
+                'selected' => $ruleset->required_fields ?? RegistrationFields::BASELINE,
+            ],
             'can' => ['update' => $request->user()->can('update', $ruleset), 'delete' => $request->user()->can('delete', $ruleset)],
         ]);
     }

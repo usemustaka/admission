@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
+    ClipboardList,
     FileText,
     ListChecks,
     Pencil,
@@ -12,6 +13,8 @@ import { useState } from 'react';
 import { BillEditor } from '@/components/admission/bill-editor';
 import { DocumentRequirementEditor } from '@/components/admission/document-requirement-editor';
 import type { DocumentRequirementRow } from '@/components/admission/document-requirement-editor';
+import { RequiredFieldsEditor } from '@/components/admission/required-fields-editor';
+import type { RequiredFieldGroup } from '@/components/admission/required-fields-editor';
 import { ExamAspectEditor } from '@/components/admission/exam-aspect-editor';
 import { RulesetConditions } from '@/components/admission/ruleset-conditions';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -34,12 +37,14 @@ export default function RulesetShow({
     bills,
     aspects,
     documents,
+    requiredFields,
     can,
 }: {
     ruleset: RulesetSummary;
     bills: { registration: BillItemRow[]; settlement: BillItemRow[] };
     aspects: ExamAspectRow[];
     documents: DocumentRequirementRow[];
+    requiredFields: { groups: RequiredFieldGroup[]; selected: string[] };
     can: { update: boolean; delete: boolean };
 }) {
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -121,6 +126,20 @@ export default function RulesetShow({
                                 key={JSON.stringify(aspects)}
                                 rulesetId={ruleset.id}
                                 initial={aspects}
+                                canEdit={can.update}
+                            />
+                        </SectionCard>
+
+                        <SectionCard
+                            title="Data yang wajib diisi"
+                            description="Detail yang harus lengkap sebelum orang tua bisa mengirim data. Atur sesuai kebutuhan lembaga ini."
+                            icon={ClipboardList}
+                        >
+                            <RequiredFieldsEditor
+                                key={JSON.stringify(requiredFields.selected)}
+                                rulesetId={ruleset.id}
+                                groups={requiredFields.groups}
+                                initial={requiredFields.selected}
                                 canEdit={can.update}
                             />
                         </SectionCard>
