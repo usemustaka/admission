@@ -15,6 +15,7 @@ import {
 import { useEffect, useState } from 'react';
 import { CancelPlacementDialog } from '@/components/academic/cancel-placement-dialog';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { DeleteRegistrantDialog } from '@/components/registrants/delete-registrant-dialog';
 import { CopyableText } from '@/components/copyable-text';
 import { DetailColumn, DetailColumns } from '@/components/detail-columns';
 import { DocumentsCard } from '@/components/registrants/documents-card';
@@ -205,6 +206,7 @@ export default function RegistrantShow({
 }) {
     const [revising, setRevising] = useState(false);
     const [bypassing, setBypassing] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [placing, setPlacing] = useState(false);
     const [cancellingPlacement, setCancellingPlacement] = useState(false);
     const [accepting, setAccepting] = useState<'stay' | 'next' | null>(null);
@@ -353,6 +355,7 @@ export default function RegistrantShow({
                             onRevise={() => setRevising(true)}
                             onPlace={() => setPlacing(true)}
                             onBypass={() => setBypassing(true)}
+                            onDelete={() => setDeleting(true)}
                             onResolveIdentity={() => setResolving(true)}
                             onRepointIdentity={() => setRepointing(true)}
                         />
@@ -622,6 +625,12 @@ export default function RegistrantShow({
                 registrantId={registrant.id}
                 open={revising}
                 onOpenChange={setRevising}
+            />
+            <DeleteRegistrantDialog
+                open={deleting}
+                onOpenChange={setDeleting}
+                registrantId={registrant.id}
+                name={registrant.child.name}
             />
             <BypassDialog
                 registrantId={registrant.id}

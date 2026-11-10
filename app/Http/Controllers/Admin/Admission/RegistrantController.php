@@ -112,6 +112,7 @@ class RegistrantController extends Controller
                 'export' => $user->can('export', Registrant::class),
                 'editAnnouncement' => $user->can(Ability::AnnouncementManage->value),
                 'scholarship' => $user->can('grantScholarship', Registrant::class),
+                'delete' => $user->can(Ability::RegistrantDelete->value) && $user->can('viewAny', Registrant::class),
             ],
         ]);
     }

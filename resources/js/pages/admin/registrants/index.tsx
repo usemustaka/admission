@@ -5,6 +5,7 @@ import {
     ClipboardCheck,
     Clock,
     Download,
+    Trash2,
     FileArchive,
     GraduationCap,
     Megaphone,
@@ -25,6 +26,7 @@ import { OptionSelect } from '@/components/option-select';
 import { PageHeader } from '@/components/page-header';
 import { Pager } from '@/components/pager';
 import { PersonAvatar } from '@/components/person-avatar';
+import { DeleteRegistrantDialog } from '@/components/registrants/delete-registrant-dialog';
 import { BulkActionDialog } from '@/components/registrants/bulk-action-dialog';
 import type { BulkSelection } from '@/components/registrants/bulk-action-dialog';
 import { BulkSkippedDialog } from '@/components/registrants/bulk-skipped-dialog';
@@ -159,6 +161,7 @@ export default function RegistrantsIndex({
         export: boolean;
         editAnnouncement: boolean;
         scholarship: boolean;
+        delete: boolean;
     };
 }) {
     const [term, setTerm] = useState(filters.cari);
@@ -167,6 +170,7 @@ export default function RegistrantsIndex({
     const [quickOpen, setQuickOpen] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     /** Every result of the filters is selected, not only the ticked rows. */
+    const [deleting, setDeleting] = useState(false);
     const [selectAll, setSelectAll] = useState(false);
     const [confirming, setConfirming] = useState<BulkAction | null>(null);
     const [bulkResult, setBulkResult] = useState<{
@@ -986,12 +990,39 @@ export default function RegistrantsIndex({
                         </a>
                     </Button>
                 )}
+                {can.delete && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive hover:text-destructive"
+                        disabled={selectAll || selected.size === 0}
+                        title={
+                            selectAll
+                                ? 'Hapus hanya untuk pendaftar yang dicentang satu per satu'
+                                : undefined
+                        }
+                        onClick={() => setDeleting(true)}
+                    >
+                        <Trash2 />
+                        Hapus
+                    </Button>
+                )}
                 {tooManyTicked && (
                     <span className="text-xs">
                         Paling banyak {MAX_BULK} sekali proses.
                     </span>
                 )}
             </BulkBar>
+
+            <DeleteRegistrantDialog
+                open={deleting}
+                onOpenChange={setDeleting}
+                ids={[...selected].map(Number)}
+                onDone={() => {
+                    setSelected(new Set());
+                    setSelectAll(false);
+                }}
+            />
 
             <BulkActionDialog
                 action={confirming}

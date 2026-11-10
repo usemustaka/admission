@@ -35,6 +35,7 @@ enum Ability: string
     case RegistrantAnnounce = 'admission::registrant.announce';
     case RegistrantPlace = 'admission::registrant.place';
     case RegistrantBypass = 'admission::registrant.bypass';
+    case RegistrantDelete = 'admission::registrant.delete';
     case AnnouncementManage = 'admission::announcement.manage';
     case ScholarshipGrant = 'admission::scholarship.grant';
     case PaymentView = 'admission::payment.view';
@@ -84,6 +85,7 @@ enum Ability: string
             self::RegistrantAnnounce => 'Mengumumkan hasil pendaftar dan mencetak surat penerimaan',
             self::RegistrantPlace => 'Menempatkan pendaftar menjadi siswa',
             self::RegistrantBypass => 'Melompati alur status pendaftar dengan catatan',
+            self::RegistrantDelete => 'Menghapus pendaftar yang tidak valid (beserta akun orang tuanya bila tidak punya pendaftar lain)',
             self::AnnouncementManage => 'Mengubah templat pengumuman',
             self::ScholarshipGrant => 'Memberikan beasiswa dan melihat anak yang berpotensi mendapatkannya',
             self::PaymentView => 'Melihat pembayaran',
