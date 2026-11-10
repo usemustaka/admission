@@ -77,8 +77,12 @@ test('a child goes from registration to placement', function () {
 
     // The parent fills in the data, picks a session and sends it.
     $this->actingAs($parent)->post(route('portal.children.data.update', $registrant), [
-        'child' => ['birth_place' => 'Bandung', 'religion' => 'Islam', 'address' => 'Jl. Melati 3', 'family_card_number' => '3201234567890123'],
-        'parents' => ['father' => ['name' => 'Fauzi Rahman', 'phone' => '081234567890']],
+        'child' => ['birth_place' => 'Bandung', 'religion' => 'Islam', 'address' => 'Jl. Melati 3', 'family_card_number' => '3201234567890123', 'nisn' => '0012345678', 'child_order' => 1, 'siblings_count' => 2],
+        'education' => [['level' => 'elementary', 'school_name' => 'SD Negeri 1', 'npsn' => '20219001', 'school_address' => 'Jl. Merdeka 1']],
+        'parents' => [
+            'father' => ['name' => 'Fauzi Rahman', 'nik' => '3201000000000001', 'phone' => '081234567890', 'job' => 'Guru', 'last_education' => 'S1 / D4', 'monthly_income' => 'Rp3 juta - Rp5 juta', 'address' => 'Jl. Melati 3'],
+            'mother' => ['name' => 'Siti Aminah', 'nik' => '3201000000000002', 'phone' => '081234567891', 'job' => 'Ibu rumah tangga', 'last_education' => 'SMA / sederajat', 'monthly_income' => 'Kurang dari Rp1 juta', 'address' => 'Jl. Melati 3'],
+        ],
         'photo' => UploadedFile::fake()->image('profil.jpg'),
     ])->assertSessionHasNoErrors();
 

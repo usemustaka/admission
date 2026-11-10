@@ -56,8 +56,8 @@ export type DataFormOptions = {
     genders: Option[];
     admissionTypes: Option[];
     educationLevels: Option[];
-    /** Child fields the parent has to fill in before sending. The rest can be skipped. */
-    requiredChildFields: string[];
+    /** Details (`group.field`, like `child.nisn` or `father.nik`) the parent has to fill in before sending. The rest can be skipped. */
+    requiredFields: string[];
     religions: Option[];
     bloodTypes: Option[];
     educations: Option[];
@@ -162,7 +162,9 @@ export function RegistrantDataForm({
     }
 
     const isRequired = (field: string) =>
-        options.requiredChildFields.includes(field);
+        options.requiredFields.includes(`child.${field}`);
+    const schoolRequired = (field: string) =>
+        options.requiredFields.includes(`education.${field}`);
 
     function setParent(
         key: ParentRelationKey,
@@ -383,6 +385,7 @@ export function RegistrantDataForm({
                             </FormField>
                             <FormField
                                 label="NISN"
+                                required={isRequired('nisn')}
                                 hint="10 digit angka, kalau ada"
                                 error={errors['child.nisn']}
                             >
@@ -406,6 +409,7 @@ export function RegistrantDataForm({
                             </FormField>
                             <FormField
                                 label="Anak ke-"
+                                required={isRequired('child_order')}
                                 error={errors['child.child_order']}
                             >
                                 {(control) => (
@@ -425,6 +429,7 @@ export function RegistrantDataForm({
                             </FormField>
                             <FormField
                                 label="Jumlah saudara"
+                                required={isRequired('siblings_count')}
                                 error={errors['child.siblings_count']}
                             >
                                 {(control) => (
@@ -444,6 +449,7 @@ export function RegistrantDataForm({
                             </FormField>
                             <FormField
                                 label="Golongan darah"
+                                required={isRequired('blood_type')}
                                 error={errors['child.blood_type']}
                             >
                                 {(control) => (
@@ -531,6 +537,7 @@ export function RegistrantDataForm({
                                 </FormField>
                                 <FormField
                                     label="NPSN"
+                                    required={schoolRequired('npsn')}
                                     hint="8 digit angka, kalau tahu"
                                     error={errors[`education.${index}.npsn`]}
                                 >
@@ -553,6 +560,7 @@ export function RegistrantDataForm({
                                 </FormField>
                                 <FormField
                                     label="Alamat sekolah"
+                                    required={schoolRequired('school_address')}
                                     error={
                                         errors[
                                             `education.${index}.school_address`

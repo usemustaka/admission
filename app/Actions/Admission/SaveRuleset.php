@@ -5,6 +5,7 @@ namespace App\Actions\Admission;
 use App\Enums\DocumentType;
 use App\Enums\Gender;
 use App\Models\Ruleset;
+use App\Support\RegistrationFields;
 
 class SaveRuleset
 {
@@ -14,7 +15,7 @@ class SaveRuleset
     public function handle(?Ruleset $ruleset, string $name, ?int $waveId, ?int $organizationId, ?Gender $gender, bool $isActive): Ruleset
     {
         $isNew = $ruleset === null;
-        $ruleset ??= new Ruleset(['priority' => (int) Ruleset::query()->max('priority') + 1]);
+        $ruleset ??= new Ruleset(['priority' => (int) Ruleset::query()->max('priority') + 1, 'required_fields' => RegistrationFields::defaults()]);
 
         $ruleset->fill([
             'name' => $name,

@@ -24,8 +24,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property Gender|null $gender
  * @property int $priority
  * @property bool $is_active
+ * @property list<string>|null $required_fields The details of a registration that must be filled before sending; null means the child's basics only.
  */
-#[Fillable(['name', 'wave_id', 'organization_id', 'gender', 'priority', 'is_active'])]
+#[Fillable(['name', 'wave_id', 'organization_id', 'gender', 'priority', 'is_active', 'required_fields'])]
 class Ruleset extends Model
 {
     /** @use HasFactory<RulesetFactory> */
@@ -39,6 +40,7 @@ class Ruleset extends Model
         return [
             'gender' => Gender::class,
             'is_active' => 'boolean',
+            'required_fields' => 'array',
         ];
     }
 
@@ -116,7 +118,7 @@ class Ruleset extends Model
      * A frozen copy of the rules, stored on a registration so later edits of this ruleset do not change it.
      * Exam sessions are not copied: seats are shared by everyone, so they stay live.
      *
-     * @return array{ruleset_id: int, name: string, bills: list<array{type: string, items: list<array{name: string, amount: int}>}>, exam_aspects: list<array{name: string, passing_score: int}>, documents: list<array{type: string, required: bool}>}
+     * @return array{ruleset_id: int, name: string, bills: list<array{type: string, items: list<array{name: string, amount: int}>}>, exam_aspects: list<array{name: string, passing_score: int}>, documents: list<array{type: string, required: bool}>, required_fields: list<string>|null}
      */
     public function toSnapshot(): array
     {
@@ -158,6 +160,7 @@ class Ruleset extends Model
             'bills' => $bills,
             'exam_aspects' => $aspects,
             'documents' => $documents,
+            'required_fields' => $this->required_fields,
         ];
     }
 }

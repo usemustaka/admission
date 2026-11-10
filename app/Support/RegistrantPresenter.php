@@ -29,16 +29,6 @@ use Spatie\Permission\Models\Role;
 
 class RegistrantPresenter
 {
-    /** @var array<string, string> */
-    public const CHILD_REQUIRED = [
-        'gender' => 'Jenis kelamin',
-        'birth_place' => 'Tempat lahir',
-        'birth_date' => 'Tanggal lahir',
-        'religion' => 'Agama',
-        'address' => 'Alamat',
-        'family_card_number' => 'Nomor KK',
-    ];
-
     /**
      * The child's name as a parent may see it. While the committee confirms the NIK, that is only the name the
      * parent typed, never the one already on record.
@@ -189,26 +179,13 @@ class RegistrantPresenter
     }
 
     /**
-     * How much of the draft is filled in: the child's key details, and both parents' names.
+     * How much of the draft is filled in: the details this registration's ruleset requires.
      *
      * @return array{filled: int, total: int}
      */
     public static function completeness(Registrant $registrant): array
     {
-        $person = $registrant->person;
-        $parentships = $person->parentships()->get();
-
-        $filled = collect(array_keys(self::CHILD_REQUIRED))->filter(fn (string $field): bool => filled($person->getAttribute($field)))->count();
-
-        foreach (['father', 'mother'] as $relation) {
-            $parentship = $parentships->first(fn (Parentship $link): bool => $link->relation->value === $relation);
-
-            if ($parentship !== null && filled(Person::query()->whereKey($parentship->related_person_id)->value('name'))) {
-                $filled++;
-            }
-        }
-
-        return ['filled' => $filled, 'total' => count(self::CHILD_REQUIRED) + 2];
+        return RegistrationFields::progress($registrant);
     }
 
     /**
@@ -257,7 +234,7 @@ class RegistrantPresenter
                 ...PersonOptions::all(),
                 'genders' => array_map(fn (Gender $case): array => ['value' => $case->value, 'label' => $case->label()], Gender::cases()),
                 'admissionTypes' => array_map(fn (AdmissionType $case): array => ['value' => $case->value, 'label' => $case->label()], AdmissionType::cases()),
-                'requiredChildFields' => array_keys(self::CHILD_REQUIRED),
+                'requiredFields' => RegistrationFields::requiredFor($registrant),
                 'educationLevels' => array_map(fn (EducationLevel $case): array => ['value' => $case->value, 'label' => $case->label()], EducationLevel::cases()),
                 'kinds' => array_map(fn (ParentKind $case): array => ['value' => $case->value, 'label' => $case->label()], ParentKind::cases()),
             ],

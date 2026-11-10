@@ -190,6 +190,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::patch('rulesets/{ruleset}/move', RulesetOrderController::class)->name('rulesets.move');
             Route::put('rulesets/{ruleset}/bills', [RulesetContentController::class, 'bills'])->name('rulesets.bills');
             Route::put('rulesets/{ruleset}/documents', [RulesetContentController::class, 'documents'])->name('rulesets.documents');
+            Route::put('rulesets/{ruleset}/required-fields', [RulesetContentController::class, 'requiredFields'])->name('rulesets.required-fields');
             Route::put('rulesets/{ruleset}/exam-aspects', [RulesetContentController::class, 'examAspects'])->name('rulesets.exam-aspects');
         });
 });

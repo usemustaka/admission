@@ -26,10 +26,8 @@ class RegistrantReadiness
 
         $person = $registrant->person;
 
-        foreach (RegistrantPresenter::CHILD_REQUIRED as $field => $label) {
-            if (blank($person->getAttribute($field))) {
-                $missing[] = "{$label} anak";
-            }
+        foreach (RegistrationFields::missing($registrant) as $detail) {
+            $missing[] = $detail;
         }
 
         if (! $person->parentships()->exists()) {

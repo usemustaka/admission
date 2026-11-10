@@ -20,15 +20,26 @@ export function ParentFields({
     value: ParentFieldsData;
     onChange: (changes: Partial<ParentFieldsData>) => void;
     errors: Record<string, string>;
-    options: { educations: Option[]; incomes: Option[]; kinds: Option[] };
+    options: {
+        educations: Option[];
+        incomes: Option[];
+        kinds: Option[];
+        requiredFields: string[];
+    };
     /** The NIK of a parent who is already known cannot be changed here. */
     lockedNik: boolean;
 }) {
     const error = (field: string) => errors[`parents.${relationKey}.${field}`];
+    const required = (field: string) =>
+        options.requiredFields.includes(`${relationKey}.${field}`);
 
     return (
         <div className="grid gap-6 @2xl:grid-cols-2">
-            <FormField label="Nama lengkap" error={error('name')}>
+            <FormField
+                label="Nama lengkap"
+                required={required('name')}
+                error={error('name')}
+            >
                 {(control) => (
                     <Input
                         value={value.name}
@@ -39,6 +50,7 @@ export function ParentFields({
             </FormField>
             <FormField
                 label="NIK"
+                required={required('nik')}
                 error={error('nik')}
                 hint={
                     lockedNik
@@ -55,7 +67,11 @@ export function ParentFields({
                     />
                 )}
             </FormField>
-            <FormField label="Nomor HP" error={error('phone')}>
+            <FormField
+                label="Nomor HP / WA"
+                required={required('phone')}
+                error={error('phone')}
+            >
                 {(control) => (
                     <Input
                         type="tel"
@@ -67,7 +83,11 @@ export function ParentFields({
                     />
                 )}
             </FormField>
-            <FormField label="Pekerjaan" error={error('job')}>
+            <FormField
+                label="Pekerjaan"
+                required={required('job')}
+                error={error('job')}
+            >
                 {(control) => (
                     <Input
                         value={value.job}
@@ -78,6 +98,7 @@ export function ParentFields({
             </FormField>
             <FormField
                 label="Pendidikan terakhir"
+                required={required('last_education')}
                 error={error('last_education')}
             >
                 {(control) => (
@@ -94,6 +115,7 @@ export function ParentFields({
             </FormField>
             <FormField
                 label="Penghasilan per bulan"
+                required={required('monthly_income')}
                 error={error('monthly_income')}
             >
                 {(control) => (
@@ -110,6 +132,7 @@ export function ParentFields({
             </FormField>
             <FormField
                 label="Alamat"
+                required={required('address')}
                 error={error('address')}
                 className="@2xl:col-span-2"
             >

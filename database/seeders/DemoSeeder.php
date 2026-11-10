@@ -290,7 +290,7 @@ class DemoSeeder extends Seeder
 
         $education ??= match ($organization) {
             'sma' => [$this->school('elementary', 'SD Negeri 1 Bandung', '20219001'), $this->school('junior-high', 'SMP Negeri 5 Bandung', '20219005')],
-            'mi' => [$this->school('kindergarten', 'TK Melati', null)],
+            'mi' => [$this->school('kindergarten', 'TK Melati', '69712345')],
             default => [$this->school('elementary', 'SD Negeri 1 Bandung', '20219001')],
         };
 
@@ -307,10 +307,30 @@ class DemoSeeder extends Seeder
                 'siblings_count' => 2 + $registrant->id % 3,
                 ...$child,
             ],
-            $parents + [$registrant->registered_as_relation->value => $this->parentDetails($parent->name, ['phone' => $parent->person->phone])],
+            $parents + [
+                $registrant->registered_as_relation->value => $this->parentDetails($parent->name, ['phone' => $parent->person->phone]),
+                ...$this->otherParent($registrant),
+            ],
             education: $education,
             admissionType: $type,
         );
+    }
+
+    /**
+     * The father or mother who did not register the child, so both parents are on record like the rulesets ask for.
+     * A guardian who registered leaves both blank on purpose.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function otherParent(Registrant $registrant): array
+    {
+        $first = explode(' ', $registrant->person->name)[0];
+
+        return match ($registrant->registered_as_relation) {
+            ParentRelation::Father => ['mother' => $this->parentDetails("Ibu {$first}", ['job' => 'Ibu rumah tangga'])],
+            ParentRelation::Mother => ['father' => $this->parentDetails("Ayah {$first}")],
+            default => [],
+        };
     }
 
     /**
@@ -329,13 +349,15 @@ class DemoSeeder extends Seeder
     {
         return [
             'name' => $name,
+            'nik' => sprintf('3201030303%06d', ++$this->sequence),
+            'phone' => sprintf('0812%08d', ++$this->sequence),
             'job' => 'Karyawan swasta',
             'last_education' => 'S1 / D4',
             'monthly_income' => 'Rp3 juta - Rp5 juta',
             'address' => 'Jl. Melati, Bandung',
             'is_alive' => true,
             'kind' => 'biological',
-            ...$overrides,
+            ...array_filter($overrides, fn (mixed $value): bool => $value !== null),
         ];
     }
 
