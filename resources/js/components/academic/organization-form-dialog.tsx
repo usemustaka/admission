@@ -137,7 +137,7 @@ export function OrganizationFormDialog({
                             organization?.has_brochure &&
                             !form.data.remove_brochure
                                 ? 'Sudah ada brosur. Pilih file baru untuk menggantinya. Orang tua mengunduhnya dari halaman depan.'
-                                : 'File PDF, JPG, atau PNG, maksimal 10 MB. Orang tua mengunduhnya dari halaman depan.'
+                                : 'File PDF, JPG, atau PNG, maksimal 2 MB. Orang tua mengunduhnya dari halaman depan.'
                         }
                     >
                         {(control) => (

@@ -42,7 +42,7 @@ class SaveOrganizationRequest extends FormRequest
             ],
             'category' => ['nullable', Rule::enum(OrganizationCategory::class)],
             'is_active' => ['boolean'],
-            'brochure' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'brochure' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:2048'],
             'remove_brochure' => ['boolean'],
         ];
     }
@@ -79,8 +79,8 @@ class SaveOrganizationRequest extends FormRequest
             'code.regex' => 'Kode hanya boleh huruf kecil, angka, dan tanda hubung, misalnya smp-1.',
             'code.unique' => 'Kode ini sudah dipakai lembaga lain.',
             'brochure.mimes' => 'Brosur harus berupa file PDF, JPG, atau PNG.',
-            'brochure.max' => 'Ukuran brosur paling besar 10 MB.',
-            'brochure.uploaded' => 'Brosur gagal diunggah. Cek ukurannya (maksimal 10 MB) lalu coba lagi.',
+            'brochure.max' => 'Ukuran brosur paling besar 2 MB.',
+            'brochure.uploaded' => 'Brosur gagal diunggah. Cek ukurannya (maksimal 2 MB) lalu coba lagi.',
         ];
     }
 
