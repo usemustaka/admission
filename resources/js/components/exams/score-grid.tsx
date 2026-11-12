@@ -22,6 +22,7 @@ import { toastFirstError } from '@/hooks/use-flash-toast';
 import { cn } from '@/lib/utils';
 import { show as showRegistrant } from '@/routes/admin/registrants';
 import { update } from '@/routes/admin/exams/sessions/scores';
+import { levelsOf, scoreLabel } from '@/lib/exam-scale';
 import type { GridAspect, GridRow } from '@/types/exam';
 
 type Result = 'passed' | 'failed' | 'incomplete' | null;
@@ -74,7 +75,9 @@ export function ScoreGrid({
     const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
     const [confirmAnnounced, setConfirmAnnounced] = useState(false);
     const [processing, setProcessing] = useState(false);
-    const inputs = useRef(new Map<string, HTMLInputElement>());
+    const inputs = useRef(
+        new Map<string, HTMLInputElement | HTMLSelectElement>(),
+    );
 
     const changedCells = (row: GridRow): Record<number, number | null> => {
         const changes: Record<number, number | null> = {};
@@ -175,10 +178,12 @@ export function ScoreGrid({
     function setCell(row: GridRow, index: number, raw: string) {
         const digits = raw.replace(/\D/gu, '').slice(0, 3);
         const next = digits === '' ? '' : String(Number(digits));
+        const levels = levelsOf(row.aspects[index]?.scale);
+        const value = levels.length > 0 ? raw : next;
 
         setValues((current) => {
             const cells = [...(current[row.id] ?? [])];
-            cells[index] = next;
+            cells[index] = value;
 
             return { ...current, [row.id]: cells };
         });
@@ -203,7 +208,9 @@ export function ScoreGrid({
 
             if (input && !input.disabled) {
                 input.focus();
-                input.select();
+                if (input instanceof HTMLInputElement) {
+                    input.select();
+                }
 
                 return;
             }
@@ -211,7 +218,7 @@ export function ScoreGrid({
     }
 
     function onKeyDown(
-        event: KeyboardEvent<HTMLInputElement>,
+        event: KeyboardEvent<HTMLElement>,
         rowIndex: number,
         column: number,
     ) {
@@ -238,7 +245,11 @@ export function ScoreGrid({
                                     <span className="grid normal-case">
                                         <span>{aspect.name}</span>
                                         <span className="text-xs font-medium text-muted-foreground">
-                                            KKM {aspect.passing_score}
+                                            KKM{' '}
+                                            {scoreLabel(
+                                                aspect.scale,
+                                                aspect.passing_score,
+                                            )}
                                         </span>
                                     </span>
                                 </TableHead>
@@ -322,58 +333,126 @@ export function ScoreGrid({
 
                                         return (
                                             <TableCell key={column}>
-                                                <Input
-                                                    ref={(element) => {
-                                                        const key = `${rowIndex}:${column}`;
+                                                {levelsOf(aspect.scale).length >
+                                                0 ? (
+                                                    <select
+                                                        ref={(element) => {
+                                                            const key = `${rowIndex}:${column}`;
 
-                                                        if (element) {
-                                                            inputs.current.set(
-                                                                key,
-                                                                element,
-                                                            );
-                                                        } else {
-                                                            inputs.current.delete(
-                                                                key,
-                                                            );
+                                                            if (element) {
+                                                                inputs.current.set(
+                                                                    key,
+                                                                    element,
+                                                                );
+                                                            } else {
+                                                                inputs.current.delete(
+                                                                    key,
+                                                                );
+                                                            }
+                                                        }}
+                                                        aria-label={`${aspect.name} ${row.name}`}
+                                                        disabled={
+                                                            !canManage ||
+                                                            !available
                                                         }
-                                                    }}
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    autoComplete="off"
-                                                    aria-label={`${aspect.name} ${row.name}`}
-                                                    aria-invalid={
-                                                        outOfRange ||
-                                                        Boolean(error)
-                                                    }
-                                                    disabled={
-                                                        !canManage || !available
-                                                    }
-                                                    value={text}
-                                                    onFocus={(event) =>
-                                                        event.target.select()
-                                                    }
-                                                    onChange={(event) =>
-                                                        setCell(
-                                                            row,
-                                                            column,
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                    onKeyDown={(event) =>
-                                                        onKeyDown(
-                                                            event,
-                                                            rowIndex,
-                                                            column,
-                                                        )
-                                                    }
-                                                    className={cn(
-                                                        'h-10 w-20 text-center tabular-nums',
-                                                        text !== '' &&
-                                                            Number(text) <
-                                                                kkm &&
-                                                            'font-semibold text-destructive-foreground',
-                                                    )}
-                                                />
+                                                        value={text}
+                                                        onChange={(event) =>
+                                                            setCell(
+                                                                row,
+                                                                column,
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        onKeyDown={(event) =>
+                                                            onKeyDown(
+                                                                event,
+                                                                rowIndex,
+                                                                column,
+                                                            )
+                                                        }
+                                                        className={cn(
+                                                            'h-10 w-28 rounded-md border border-input bg-background px-2 text-center',
+                                                            text !== '' &&
+                                                                Number(text) <
+                                                                    kkm &&
+                                                                'font-semibold text-destructive-foreground',
+                                                        )}
+                                                    >
+                                                        <option value="">
+                                                            -
+                                                        </option>
+                                                        {levelsOf(
+                                                            aspect.scale,
+                                                        ).map((level) => (
+                                                            <option
+                                                                key={
+                                                                    level.value
+                                                                }
+                                                                value={String(
+                                                                    level.value,
+                                                                )}
+                                                            >
+                                                                {level.label}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <Input
+                                                        ref={(element) => {
+                                                            const key = `${rowIndex}:${column}`;
+
+                                                            if (element) {
+                                                                inputs.current.set(
+                                                                    key,
+                                                                    element,
+                                                                );
+                                                            } else {
+                                                                inputs.current.delete(
+                                                                    key,
+                                                                );
+                                                            }
+                                                        }}
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        autoComplete="off"
+                                                        aria-label={`${aspect.name} ${row.name}`}
+                                                        aria-invalid={
+                                                            outOfRange ||
+                                                            Boolean(error)
+                                                        }
+                                                        disabled={
+                                                            !canManage ||
+                                                            !available
+                                                        }
+                                                        value={text}
+                                                        onFocus={(event) =>
+                                                            event.target.select()
+                                                        }
+                                                        onChange={(event) =>
+                                                            setCell(
+                                                                row,
+                                                                column,
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        onKeyDown={(event) =>
+                                                            onKeyDown(
+                                                                event,
+                                                                rowIndex,
+                                                                column,
+                                                            )
+                                                        }
+                                                        className={cn(
+                                                            'h-10 w-20 text-center tabular-nums',
+                                                            text !== '' &&
+                                                                Number(text) <
+                                                                    kkm &&
+                                                                'font-semibold text-destructive-foreground',
+                                                        )}
+                                                    />
+                                                )}
                                             </TableCell>
                                         );
                                     })}

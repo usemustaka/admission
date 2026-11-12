@@ -118,7 +118,7 @@ class Ruleset extends Model
      * A frozen copy of the rules, stored on a registration so later edits of this ruleset do not change it.
      * Exam sessions are not copied: seats are shared by everyone, so they stay live.
      *
-     * @return array{ruleset_id: int, name: string, bills: list<array{type: string, items: list<array{name: string, amount: int}>}>, exam_aspects: list<array{name: string, passing_score: int}>, documents: list<array{type: string, required: bool}>, required_fields: list<string>|null}
+     * @return array{ruleset_id: int, name: string, bills: list<array{type: string, items: list<array{name: string, amount: int}>}>, exam_aspects: list<array{name: string, scale?: string, passing_score: int}>, documents: list<array{type: string, required: bool, label?: string|null, max_files?: int}>, documents_configured: bool, required_fields: list<string>|null}
      */
     public function toSnapshot(): array
     {
@@ -145,13 +145,13 @@ class Ruleset extends Model
         $aspects = [];
 
         foreach ($this->examAspects as $aspect) {
-            $aspects[] = ['name' => $aspect->name, 'passing_score' => $aspect->passing_score];
+            $aspects[] = ['name' => $aspect->name, 'scale' => $aspect->scale->value, 'passing_score' => $aspect->passing_score];
         }
 
         $documents = [];
 
         foreach ($this->documents as $document) {
-            $documents[] = ['type' => $document->type->value, 'required' => $document->is_required];
+            $documents[] = ['type' => $document->type, 'required' => $document->is_required, ...($document->isCustom() ? ['label' => $document->label, 'max_files' => $document->max_files] : [])];
         }
 
         return [
@@ -160,6 +160,7 @@ class Ruleset extends Model
             'bills' => $bills,
             'exam_aspects' => $aspects,
             'documents' => $documents,
+            'documents_configured' => true,
             'required_fields' => $this->required_fields,
         ];
     }

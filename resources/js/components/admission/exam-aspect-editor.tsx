@@ -4,6 +4,7 @@ import { newRowKey } from '@/components/admission/row-key';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
+import { passingLevels, SCALE_OPTIONS } from '@/lib/exam-scale';
 import { examAspects } from '@/routes/admin/rulesets';
 import type { ExamAspectRow } from '@/types/admission';
 
@@ -34,7 +35,9 @@ export function ExamAspectEditor({
             <p className="text-sm text-muted-foreground">
                 Perubahan hanya berlaku untuk anak yang mendaftar setelah ini.
                 Pendaftar yang sudah terdaftar tetap memakai aspek dan KKM saat
-                mereka mendaftar.
+                mereka mendaftar. Jenis penilaian bisa angka 0-100 atau tingkat
+                seperti Baik/Kurang/Belum; KKM-nya berupa tingkat minimal yang
+                dianggap lulus.
             </p>
 
             {form.data.aspects.length === 0 && (
@@ -47,7 +50,7 @@ export function ExamAspectEditor({
             {form.data.aspects.map((aspect, index) => (
                 <div
                     key={aspect.id ?? aspect.key ?? `new-${index}`}
-                    className="grid gap-2 sm:grid-cols-[1fr_9rem_auto] sm:items-start"
+                    className="grid gap-2 sm:grid-cols-[1fr_12rem_10rem_auto] sm:items-start"
                 >
                     <div className="grid gap-1">
                         <Input
@@ -75,31 +78,96 @@ export function ExamAspectEditor({
                         )}
                     </div>
                     <div className="grid gap-1">
-                        <Input
-                            aria-label="KKM"
-                            type="number"
-                            inputMode="numeric"
-                            min={0}
-                            max={100}
-                            placeholder="KKM (0-100)"
-                            value={aspect.passing_score}
+                        <select
+                            aria-label="Jenis penilaian"
+                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                            value={aspect.scale}
                             disabled={!canEdit}
-                            aria-invalid={Boolean(
-                                errors[`aspects.${index}.passing_score`],
-                            )}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                                const scale = e.target.value;
+                                const levels = passingLevels(scale);
+
                                 setAspects(
                                     form.data.aspects.map((row, i) =>
                                         i === index
                                             ? {
                                                   ...row,
-                                                  passing_score: e.target.value,
+                                                  scale,
+                                                  passing_score:
+                                                      levels.length > 0
+                                                          ? levels[0].value
+                                                          : 70,
                                               }
                                             : row,
                                     ),
-                                )
-                            }
-                        />
+                                );
+                            }}
+                        >
+                            {SCALE_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="grid gap-1">
+                        {passingLevels(aspect.scale).length > 0 ? (
+                            <select
+                                aria-label="KKM"
+                                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                                value={String(aspect.passing_score)}
+                                disabled={!canEdit}
+                                onChange={(e) =>
+                                    setAspects(
+                                        form.data.aspects.map((row, i) =>
+                                            i === index
+                                                ? {
+                                                      ...row,
+                                                      passing_score:
+                                                          e.target.value,
+                                                  }
+                                                : row,
+                                        ),
+                                    )
+                                }
+                            >
+                                {passingLevels(aspect.scale).map((level) => (
+                                    <option
+                                        key={level.value}
+                                        value={String(level.value)}
+                                    >
+                                        Minimal {level.label}
+                                    </option>
+                                ))}
+                            </select>
+                        ) : (
+                            <Input
+                                aria-label="KKM"
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                max={100}
+                                placeholder="KKM (0-100)"
+                                value={aspect.passing_score}
+                                disabled={!canEdit}
+                                aria-invalid={Boolean(
+                                    errors[`aspects.${index}.passing_score`],
+                                )}
+                                onChange={(e) =>
+                                    setAspects(
+                                        form.data.aspects.map((row, i) =>
+                                            i === index
+                                                ? {
+                                                      ...row,
+                                                      passing_score:
+                                                          e.target.value,
+                                                  }
+                                                : row,
+                                        ),
+                                    )
+                                }
+                            />
+                        )}
                         {errors[`aspects.${index}.passing_score`] && (
                             <p className="text-sm font-medium text-destructive-foreground">
                                 {errors[`aspects.${index}.passing_score`]}
@@ -139,6 +207,7 @@ export function ExamAspectEditor({
                                 {
                                     key: newRowKey(),
                                     name: '',
+                                    scale: 'number',
                                     passing_score: 70,
                                 },
                             ])

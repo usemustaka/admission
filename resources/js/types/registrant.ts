@@ -133,8 +133,11 @@ export type BulkPreview = {
 export type ExamResultData = {
     aspects: {
         name: string;
+        scale: string;
         passing_score: number;
         score: number | null;
+        score_label: string | null;
+        passing_label: string;
         passed: boolean | null;
     }[];
     complete: boolean;

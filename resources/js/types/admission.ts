@@ -55,6 +55,7 @@ export type ExamAspectRow = {
     id?: number;
     key?: string;
     name: string;
+    scale: string;
     passing_score: number | string;
 };
 

@@ -110,16 +110,24 @@ class RulesetController extends Controller
             'aspects' => $ruleset->examAspects->map(fn ($aspect): array => [
                 'id' => $aspect->id,
                 'name' => $aspect->name,
+                'scale' => $aspect->scale->value,
                 'passing_score' => $aspect->passing_score,
             ])->values(),
-            'documents' => collect(DocumentType::core())->map(fn (DocumentType $type): array => [
+            'documents' => collect(DocumentType::configurable())->map(fn (DocumentType $type): array => [
                 'type' => $type->value,
                 'label' => $type->label(),
-                'choice' => match ($ruleset->documents->firstWhere('type', $type)?->is_required) {
+                'group' => $type->isSupporting() ? 'supporting' : 'core',
+                'choice' => match ($ruleset->documents->firstWhere('type', $type->value)?->is_required) {
                     true => 'required',
                     false => 'optional',
                     null => 'none',
                 },
+            ])->values(),
+            'customDocuments' => $ruleset->documents->filter(fn ($document): bool => $document->isCustom())->map(fn ($document): array => [
+                'key' => $document->type,
+                'label' => (string) $document->label,
+                'max_files' => $document->max_files,
+                'choice' => $document->is_required ? 'required' : 'optional',
             ])->values(),
             'requiredFields' => [
                 'groups' => RegistrationFields::groups(),

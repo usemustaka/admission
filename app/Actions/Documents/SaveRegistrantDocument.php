@@ -2,10 +2,10 @@
 
 namespace App\Actions\Documents;
 
-use App\Enums\DocumentType;
 use App\Models\Registrant;
 use App\Models\RegistrantDocument;
 use App\Models\User;
+use App\Support\DocumentKind;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -20,7 +20,7 @@ class SaveRegistrantDocument
      *
      * @throws ValidationException
      */
-    public function handle(Registrant $registrant, DocumentType $type, UploadedFile $file, ?int $slot = null, ?User $by = null): RegistrantDocument
+    public function handle(Registrant $registrant, DocumentKind $kind, UploadedFile $file, ?int $slot = null, ?User $by = null): RegistrantDocument
     {
         $disk = Storage::disk(RegistrantDocument::DISK);
 
@@ -31,15 +31,15 @@ class SaveRegistrantDocument
         }
 
         try {
-            [$document, $replacedPath] = DB::transaction(function () use ($registrant, $type, $file, $slot, $by, $stored): array {
-                $taken = $registrant->documents()->where('type', $type)->lockForUpdate()->pluck('slot')->all();
-                $slot ??= collect(range(1, $type->maxFiles()))->first(fn (int $candidate): bool => ! in_array($candidate, $taken, true));
+            [$document, $replacedPath] = DB::transaction(function () use ($registrant, $kind, $file, $slot, $by, $stored): array {
+                $taken = $registrant->documents()->where('type', $kind->key)->lockForUpdate()->pluck('slot')->all();
+                $slot ??= collect(range(1, $kind->maxFiles))->first(fn (int $candidate): bool => ! in_array($candidate, $taken, true));
 
                 if ($slot === null) {
-                    throw ValidationException::withMessages(['file' => "Berkas {$type->label()} sudah penuh. Hapus salah satu dulu."]);
+                    throw ValidationException::withMessages(['file' => "Berkas {$kind->label} sudah penuh. Hapus salah satu dulu."]);
                 }
 
-                $existing = $registrant->documents()->where('type', $type)->where('slot', $slot)->first();
+                $existing = $registrant->documents()->where('type', $kind->key)->where('slot', $slot)->first();
                 $replacedPath = $existing?->path;
 
                 $attributes = [
@@ -51,7 +51,7 @@ class SaveRegistrantDocument
                 ];
 
                 $document = $existing === null
-                    ? $registrant->documents()->create(['type' => $type, 'slot' => $slot, ...$attributes])
+                    ? $registrant->documents()->create(['type' => $kind->key, 'slot' => $slot, ...$attributes])
                     : tap($existing)->update($attributes);
 
                 return [$document, $replacedPath];

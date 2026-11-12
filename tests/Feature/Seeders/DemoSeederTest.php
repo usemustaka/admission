@@ -200,7 +200,7 @@ describe('files', function () {
     test('the rulesets ask for different files', function () {
         $this->seed(DemoSeeder::class);
 
-        $asked = fn (string $name) => collect(Ruleset::query()->where('name', $name)->firstOrFail()->documents)->mapWithKeys(fn ($document) => [$document->type->value => $document->is_required])->all();
+        $asked = fn (string $name) => collect(Ruleset::query()->where('name', $name)->firstOrFail()->documents)->filter(fn ($document) => in_array($document->type, ['family-card', 'birth-certificate', 'report-card', 'diploma'], true))->mapWithKeys(fn ($document) => [$document->type => $document->is_required])->all();
 
         expect($asked('SMA'))->toBe(['family-card' => true, 'birth-certificate' => true, 'report-card' => true, 'diploma' => true])
             ->and($asked('Pesantren'))->toBe(['family-card' => true])

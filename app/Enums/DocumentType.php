@@ -89,6 +89,16 @@ enum DocumentType: string implements HasLabel
     }
 
     /**
+     * Every built-in type a ruleset can switch on or off, each as none, optional or required.
+     *
+     * @return list<self>
+     */
+    public static function configurable(): array
+    {
+        return [...self::core(), ...self::supporting()];
+    }
+
+    /**
      * Evidence for a scholarship: always offered, never required.
      *
      * @return list<self>

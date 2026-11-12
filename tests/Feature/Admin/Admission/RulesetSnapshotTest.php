@@ -31,8 +31,9 @@ test('a snapshot freezes bills and exam aspects so later edits do not change it'
             ['type' => 'registration', 'items' => [['name' => 'Formulir', 'amount' => 150000]]],
             ['type' => 'settlement', 'items' => [['name' => 'Uang pangkal', 'amount' => 4000000]]],
         ],
-        'exam_aspects' => [['name' => 'Tes Tulis', 'passing_score' => 70]],
+        'exam_aspects' => [['name' => 'Tes Tulis', 'scale' => 'number', 'passing_score' => 70]],
         'documents' => [['type' => 'family-card', 'required' => true], ['type' => 'diploma', 'required' => false]],
+        'documents_configured' => true,
         'required_fields' => null,
     ]);
 });

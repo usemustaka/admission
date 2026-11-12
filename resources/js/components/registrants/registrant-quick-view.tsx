@@ -292,7 +292,7 @@ function QuickViewBody({ data }: { data: RegistrantQuickViewData }) {
                                 <span className="flex items-center gap-2 tabular-nums">
                                     {aspect.score === null
                                         ? 'Belum dinilai'
-                                        : `${aspect.score} (KKM ${aspect.passing_score})`}
+                                        : `${aspect.score_label} (KKM ${aspect.passing_label})`}
                                     {aspect.passed !== null && (
                                         <Badge
                                             variant={

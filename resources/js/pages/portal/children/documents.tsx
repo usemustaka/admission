@@ -18,7 +18,7 @@ import type { PortalRegistrant } from '@/types/portal';
 type DocumentGroup = {
     type: string;
     label: string;
-    /** True, false, or null for supporting files, which are never required. */
+    /** True or false for the files asked for; for supporting files true when required, otherwise null. */
     required: boolean | null;
     max_files: number;
     slots: DocumentSlot[];

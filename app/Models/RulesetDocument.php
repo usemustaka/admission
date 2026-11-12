@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DocumentType;
+use App\Support\DocumentKind;
 use Database\Factories\RulesetDocumentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,10 +15,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $id
  * @property int $ruleset_id
- * @property DocumentType $type
+ * @property string $type a `DocumentType` value, or a custom key
+ * @property string|null $label the name of a custom file
+ * @property int $max_files
  * @property bool $is_required
  */
-#[Fillable(['ruleset_id', 'type', 'is_required'])]
+#[Fillable(['ruleset_id', 'type', 'label', 'max_files', 'is_required'])]
 class RulesetDocument extends Model
 {
     /** @use HasFactory<RulesetDocumentFactory> */
@@ -29,9 +32,19 @@ class RulesetDocument extends Model
     protected function casts(): array
     {
         return [
-            'type' => DocumentType::class,
+            'max_files' => 'integer',
             'is_required' => 'boolean',
         ];
+    }
+
+    public function isCustom(): bool
+    {
+        return DocumentKind::isCustomKey($this->type);
+    }
+
+    public function builtinType(): ?DocumentType
+    {
+        return DocumentType::tryFrom($this->type);
     }
 
     /**

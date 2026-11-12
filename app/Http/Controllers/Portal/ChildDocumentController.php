@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\StoreRegistrantDocumentRequest;
 use App\Models\Registrant;
 use App\Models\RegistrantDocument;
+use App\Support\DocumentKind;
 use App\Support\RegistrantDocuments;
 use App\Support\RegistrantPresenter;
 use Illuminate\Http\RedirectResponse;
@@ -42,15 +43,15 @@ class ChildDocumentController extends Controller
 
     public function store(StoreRegistrantDocumentRequest $request, Registrant $registrant, SaveRegistrantDocument $saveRegistrantDocument): RedirectResponse
     {
-        $type = DocumentType::from($request->string('type')->toString());
+        $kind = DocumentKind::resolve($registrant, $request->string('type')->toString());
 
-        if (! $type->isSupporting() && ! in_array($type, array_column(RegistrantDocuments::requirements($registrant), 'type'), true)) {
+        if ($kind === null || ! RegistrantDocuments::accepts($registrant, $kind)) {
             return back()->withErrors(['type' => 'Berkas ini tidak diminta untuk pendaftaran ini.']);
         }
 
         $saveRegistrantDocument->handle(
             $registrant,
-            $type,
+            $kind,
             $request->file('file'),
             $request->filled('slot') ? $request->integer('slot') : null,
             $request->user(),
@@ -64,7 +65,7 @@ class ChildDocumentController extends Controller
     public function destroy(Registrant $registrant, RegistrantDocument $document, DeleteRegistrantDocument $deleteRegistrantDocument): RedirectResponse
     {
         abort_unless($document->registrant_id === $registrant->id, 404);
-        Gate::authorize('manageDocument', [$registrant, $document->type]);
+        Gate::authorize('manageDocument', [$registrant, DocumentKind::resolve($registrant, $document->type) ?? DocumentKind::builtin(DocumentType::OtherSupport)]);
 
         $deleteRegistrantDocument->handle($document);
 
@@ -78,7 +79,7 @@ class ChildDocumentController extends Controller
      */
     public function support(Request $request, Registrant $registrant): RedirectResponse
     {
-        Gate::authorize('manageDocument', [$registrant, DocumentType::OtherSupport]);
+        Gate::authorize('manageDocument', [$registrant, DocumentKind::builtin(DocumentType::OtherSupport)]);
 
         $validated = $request->validate([
             'kip_number' => ['nullable', 'string', 'max:30', 'regex:/^[0-9A-Za-z\- ]+$/'],

@@ -34,7 +34,7 @@ use Illuminate\Support\Facades\Storage;
  * @property int $wave_id
  * @property int|null $exam_session_id
  * @property int|null $ruleset_id
- * @property array{ruleset_id: int, name: string, bills: list<array{type: string, items: list<array{name: string, amount: int}>}>, exam_aspects: list<array{name: string, passing_score: int}>, documents?: list<array{type: string, required: bool}>}|null $ruleset_snapshot
+ * @property array{ruleset_id: int, name: string, bills: list<array{type: string, items: list<array{name: string, amount: int}>}>, exam_aspects: list<array{name: string, scale?: string, passing_score: int}>, documents?: list<array{type: string, required: bool, label?: string|null, max_files?: int}>, documents_configured?: bool}|null $ruleset_snapshot
  * @property int $registered_by_person_id
  * @property string $submitted_name the child's name as the parent typed it
  * @property ParentRelation $registered_as_relation

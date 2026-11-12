@@ -75,8 +75,8 @@ describe('bills', function () {
 describe('exam aspects', function () {
     test('aspects are saved with their KKM, in order', function () {
         $this->put(route('admin.rulesets.exam-aspects', $this->ruleset), ['aspects' => [
-            ['name' => 'Tes Tulis', 'passing_score' => 70],
-            ['name' => 'Wawancara', 'passing_score' => 60],
+            ['name' => 'Tes Tulis', 'scale' => 'number', 'passing_score' => 70],
+            ['name' => 'Wawancara', 'scale' => 'number', 'passing_score' => 60],
         ]])->assertRedirect();
 
         expect($this->ruleset->examAspects->map(fn ($a) => [$a->name, $a->passing_score])->all())
@@ -85,8 +85,8 @@ describe('exam aspects', function () {
 
     test('the KKM has to be between 0 and 100 and names cannot repeat', function () {
         $this->put(route('admin.rulesets.exam-aspects', $this->ruleset), ['aspects' => [
-            ['name' => 'Tes Tulis', 'passing_score' => 101],
-            ['name' => 'tes tulis', 'passing_score' => 50],
+            ['name' => 'Tes Tulis', 'scale' => 'number', 'passing_score' => 101],
+            ['name' => 'tes tulis', 'scale' => 'number', 'passing_score' => 50],
         ]])->assertSessionHasErrors(['aspects.0.passing_score', 'aspects.0.name', 'aspects.1.name']);
     });
 
@@ -94,7 +94,7 @@ describe('exam aspects', function () {
         $keep = ExamAspect::factory()->create(['ruleset_id' => $this->ruleset->id, 'name' => 'A']);
         ExamAspect::factory()->create(['ruleset_id' => $this->ruleset->id, 'name' => 'B']);
 
-        $this->put(route('admin.rulesets.exam-aspects', $this->ruleset), ['aspects' => [['id' => $keep->id, 'name' => 'A2', 'passing_score' => 80]]]);
+        $this->put(route('admin.rulesets.exam-aspects', $this->ruleset), ['aspects' => [['id' => $keep->id, 'name' => 'A2', 'scale' => 'number', 'passing_score' => 80]]]);
 
         expect($this->ruleset->examAspects()->count())->toBe(1)->and($keep->refresh()->name)->toBe('A2');
     });

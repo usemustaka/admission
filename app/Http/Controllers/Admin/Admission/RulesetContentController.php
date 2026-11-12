@@ -29,7 +29,7 @@ class RulesetContentController extends Controller
 
     public function examAspects(SaveExamAspectsRequest $request, Ruleset $ruleset, SyncExamAspects $syncExamAspects): RedirectResponse
     {
-        /** @var list<array{id?: int|null, name: string, passing_score: int}> $aspects */
+        /** @var list<array{id?: int|null, name: string, scale: string, passing_score: int}> $aspects */
         $aspects = $request->validated('aspects');
 
         $syncExamAspects->handle($ruleset, $aspects);
@@ -42,7 +42,10 @@ class RulesetContentController extends Controller
         /** @var array<string, string> $choices */
         $choices = $request->validated('documents');
 
-        $syncRulesetDocuments->handle($ruleset, $choices);
+        /** @var list<array{key?: string|null, label: string, max_files: int, choice: string}> $custom */
+        $custom = $request->validated('custom') ?? [];
+
+        $syncRulesetDocuments->handle($ruleset, $choices, $custom);
 
         return $this->saved('Berkas yang diminta sudah disimpan.');
     }

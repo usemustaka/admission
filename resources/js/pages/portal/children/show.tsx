@@ -190,8 +190,8 @@ export default function ChildShow({
                                             {aspect.name}
                                         </span>
                                         <span className="text-[15px] text-muted-foreground tabular-nums">
-                                            Nilai {aspect.score ?? '-'} (KKM{' '}
-                                            {aspect.passing_score})
+                                            Nilai {aspect.score_label ?? '-'}{' '}
+                                            (KKM {aspect.passing_label})
                                         </span>
                                     </div>
                                     {aspect.passed !== null && (

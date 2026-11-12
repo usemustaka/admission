@@ -25,19 +25,20 @@ class RegistrantDocuments
     }
 
     /**
-     * The core files this registration is asked for, in the order of the ruleset copy.
+     * The files this registration is asked for: the built-in core types and the custom files of the ruleset, in the
+     * order of the ruleset copy, each required or optional. Supporting types are in {@see self::supportingKinds()}.
      *
-     * @return list<array{type: DocumentType, required: bool}>
+     * @return list<array{kind: DocumentKind, required: bool}>
      */
     public static function requirements(Registrant $registrant): array
     {
         $asked = [];
 
         foreach ($registrant->ruleset_snapshot['documents'] ?? [] as $row) {
-            $type = DocumentType::tryFrom($row['type']);
+            $kind = DocumentKind::resolve($registrant, $row['type']);
 
-            if ($type !== null && ! $type->isSupporting()) {
-                $asked[] = ['type' => $type, 'required' => (bool) $row['required']];
+            if ($kind !== null && ! $kind->supporting) {
+                $asked[] = ['kind' => $kind, 'required' => (bool) $row['required']];
             }
         }
 
@@ -45,26 +46,63 @@ class RegistrantDocuments
     }
 
     /**
-     * Required files that are not all there yet, in plain words. A report card counts as there once every semester
-     * has a file.
+     * The supporting files (certificates, KIP, ...) this registration offers, with whether each is required. A
+     * registration made before they could be switched off offers all of them, optional.
+     *
+     * @return list<array{kind: DocumentKind, required: bool}>
+     */
+    public static function supportingKinds(Registrant $registrant): array
+    {
+        $snapshot = $registrant->ruleset_snapshot ?? [];
+
+        if (! ($snapshot['documents_configured'] ?? false)) {
+            return array_map(fn (DocumentType $type): array => ['kind' => DocumentKind::builtin($type), 'required' => false], DocumentType::supporting());
+        }
+
+        $offered = [];
+
+        foreach ($snapshot['documents'] ?? [] as $row) {
+            $type = DocumentType::tryFrom($row['type']);
+
+            if ($type !== null && $type->isSupporting()) {
+                $offered[] = ['kind' => DocumentKind::builtin($type), 'required' => (bool) $row['required']];
+            }
+        }
+
+        return $offered;
+    }
+
+    /**
+     * Whether this registration accepts files of the kind: asked for, or an offered supporting file.
+     */
+    public static function accepts(Registrant $registrant, DocumentKind $kind): bool
+    {
+        $rows = $kind->supporting ? self::supportingKinds($registrant) : self::requirements($registrant);
+
+        return collect($rows)->contains(fn (array $row): bool => $row['kind']->key === $kind->key);
+    }
+
+    /**
+     * Required files that are not all there yet, in plain words. A file with several slots, such as a report card,
+     * counts as there once every slot has a file.
      *
      * @return list<string>
      */
     public static function missing(Registrant $registrant): array
     {
-        $uploaded = self::uploaded($registrant)->countBy(fn (RegistrantDocument $document): string => $document->type->value);
+        $uploaded = self::uploaded($registrant)->countBy(fn (RegistrantDocument $document): string => $document->type);
         $missing = [];
 
-        foreach (self::requirements($registrant) as $requirement) {
-            $type = $requirement['type'];
-            $have = (int) ($uploaded[$type->value] ?? 0);
-            $needed = $type->maxFiles();
+        foreach ([...self::requirements($registrant), ...self::supportingKinds($registrant)] as $requirement) {
+            $kind = $requirement['kind'];
+            $have = (int) ($uploaded[$kind->key] ?? 0);
+            $needed = $kind->maxFiles;
 
             if (! $requirement['required'] || $have >= $needed) {
                 continue;
             }
 
-            $missing[] = $needed > 1 ? "{$type->label()} (kurang ".($needed - $have).' berkas)' : $type->label();
+            $missing[] = $needed > 1 ? "{$kind->label} (kurang ".($needed - $have).' berkas)' : $kind->label;
         }
 
         return $missing;
@@ -80,7 +118,7 @@ class RegistrantDocuments
     {
         $kinds = self::uploaded($registrant)
             ->toBase()
-            ->map(fn (RegistrantDocument $document): ?ScholarshipKind => $document->type->scholarshipKind())
+            ->map(fn (RegistrantDocument $document): ?ScholarshipKind => DocumentType::tryFrom($document->type)?->scholarshipKind())
             ->filter();
 
         if (filled($registrant->kip_number)) {
@@ -97,29 +135,29 @@ class RegistrantDocuments
     {
         return filled($registrant->kip_number)
             || filled($registrant->support_note)
-            || self::uploaded($registrant)->contains(fn (RegistrantDocument $document): bool => $document->type->isSupporting());
+            || self::uploaded($registrant)->contains(fn (RegistrantDocument $document): bool => DocumentType::tryFrom($document->type)?->isSupporting() === true);
     }
 
     /**
-     * Every file slot of a registration for the upload screen: the core files asked for, then the supporting files.
+     * Every file slot of a registration for the upload screen: the files asked for, then the supporting files.
      *
      * @return array{requirements: list<array<string, mixed>>, supporting: list<array<string, mixed>>}
      */
     public static function overview(Registrant $registrant): array
     {
-        $uploaded = self::uploaded($registrant)->groupBy(fn (RegistrantDocument $document): string => $document->type->value);
+        $uploaded = self::uploaded($registrant)->groupBy(fn (RegistrantDocument $document): string => $document->type);
 
-        $describe = fn (DocumentType $type, ?bool $required) => [
-            'type' => $type->value,
-            'label' => $type->label(),
+        $describe = fn (DocumentKind $kind, ?bool $required) => [
+            'type' => $kind->key,
+            'label' => $kind->label,
             'required' => $required,
-            'max_files' => $type->maxFiles(),
-            'slots' => collect(range(1, $type->maxFiles()))->map(function (int $slot) use ($type, $uploaded): array {
-                $document = ($uploaded[$type->value] ?? collect())->firstWhere('slot', $slot);
+            'max_files' => $kind->maxFiles,
+            'slots' => collect(range(1, $kind->maxFiles))->map(function (int $slot) use ($kind, $uploaded): array {
+                $document = ($uploaded[$kind->key] ?? collect())->firstWhere('slot', $slot);
 
                 return [
                     'slot' => $slot,
-                    'label' => $type->slotLabel($slot),
+                    'label' => $kind->slotLabel($slot),
                     'document' => $document === null ? null : [
                         'id' => $document->id,
                         'name' => $document->original_name,
@@ -131,8 +169,8 @@ class RegistrantDocuments
         ];
 
         return [
-            'requirements' => array_map(fn (array $row): array => $describe($row['type'], $row['required']), self::requirements($registrant)),
-            'supporting' => array_map(fn (DocumentType $type): array => $describe($type, null), DocumentType::supporting()),
+            'requirements' => array_map(fn (array $row): array => $describe($row['kind'], $row['required']), self::requirements($registrant)),
+            'supporting' => array_map(fn (array $row): array => $describe($row['kind'], $row['required'] ? true : null), self::supportingKinds($registrant)),
         ];
     }
 

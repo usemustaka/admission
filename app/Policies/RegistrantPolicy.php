@@ -3,10 +3,10 @@
 namespace App\Policies;
 
 use App\Enums\Ability;
-use App\Enums\DocumentType;
 use App\Enums\RegistrantStatus;
 use App\Models\Registrant;
 use App\Models\User;
+use App\Support\DocumentKind;
 
 class RegistrantPolicy
 {
@@ -115,13 +115,13 @@ class RegistrantPolicy
      * Upload or remove a file. The files a ruleset asks for follow the data: they can change while the parent may
      * still edit. Supporting files for a scholarship can be added until the child is placed.
      */
-    public function manageDocument(User $user, Registrant $registrant, DocumentType $type): bool
+    public function manageDocument(User $user, Registrant $registrant, DocumentKind $kind): bool
     {
         if ($registrant->needs_identity_review || ! $this->view($user, $registrant)) {
             return false;
         }
 
-        return $type->isSupporting()
+        return $kind->supporting
             ? $registrant->status !== RegistrantStatus::Placed
             : $registrant->status->isEditableByParent();
     }

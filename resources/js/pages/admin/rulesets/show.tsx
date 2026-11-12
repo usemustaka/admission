@@ -12,7 +12,10 @@ import {
 import { useState } from 'react';
 import { BillEditor } from '@/components/admission/bill-editor';
 import { DocumentRequirementEditor } from '@/components/admission/document-requirement-editor';
-import type { DocumentRequirementRow } from '@/components/admission/document-requirement-editor';
+import type {
+    CustomDocumentRow,
+    DocumentRequirementRow,
+} from '@/components/admission/document-requirement-editor';
 import { RequiredFieldsEditor } from '@/components/admission/required-fields-editor';
 import type { RequiredFieldGroup } from '@/components/admission/required-fields-editor';
 import { ExamAspectEditor } from '@/components/admission/exam-aspect-editor';
@@ -37,6 +40,7 @@ export default function RulesetShow({
     bills,
     aspects,
     documents,
+    customDocuments,
     requiredFields,
     can,
 }: {
@@ -44,6 +48,7 @@ export default function RulesetShow({
     bills: { registration: BillItemRow[]; settlement: BillItemRow[] };
     aspects: ExamAspectRow[];
     documents: DocumentRequirementRow[];
+    customDocuments: CustomDocumentRow[];
     requiredFields: { groups: RequiredFieldGroup[]; selected: string[] };
     can: { update: boolean; delete: boolean };
 }) {
@@ -150,9 +155,13 @@ export default function RulesetShow({
                             icon={FileText}
                         >
                             <DocumentRequirementEditor
-                                key={JSON.stringify(documents)}
+                                key={JSON.stringify([
+                                    documents,
+                                    customDocuments,
+                                ])}
                                 rulesetId={ruleset.id}
                                 initial={documents}
+                                initialCustom={customDocuments}
                                 canEdit={can.update}
                             />
                         </SectionCard>

@@ -3,6 +3,7 @@
 namespace App\Actions\Admission;
 
 use App\Actions\Notes\WritePersonAuditNote;
+use App\Enums\ExamScale;
 use App\Enums\RegistrantStatus;
 use App\Models\Registrant;
 use App\Models\User;
@@ -23,7 +24,7 @@ class SaveExamScores
      * knows. When `$by` is given, a private note on the child lists what changed. Returns what changed.
      *
      * @param  array<int|string, mixed>  $scores
-     * @return list<array{aspect: string, from: int|null, to: int|null}>
+     * @return list<array{aspect: string, from: int|null, to: int|null, from_label: string|null, to_label: string|null}>
      *
      * @throws ValidationException
      */
@@ -46,12 +47,13 @@ class SaveExamScores
 
             foreach ($aspects as $index => $aspect) {
                 $before = $stored[$index] ?? null;
-                $after = array_key_exists($index, $scores) ? $this->normalize($scores[$index], $index, $aspect['name']) : $before;
+                $after = array_key_exists($index, $scores) ? $this->normalize($scores[$index], $index, $aspect['name'], ExamScale::tryFrom($aspect['scale'] ?? '') ?? ExamScale::Number) : $before;
 
                 $merged[] = $after;
 
                 if ($after !== $before) {
-                    $changes[] = ['aspect' => $aspect['name'], 'from' => $before, 'to' => $after];
+                    $scale = ExamScale::tryFrom($aspect['scale'] ?? '') ?? ExamScale::Number;
+                    $changes[] = ['aspect' => $aspect['name'], 'from' => $before, 'to' => $after, 'from_label' => $scale->display($before), 'to_label' => $scale->display($after)];
                 }
             }
 
@@ -76,7 +78,7 @@ class SaveExamScores
     /**
      * @throws ValidationException
      */
-    private function normalize(mixed $value, int|string $index, string $aspect): ?int
+    private function normalize(mixed $value, int|string $index, string $aspect, ExamScale $scale): ?int
     {
         if ($value === null || $value === '') {
             return null;
@@ -86,22 +88,24 @@ class SaveExamScores
             $value = (int) trim($value);
         }
 
-        if (! is_int($value) || $value < 0 || $value > 100) {
-            throw ValidationException::withMessages(["scores.{$index}" => "Nilai {$aspect} harus berupa angka bulat 0 sampai 100."]);
+        if (! is_int($value) || ! $scale->isValidScore($value)) {
+            throw ValidationException::withMessages(["scores.{$index}" => $scale->isNumeric()
+                ? "Nilai {$aspect} harus berupa angka bulat 0 sampai 100."
+                : "Nilai {$aspect} harus salah satu dari: ".implode(', ', array_column($scale->levels(), 'label')).'.']);
         }
 
         return $value;
     }
 
     /**
-     * @param  array{aspect: string, from: int|null, to: int|null}  $change
+     * @param  array{aspect: string, from: int|null, to: int|null, from_label: string|null, to_label: string|null}  $change
      */
     private function describe(array $change): string
     {
         return match (true) {
-            $change['from'] === null => "Nilai {$change['aspect']} diisi {$change['to']}",
-            $change['to'] === null => "Nilai {$change['aspect']} dikosongkan (sebelumnya {$change['from']})",
-            default => "Nilai {$change['aspect']} diubah dari {$change['from']} ke {$change['to']}",
+            $change['from'] === null => "Nilai {$change['aspect']} diisi {$change['to_label']}",
+            $change['to'] === null => "Nilai {$change['aspect']} dikosongkan (sebelumnya {$change['from_label']})",
+            default => "Nilai {$change['aspect']} diubah dari {$change['from_label']} ke {$change['to_label']}",
         };
     }
 }

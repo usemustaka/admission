@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\DocumentType;
 use Database\Factories\RegistrantDocumentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $id
  * @property int $registrant_id
- * @property DocumentType $type
+ * @property string $type a `DocumentType` value, or the key of a custom file of the ruleset copy
  * @property int $slot which file of the type this is, from 1
  * @property string $path
  * @property string $original_name
@@ -33,16 +32,6 @@ class RegistrantDocument extends Model
 
     /** The largest file a parent can upload, in kilobytes. */
     public const MAX_KILOBYTES = 1024;
-
-    /**
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'type' => DocumentType::class,
-        ];
-    }
 
     /**
      * @return BelongsTo<Registrant, $this>

@@ -43,7 +43,8 @@ class RegistrantDocumentArchive
                 }
 
                 $extension = pathinfo($document->path, PATHINFO_EXTENSION) ?: 'pdf';
-                $name = Str::slug($document->type->label().' '.($document->type->maxFiles() > 1 ? $document->slot : ''));
+                $kind = DocumentKind::resolve($registrant, $document->type);
+                $name = Str::slug(($kind?->label ?? 'berkas').' '.(($kind?->maxFiles ?? 1) > 1 ? $document->slot : ''));
 
                 $zip->addFile($disk->path($document->path), "{$folder}/{$name}.{$extension}");
                 $added++;

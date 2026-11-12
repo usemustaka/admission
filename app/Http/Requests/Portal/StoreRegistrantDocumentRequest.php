@@ -2,19 +2,26 @@
 
 namespace App\Http\Requests\Portal;
 
-use App\Enums\DocumentType;
+use App\Models\Registrant;
 use App\Models\RegistrantDocument;
+use App\Support\DocumentKind;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreRegistrantDocumentRequest extends FormRequest
 {
+    private function kind(): ?DocumentKind
+    {
+        $registrant = $this->route('registrant');
+
+        return $registrant instanceof Registrant ? DocumentKind::resolve($registrant, (string) $this->input('type')) : null;
+    }
+
     public function authorize(): bool
     {
-        $type = DocumentType::tryFrom((string) $this->input('type'));
+        $kind = $this->kind();
 
-        return $type === null || $this->user()->can('manageDocument', [$this->route('registrant'), $type]);
+        return $kind === null || $this->user()->can('manageDocument', [$this->route('registrant'), $kind]);
     }
 
     /**
@@ -22,11 +29,11 @@ class StoreRegistrantDocumentRequest extends FormRequest
      */
     public function rules(): array
     {
-        $type = DocumentType::tryFrom((string) $this->input('type'));
+        $kind = $this->kind();
 
         return [
-            'type' => ['required', Rule::enum(DocumentType::class)],
-            'slot' => ['nullable', 'integer', 'min:1', 'max:'.($type?->maxFiles() ?? 1)],
+            'type' => ['required', 'string', fn (string $attribute, mixed $value, \Closure $fail) => $kind === null ? $fail('Jenis berkas tidak dikenal.') : null],
+            'slot' => ['nullable', 'integer', 'min:1', 'max:'.($kind === null ? 1 : $kind->maxFiles)],
             'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg', 'max:'.RegistrantDocument::MAX_KILOBYTES],
         ];
     }

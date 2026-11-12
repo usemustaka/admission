@@ -43,5 +43,9 @@ class SaveRuleset
         }
 
         $ruleset->documents()->create(['type' => DocumentType::Diploma, 'is_required' => false]);
+
+        foreach (DocumentType::supporting() as $type) {
+            $ruleset->documents()->create(['type' => $type, 'is_required' => false]);
+        }
     }
 }

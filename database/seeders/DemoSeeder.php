@@ -56,6 +56,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Models\Wave;
 use App\Models\Year;
+use App\Support\DocumentKind;
 use App\Support\EmailVerification;
 use App\Support\RegistrantDocuments;
 use Illuminate\Database\Seeder;
@@ -235,7 +236,14 @@ class DemoSeeder extends Seeder
             ['SMP putra', 'smp', Gender::Male, [BillType::Registration->value => [['name' => 'Formulir', 'amount' => 100000]], BillType::Settlement->value => [['name' => 'Uang pangkal', 'amount' => 2000000], ['name' => 'Seragam', 'amount' => 500000]]], [['name' => 'Tes tulis', 'passing_score' => 70], ['name' => 'Wawancara', 'passing_score' => 60]], 1, $core],
             ['SMP umum', 'smp', null, [BillType::Registration->value => [['name' => 'Formulir', 'amount' => 100000], ['name' => 'Tes seleksi', 'amount' => 100000]], BillType::Settlement->value => [['name' => 'Uang pangkal', 'amount' => 1800000]]], [['name' => 'Tes tulis', 'passing_score' => 65]], 20, $core],
             ['SMA', 'sma', null, [BillType::Registration->value => [['name' => 'Formulir', 'amount' => 150000]], BillType::Settlement->value => [['name' => 'Uang pangkal', 'amount' => 2500000]]], [['name' => 'Tes tulis', 'passing_score' => 70]], 20, [...$core, 'diploma' => 'required']],
-            ['Pesantren', 'pesantren', null, [BillType::Settlement->value => [['name' => 'Uang pangkal', 'amount' => 1500000]]], [['name' => 'Tes baca Al-Qur\'an', 'passing_score' => 60]], 20, ['family-card' => 'required', 'birth-certificate' => 'none', 'report-card' => 'none', 'diploma' => 'none']],
+            ['Pesantren', 'pesantren', null, [BillType::Settlement->value => [['name' => 'Uang pangkal', 'amount' => 1500000]]], [
+                ['name' => 'Literasi', 'passing_score' => 60],
+                ['name' => 'Numerasi', 'passing_score' => 60],
+                ['name' => 'Baca Al-Qur\'an (Yanbua)', 'scale' => 'good-only', 'passing_score' => 100],
+                ['name' => 'Hafalan surat pendek', 'scale' => 'memorized-fair', 'passing_score' => 50],
+                ['name' => 'Menulis Arab', 'scale' => 'able-only', 'passing_score' => 100],
+                ['name' => 'Membaca pegon', 'scale' => 'good-fair', 'passing_score' => 50],
+            ], 20, ['family-card' => 'required', 'birth-certificate' => 'none', 'report-card' => 'none', 'diploma' => 'none']],
             ['MI', 'mi', null, [BillType::Settlement->value => [['name' => 'Uang gedung', 'amount' => 1000000]]], [], null, ['family-card' => 'none', 'birth-certificate' => 'none', 'report-card' => 'none', 'diploma' => 'none']],
         ];
 
@@ -394,7 +402,7 @@ class DemoSeeder extends Seeder
     {
         foreach (RegistrantDocuments::requirements($registrant) as $requirement) {
             if ($requirement['required']) {
-                $this->attachDocument($registrant, $requirement['type'], range(1, $requirement['type']->maxFiles()));
+                $this->attachDocument($registrant, $requirement['kind']->key, range(1, $requirement['kind']->maxFiles));
             }
         }
     }
@@ -402,15 +410,17 @@ class DemoSeeder extends Seeder
     /**
      * @param  list<int>  $slots
      */
-    private function attachDocument(Registrant $registrant, DocumentType $type, array $slots = [1]): void
+    private function attachDocument(Registrant $registrant, DocumentType|string $type, array $slots = [1]): void
     {
+        $kind = DocumentKind::resolve($registrant, $type instanceof DocumentType ? $type->value : $type) ?? DocumentKind::builtin(DocumentType::OtherSupport);
+        $key = $kind->key;
         foreach ($slots as $slot) {
-            $path = "registrant-documents/{$registrant->id}/demo-{$type->value}-{$slot}.pdf";
+            $path = "registrant-documents/{$registrant->id}/demo-{$key}-{$slot}.pdf";
             Storage::disk(RegistrantDocument::DISK)->put($path, self::PLACEHOLDER_PDF);
 
             RegistrantDocument::query()->updateOrCreate(
-                ['registrant_id' => $registrant->id, 'type' => $type, 'slot' => $slot],
-                ['path' => $path, 'original_name' => $type->slotLabel($slot).'.pdf', 'mime_type' => 'application/pdf', 'size' => strlen(self::PLACEHOLDER_PDF)],
+                ['registrant_id' => $registrant->id, 'type' => $key, 'slot' => $slot],
+                ['path' => $path, 'original_name' => $kind->slotLabel($slot).'.pdf', 'mime_type' => 'application/pdf', 'size' => strlen(self::PLACEHOLDER_PDF)],
             );
         }
     }

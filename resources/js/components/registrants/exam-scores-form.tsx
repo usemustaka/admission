@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { toastFirstError } from '@/hooks/use-flash-toast';
+import { levelsOf } from '@/lib/exam-scale';
 import { scores as scoresRoute } from '@/routes/admin/registrants';
 import type { ExamResultData } from '@/types/registrant';
 
@@ -114,32 +115,63 @@ export function ExamScoresForm({
                             {aspect.name}
                             <span className="font-normal text-muted-foreground">
                                 {' '}
-                                (KKM {aspect.passing_score})
+                                (KKM {aspect.passing_label})
                             </span>
                         </Label>
                         <div className="flex items-center gap-3">
-                            <Input
-                                id={`score-${index}`}
-                                type="number"
-                                min={0}
-                                max={100}
-                                inputMode="numeric"
-                                disabled={!canEdit}
-                                value={values[index] ?? ''}
-                                aria-invalid={Boolean(
-                                    errors[`scores.${index}`],
-                                )}
-                                onChange={(event) =>
-                                    setValues((current) =>
-                                        current.map((value, i) =>
-                                            i === index
-                                                ? event.target.value
-                                                : value,
-                                        ),
-                                    )
-                                }
-                                className="max-w-32"
-                            />
+                            {levelsOf(aspect.scale).length > 0 ? (
+                                <select
+                                    id={`score-${index}`}
+                                    disabled={!canEdit}
+                                    value={values[index] ?? ''}
+                                    aria-invalid={Boolean(
+                                        errors[`scores.${index}`],
+                                    )}
+                                    onChange={(event) =>
+                                        setValues((current) =>
+                                            current.map((value, i) =>
+                                                i === index
+                                                    ? event.target.value
+                                                    : value,
+                                            ),
+                                        )
+                                    }
+                                    className="h-10 w-40 rounded-md border border-input bg-background px-3"
+                                >
+                                    <option value="">Pilih</option>
+                                    {levelsOf(aspect.scale).map((level) => (
+                                        <option
+                                            key={level.value}
+                                            value={String(level.value)}
+                                        >
+                                            {level.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <Input
+                                    id={`score-${index}`}
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    inputMode="numeric"
+                                    disabled={!canEdit}
+                                    value={values[index] ?? ''}
+                                    aria-invalid={Boolean(
+                                        errors[`scores.${index}`],
+                                    )}
+                                    onChange={(event) =>
+                                        setValues((current) =>
+                                            current.map((value, i) =>
+                                                i === index
+                                                    ? event.target.value
+                                                    : value,
+                                            ),
+                                        )
+                                    }
+                                    className="max-w-32"
+                                />
+                            )}
                             {aspect.passed !== null && (
                                 <Badge
                                     variant={

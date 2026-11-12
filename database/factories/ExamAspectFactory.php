@@ -19,6 +19,7 @@ class ExamAspectFactory extends Factory
         return [
             'ruleset_id' => Ruleset::factory(),
             'name' => fake()->unique()->word(),
+            'scale' => 'number',
             'passing_score' => 60,
             'sort_order' => 0,
         ];

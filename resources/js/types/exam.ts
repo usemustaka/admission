@@ -42,7 +42,11 @@ export type RosterRow = {
     contact: { name: string; phone: string; whatsapp_url: string } | null;
 };
 
-export type GridAspect = { name: string; passing_score: number };
+export type GridAspect = {
+    name: string;
+    scale?: string;
+    passing_score: number;
+};
 
 export type GridRow = {
     id: number;
