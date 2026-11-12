@@ -33,7 +33,7 @@ test('only PDF, JPG and PNG files up to 2 MB are accepted', function () {
     $this->actingAs(userWithRole(DefaultRole::Admin));
 
     $this->post(route('admin.organizations.store'), ['name' => 'X', 'code' => 'x', 'brochure' => UploadedFile::fake()->create('brosur.docx', 20, 'application/msword')])->assertSessionHasErrors('brochure');
-    $this->post(route('admin.organizations.store'), ['name' => 'X', 'code' => 'x', 'brochure' => UploadedFile::fake()->create('besar.pdf', 1200, 'application/pdf')])->assertSessionHasErrors('brochure');
+    $this->post(route('admin.organizations.store'), ['name' => 'X', 'code' => 'x', 'brochure' => UploadedFile::fake()->create('besar.pdf', 2100, 'application/pdf')])->assertSessionHasErrors('brochure');
 });
 
 test('replacing a brochure deletes the old file, and saving without one keeps it', function () {
