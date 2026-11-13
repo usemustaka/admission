@@ -43,7 +43,7 @@ enum DocumentType: string implements HasLabel
         return match ($this) {
             self::ReportCard => 5,
             self::AchievementCertificate, self::OtherSupport => 5,
-            self::TahfidzCertificate => 3,
+            self::TahfidzCertificate => 2,
             default => 1,
         };
     }

@@ -20,6 +20,7 @@ export function OptionSelect({
     anyLabel,
     placeholder = 'Pilih',
     className,
+    ref,
     ...props
 }: {
     value: string;
@@ -34,7 +35,11 @@ export function OptionSelect({
             value={value === '' && anyLabel ? ANY : value || undefined}
             onValueChange={(next) => onValueChange(next === ANY ? '' : next)}
         >
-            <SelectTrigger className={cn('w-full', className)} {...props}>
+            <SelectTrigger
+                ref={ref}
+                className={cn('w-full', className)}
+                {...props}
+            >
                 <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>

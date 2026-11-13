@@ -3,6 +3,7 @@ import { Check, Save, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { toast } from 'sonner';
+import { OptionSelect } from '@/components/option-select';
 import { PersonAvatar } from '@/components/person-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -76,7 +77,7 @@ export function ScoreGrid({
     const [confirmAnnounced, setConfirmAnnounced] = useState(false);
     const [processing, setProcessing] = useState(false);
     const inputs = useRef(
-        new Map<string, HTMLInputElement | HTMLSelectElement>(),
+        new Map<string, HTMLInputElement | HTMLButtonElement>(),
     );
 
     const changedCells = (row: GridRow): Record<number, number | null> => {
@@ -335,7 +336,7 @@ export function ScoreGrid({
                                             <TableCell key={column}>
                                                 {levelsOf(aspect.scale).length >
                                                 0 ? (
-                                                    <select
+                                                    <OptionSelect
                                                         ref={(element) => {
                                                             const key = `${rowIndex}:${column}`;
 
@@ -356,12 +357,13 @@ export function ScoreGrid({
                                                             !available
                                                         }
                                                         value={text}
-                                                        onChange={(event) =>
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
                                                             setCell(
                                                                 row,
                                                                 column,
-                                                                event.target
-                                                                    .value,
+                                                                value,
                                                             )
                                                         }
                                                         onKeyDown={(event) =>
@@ -371,32 +373,23 @@ export function ScoreGrid({
                                                                 column,
                                                             )
                                                         }
+                                                        options={levelsOf(
+                                                            aspect.scale,
+                                                        )}
+                                                        anyLabel="-"
+                                                        placeholder="-"
+                                                        aria-invalid={
+                                                            outOfRange ||
+                                                            Boolean(error)
+                                                        }
                                                         className={cn(
-                                                            'h-10 w-28 rounded-md border border-input bg-background px-2 text-center',
+                                                            'w-28',
                                                             text !== '' &&
                                                                 Number(text) <
                                                                     kkm &&
                                                                 'font-semibold text-destructive-foreground',
                                                         )}
-                                                    >
-                                                        <option value="">
-                                                            -
-                                                        </option>
-                                                        {levelsOf(
-                                                            aspect.scale,
-                                                        ).map((level) => (
-                                                            <option
-                                                                key={
-                                                                    level.value
-                                                                }
-                                                                value={String(
-                                                                    level.value,
-                                                                )}
-                                                            >
-                                                                {level.label}
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                                    />
                                                 ) : (
                                                     <Input
                                                         ref={(element) => {

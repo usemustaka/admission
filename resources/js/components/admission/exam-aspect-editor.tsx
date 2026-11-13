@@ -3,6 +3,13 @@ import { Plus, Trash2 } from 'lucide-react';
 import { newRowKey } from '@/components/admission/row-key';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { passingLevels, SCALE_OPTIONS } from '@/lib/exam-scale';
 import { examAspects } from '@/routes/admin/rulesets';
@@ -78,13 +85,10 @@ export function ExamAspectEditor({
                         )}
                     </div>
                     <div className="grid gap-1">
-                        <select
-                            aria-label="Jenis penilaian"
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        <Select
                             value={aspect.scale}
                             disabled={!canEdit}
-                            onChange={(e) => {
-                                const scale = e.target.value;
+                            onValueChange={(scale) => {
                                 const levels = passingLevels(scale);
 
                                 setAspects(
@@ -103,43 +107,58 @@ export function ExamAspectEditor({
                                 );
                             }}
                         >
-                            {SCALE_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
+                            <SelectTrigger
+                                aria-label="Jenis penilaian"
+                                className="w-full"
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {SCALE_OPTIONS.map((option) => (
+                                    <SelectItem
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="grid gap-1">
                         {passingLevels(aspect.scale).length > 0 ? (
-                            <select
-                                aria-label="KKM"
-                                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                            <Select
                                 value={String(aspect.passing_score)}
                                 disabled={!canEdit}
-                                onChange={(e) =>
+                                onValueChange={(passing_score) =>
                                     setAspects(
                                         form.data.aspects.map((row, i) =>
                                             i === index
-                                                ? {
-                                                      ...row,
-                                                      passing_score:
-                                                          e.target.value,
-                                                  }
+                                                ? { ...row, passing_score }
                                                 : row,
                                         ),
                                     )
                                 }
                             >
-                                {passingLevels(aspect.scale).map((level) => (
-                                    <option
-                                        key={level.value}
-                                        value={String(level.value)}
-                                    >
-                                        Minimal {level.label}
-                                    </option>
-                                ))}
-                            </select>
+                                <SelectTrigger
+                                    aria-label="KKM"
+                                    className="w-full"
+                                >
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {passingLevels(aspect.scale).map(
+                                        (level) => (
+                                            <SelectItem
+                                                key={level.value}
+                                                value={String(level.value)}
+                                            >
+                                                Minimal {level.label}
+                                            </SelectItem>
+                                        ),
+                                    )}
+                                </SelectContent>
+                            </Select>
                         ) : (
                             <Input
                                 aria-label="KKM"

@@ -2,6 +2,7 @@ import { router, usePage } from '@inertiajs/react';
 import { Check, X } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { OptionSelect } from '@/components/option-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -120,34 +121,25 @@ export function ExamScoresForm({
                         </Label>
                         <div className="flex items-center gap-3">
                             {levelsOf(aspect.scale).length > 0 ? (
-                                <select
+                                <OptionSelect
                                     id={`score-${index}`}
-                                    disabled={!canEdit}
+                                    className="w-40"
                                     value={values[index] ?? ''}
-                                    aria-invalid={Boolean(
-                                        errors[`scores.${index}`],
-                                    )}
-                                    onChange={(event) =>
+                                    onValueChange={(value) =>
                                         setValues((current) =>
-                                            current.map((value, i) =>
-                                                i === index
-                                                    ? event.target.value
-                                                    : value,
+                                            current.map((item, i) =>
+                                                i === index ? value : item,
                                             ),
                                         )
                                     }
-                                    className="h-10 w-40 rounded-md border border-input bg-background px-3"
-                                >
-                                    <option value="">Pilih</option>
-                                    {levelsOf(aspect.scale).map((level) => (
-                                        <option
-                                            key={level.value}
-                                            value={String(level.value)}
-                                        >
-                                            {level.label}
-                                        </option>
-                                    ))}
-                                </select>
+                                    options={levelsOf(aspect.scale)}
+                                    anyLabel="Pilih"
+                                    placeholder="Pilih"
+                                    disabled={!canEdit}
+                                    aria-invalid={Boolean(
+                                        errors[`scores.${index}`],
+                                    )}
+                                />
                             ) : (
                                 <Input
                                     id={`score-${index}`}

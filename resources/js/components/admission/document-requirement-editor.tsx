@@ -1,17 +1,24 @@
-import { useForm } from '@inertiajs/react';
-import { Plus, Trash2 } from 'lucide-react';
-import { newRowKey } from '@/components/admission/row-key';
-import { ChoiceCardGroup } from '@/components/choice-card-group';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
-import { documents as saveDocuments } from '@/routes/admin/rulesets';
+import { useForm } from "@inertiajs/react";
+import { Plus, Trash2 } from "lucide-react";
+import { newRowKey } from "@/components/admission/row-key";
+import { ChoiceCardGroup } from "@/components/choice-card-group";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { documents as saveDocuments } from "@/routes/admin/rulesets";
 
 export type DocumentRequirementRow = {
     type: string;
     label: string;
-    group: 'core' | 'supporting';
-    choice: 'none' | 'optional' | 'required';
+    group: "core" | "supporting";
+    choice: "none" | "optional" | "required";
 };
 
 export type CustomDocumentRow = {
@@ -20,16 +27,16 @@ export type CustomDocumentRow = {
     rowKey?: string;
     label: string;
     max_files: number | string;
-    choice: 'optional' | 'required';
+    choice: "optional" | "required";
 };
 
 const choices = [
-    { value: 'none', label: 'Tidak diminta' },
-    { value: 'optional', label: 'Opsional' },
-    { value: 'required', label: 'Wajib' },
+    { value: "none", label: "Tidak diminta" },
+    { value: "optional", label: "Opsional" },
+    { value: "required", label: "Wajib" },
 ];
 
-const customChoices = choices.filter((choice) => choice.value !== 'none');
+const customChoices = choices.filter((choice) => choice.value !== "none");
 
 export function DocumentRequirementEditor({
     rulesetId,
@@ -54,10 +61,10 @@ export function DocumentRequirementEditor({
     const errors = form.errors as Record<string, string>;
 
     function setCustom(custom: CustomDocumentRow[]) {
-        form.setData('custom', custom);
+        form.setData("custom", custom);
     }
 
-    function renderBuiltin(group: 'core' | 'supporting') {
+    function renderBuiltin(group: "core" | "supporting") {
         return initial
             .filter((row) => row.group === group)
             .map((row) => (
@@ -68,7 +75,7 @@ export function DocumentRequirementEditor({
                             columns={3}
                             value={form.data.documents[row.type]}
                             onValueChange={(choice) =>
-                                form.setData('documents', {
+                                form.setData("documents", {
                                     ...form.data.documents,
                                     [row.type]: choice,
                                 })
@@ -97,7 +104,7 @@ export function DocumentRequirementEditor({
                 Perubahan hanya berlaku untuk anak yang mendaftar setelah ini.
             </p>
 
-            <div className="grid gap-5">{renderBuiltin('core')}</div>
+            <div className="grid gap-5">{renderBuiltin("core")}</div>
 
             <div className="grid gap-5 border-t border-line pt-5">
                 <div className="grid gap-1">
@@ -109,7 +116,7 @@ export function DocumentRequirementEditor({
                         yang dipakai lembaga ini.
                     </p>
                 </div>
-                {renderBuiltin('supporting')}
+                {renderBuiltin("supporting")}
             </div>
 
             <div className="grid gap-4 border-t border-line pt-5">
@@ -166,6 +173,7 @@ export function DocumentRequirementEditor({
                             min={1}
                             max={10}
                             inputMode="numeric"
+                            placeholder="Maks"
                             title="Berapa berkas yang bisa diunggah"
                             value={row.max_files}
                             disabled={!canEdit}
@@ -182,31 +190,39 @@ export function DocumentRequirementEditor({
                                 )
                             }
                         />
-                        <select
-                            aria-label="Sifat berkas"
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        <Select
                             value={row.choice}
                             disabled={!canEdit}
-                            onChange={(event) =>
+                            onValueChange={(choice) =>
                                 setCustom(
                                     form.data.custom.map((item, i) =>
                                         i === index
                                             ? {
                                                   ...item,
-                                                  choice: event.target
-                                                      .value as CustomDocumentRow['choice'],
+                                                  choice: choice as CustomDocumentRow["choice"],
                                               }
                                             : item,
                                     ),
                                 )
                             }
                         >
-                            {customChoices.map((choice) => (
-                                <option key={choice.value} value={choice.value}>
-                                    {choice.label}
-                                </option>
-                            ))}
-                        </select>
+                            <SelectTrigger
+                                aria-label="Sifat berkas"
+                                className="w-full"
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {customChoices.map((choice) => (
+                                    <SelectItem
+                                        key={choice.value}
+                                        value={choice.value}
+                                    >
+                                        {choice.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         {canEdit && (
                             <Button
                                 type="button"
@@ -238,9 +254,9 @@ export function DocumentRequirementEditor({
                                 ...form.data.custom,
                                 {
                                     rowKey: newRowKey(),
-                                    label: '',
+                                    label: "",
                                     max_files: 1,
-                                    choice: 'optional',
+                                    choice: "optional",
                                 },
                             ])
                         }
